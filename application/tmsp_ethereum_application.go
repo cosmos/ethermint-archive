@@ -3,16 +3,18 @@ package application
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
+	"math/big"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/tendermint/tmsp/types"
-	"math/big"
-	"sync"
-
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/kobigurk/tmsp-ethereum/backend"
+	"github.com/tendermint/tmsp/types"
 )
 
 // TMSPEthereumApplication implements a TMSP application
@@ -23,13 +25,15 @@ type TMSPEthereumApplication struct {
 	currentBlockHash  []byte
 	currentBlockError error
 	currentTxPool     *core.TxPool
+	rpcClient         rpc.Client
 }
 
 // NewTMSPEthereumApplication creates the tmsp application for tmsp-ethereum
-func NewTMSPEthereumApplication(backend *backend.TMSPEthereumBackend) *TMSPEthereumApplication {
+func NewTMSPEthereumApplication(backend *backend.TMSPEthereumBackend, client rpc.Client) *TMSPEthereumApplication {
 	app := &TMSPEthereumApplication{
 		backend:     backend,
 		commitMutex: &sync.Mutex{},
+		rpcClient:   client,
 	}
 	app.currentTxPool = app.createNewTxPool()
 	return app
@@ -103,7 +107,22 @@ func (app *TMSPEthereumApplication) createNewTxPool() *core.TxPool {
 
 // Query queries the state of TMSPEthereumApplication
 func (app *TMSPEthereumApplication) Query(query []byte) types.Result {
-	return types.OK
+	var in rpc.JSONRequest
+	if err := json.Unmarshal(query, &in); err != nil {
+		return types.ErrInternalError
+	}
+	if err := app.rpcClient.Send(in); err != nil {
+		return types.ErrInternalError
+	}
+	result := make(map[string]interface{})
+	if err := app.rpcClient.Recv(&result); err != nil {
+		return types.ErrInternalError
+	}
+	bytes, err := json.Marshal(result)
+	if err != nil {
+		return types.ErrInternalError
+	}
+	return types.NewResultOK(bytes, "")
 }
 
 func decodeTx(txBytes []byte) (*ethTypes.Transaction, error) {

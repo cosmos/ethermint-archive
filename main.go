@@ -67,7 +67,11 @@ func tmspEthereumAction(ctx *cli.Context) error {
 	if err := stack.Service(&backend); err != nil {
 		utils.Fatalf("backend service not running: %v", err)
 	}
-	_, err := server.NewServer(addr, tmsp, application.NewTMSPEthereumApplication(backend))
+	client, err := stack.Attach()
+	if err != nil {
+		utils.Fatalf("Failed to attach to the inproc geth: %v", err)
+	}
+	_, err = server.NewServer(addr, tmsp, application.NewTMSPEthereumApplication(backend, client))
 	if err != nil {
 		os.Exit(1)
 	}
