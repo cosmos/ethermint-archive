@@ -45,7 +45,7 @@ func init() {
 		return nil
 	}
 
-	logger.AddLogSystem(logger.NewStdLogSystem(os.Stdout, log.LstdFlags, logger.InfoLevel))
+	logger.AddLogSystem(logger.NewStdLogSystem(os.Stdout, log.LstdFlags, logger.DebugLevel))
 	glog.SetToStderr(true)
 }
 

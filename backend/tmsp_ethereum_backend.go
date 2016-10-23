@@ -18,13 +18,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/kobigurk/tmsp-ethereum/processor"
 	client "github.com/tendermint/go-rpc/client"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	core_types "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 // TMSPEthereumBackend handles the chain database and VM
 type TMSPEthereumBackend struct {
 	ethereum *eth.Ethereum
-	eventMux *event.TypeMux
 	txSub    event.Subscription
 	client   *client.ClientURI
 	config   *eth.Config
@@ -40,6 +39,22 @@ func setFakePow(ethereum *eth.Ethereum) {
 	*realPtrToPow = powToSet
 }
 
+func (s *TMSPEthereumBackend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+	mux := new(event.TypeMux)
+	s.txSub = mux.Subscribe(core.TxPreEvent{})
+	pointerVal := reflect.ValueOf(txPoolAPI)
+	val := reflect.Indirect(pointerVal)
+	member := val.FieldByName("txPool")
+	ptrToTxPool := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
+	pointerVal = reflect.ValueOf(*realPtrToTxPool)
+	val = reflect.Indirect(pointerVal)
+	member = val.FieldByName("eventMux")
+	ptrToEventMux := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToEventMux := (**event.TypeMux)(ptrToEventMux)
+	*realPtrToEventMux = mux
+}
+
 // New creates a new TMSPEthereumBackend
 func New(ctx *node.ServiceContext, config *eth.Config) (*TMSPEthereumBackend, error) {
 	ethereum, err := eth.New(ctx, config)
@@ -50,9 +65,7 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*TMSPEthereumBackend, er
 	ethereum.BlockChain().SetValidator(processor.NullBlockProcessor{})
 	tmspBackend := &TMSPEthereumBackend{
 		ethereum: ethereum,
-		eventMux: ethereum.EventMux(),
 		client:   client.NewClientURI("tcp://localhost:46657"),
-		txSub:    ethereum.EventMux().Subscribe(core.TxPreEvent{}),
 		config:   config,
 		//		client: client.NewClientURI(fmt.Sprintf("http://%s", ctx.String(TendermintCoreHostFlag.Name))),
 	}
@@ -68,6 +81,10 @@ func (s *TMSPEthereumBackend) APIs() []rpc.API {
 		if v.Namespace == "net" {
 			continue
 		}
+		if txPoolAPI, ok := v.Service.(*eth.PublicTransactionPoolAPI); ok {
+			s.setFakeMuxTxPool(txPoolAPI)
+			go s.txBroadcastLoop()
+		}
 		retApis = append(retApis, v)
 	}
 	return retApis
@@ -77,7 +94,6 @@ func (s *TMSPEthereumBackend) APIs() []rpc.API {
 // Ethereum protocol implementation.
 func (s *TMSPEthereumBackend) Start(srvr *p2p.Server) error {
 	//	s.netRPCService = NewPublicNetAPI(srvr, s.NetVersion())
-	go s.txBroadcastLoop()
 	return nil
 }
 
@@ -100,7 +116,6 @@ func (s *TMSPEthereumBackend) Ethereum() *eth.Ethereum {
 }
 
 func (s *TMSPEthereumBackend) txBroadcastLoop() {
-	// automatically stops if unsubscribe
 	for obj := range s.txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		err := s.BroadcastTx(event.Tx)
@@ -110,7 +125,7 @@ func (s *TMSPEthereumBackend) txBroadcastLoop() {
 
 // BroadcastTx broadcasts a transaction to tendermint core
 func (s *TMSPEthereumBackend) BroadcastTx(tx *ethTypes.Transaction) error {
-	var result ctypes.TMResult
+	var result core_types.TMResult
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
 		return err

@@ -3,46 +3,41 @@ package application
 import (
 	"bytes"
 	"encoding/hex"
-	"math/big"
-	"sync"
-	"time"
-
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/tendermint/tmsp/types"
+	"math/big"
+	"sync"
 
 	"github.com/kobigurk/tmsp-ethereum/backend"
 )
 
 // TMSPEthereumApplication implements a TMSP application
 type TMSPEthereumApplication struct {
-	backend             *backend.TMSPEthereumBackend
-	currentTransactions []*ethTypes.Transaction
-	currentState        *state.StateDB
-	commitMutex         *sync.Mutex
+	backend           *backend.TMSPEthereumBackend
+	commitMutex       *sync.Mutex
+	currentHeader     *types.Header
+	currentBlockHash  []byte
+	currentBlockError error
+	currentTxPool     *core.TxPool
 }
 
 // NewTMSPEthereumApplication creates the tmsp application for tmsp-ethereum
 func NewTMSPEthereumApplication(backend *backend.TMSPEthereumBackend) *TMSPEthereumApplication {
-	state, err := backend.Ethereum().BlockChain().State()
-	if err != nil {
-		panic(err)
+	app := &TMSPEthereumApplication{
+		backend:     backend,
+		commitMutex: &sync.Mutex{},
 	}
-	return &TMSPEthereumApplication{
-		backend:             backend,
-		currentTransactions: []*ethTypes.Transaction{},
-		commitMutex:         &sync.Mutex{},
-		currentState:        state,
-	}
+	app.currentTxPool = app.createNewTxPool()
+	return app
 }
 
 // Info returns information about TMSPEthereumApplication to the tendermint engine
-func (app *TMSPEthereumApplication) Info() string {
-	return "TMSPEthereum"
+func (app *TMSPEthereumApplication) Info() (string, *types.TMSPInfo, *types.LastBlockInfo, *types.ConfigInfo) {
+	return "TMSPEthereum", nil, nil, nil
 }
 
 // SetOption sets a configuration option for TMSPEthereumApplication
@@ -60,29 +55,25 @@ func (app *TMSPEthereumApplication) AppendTx(txBytes []byte) types.Result {
 	if err != nil {
 		return types.ErrEncodingError
 	}
-	app.currentTransactions = append(app.currentTransactions, tx)
+	txpool := app.backend.Ethereum().TxPool()
+	txpool.SetLocal(tx)
+	if err := txpool.Add(tx); err != nil {
+		return types.ErrInternalError
+	}
 	return types.OK
 }
 
 // CheckTx checks a transaction is valid but does not mutate the state
 func (app *TMSPEthereumApplication) CheckTx(txBytes []byte) types.Result {
 	glog.V(logger.Debug).Infof("Check tx")
-	totalUsedGas := big.NewInt(0)
 
 	tx, err := decodeTx(txBytes)
 	if err != nil {
 		return types.ErrEncodingError
 	}
-
-	statedb := app.currentState
-	blockchain := app.backend.Ethereum().BlockChain()
-	header, err := app.createIntermediateBlockHeader()
-	if err != nil {
-		return types.ErrInternalError
-	}
-	chainConfig := app.backend.Config().ChainConfig
-	_, _, _, err = core.ApplyTransaction(chainConfig, blockchain, new(core.GasPool).AddGas(header.GasLimit), statedb, header, tx, totalUsedGas, chainConfig.VmConfig)
-	if err != nil {
+	txpool := app.currentTxPool
+	txpool.SetLocal(tx)
+	if err := txpool.Add(tx); err != nil {
 		return types.ErrInternalError
 	}
 	return types.OK
@@ -93,40 +84,21 @@ func (app *TMSPEthereumApplication) Commit() types.Result {
 	app.commitMutex.Lock()
 	defer app.commitMutex.Unlock()
 
-	header, err := app.createIntermediateBlockHeader()
-	if err != nil {
-		return types.ErrInternalError
-	}
-	block := ethTypes.NewBlock(header, app.currentTransactions, nil, nil)
-	blockchain := app.backend.Ethereum().BlockChain()
-	state, err := blockchain.State()
-	if err != nil {
-		return types.ErrInternalError
-	}
-	receipts, _, totalGasUsed, _ := blockchain.Processor().Process(block, state, app.backend.Config().ChainConfig.VmConfig)
-	header.GasUsed = totalGasUsed
-	header.Root = state.IntermediateRoot()
-	block = ethTypes.NewBlock(header, app.currentTransactions, nil, receipts)
-	blockHash := block.Hash()
-
-	glog.V(logger.Debug).Infof("Writing block: %s", hex.EncodeToString(blockHash[:]))
-	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
-	if err != nil {
-		glog.V(logger.Error).Infof("Writing block, err: %s", err)
+	if app.currentBlockError != nil {
+		glog.V(logger.Debug).Infof("Commit error %v", app.currentBlockError)
 		return types.ErrInternalError
 	}
 
-	hashArray, err := state.Commit()
-	hash := hashArray[:]
-	if err != nil {
-		return types.ErrInternalError
-	}
-	glog.V(logger.Debug).Infof("Committing %s", hex.EncodeToString(hash))
+	glog.V(logger.Debug).Infof("Commit")
+	hash := app.backend.Ethereum().BlockChain().CurrentBlock().Hash()
+	glog.V(logger.Debug).Infof("Committing %v", hash)
 
-	app.backend.Ethereum().TxPool().RemoveBatch(app.currentTransactions)
-	app.currentTransactions = []*ethTypes.Transaction{}
-	app.currentState = state
-	return types.OK
+	app.currentTxPool = app.createNewTxPool()
+	return types.NewResultOK(hash[:], "")
+}
+
+func (app *TMSPEthereumApplication) createNewTxPool() *core.TxPool {
+	return core.NewTxPool(app.backend.Config().ChainConfig, app.backend.Ethereum().EventMux(), app.backend.Ethereum().BlockChain().State, app.backend.Ethereum().BlockChain().GasLimit)
 }
 
 // Query queries the state of TMSPEthereumApplication
@@ -146,14 +118,77 @@ func decodeTx(txBytes []byte) (*ethTypes.Transaction, error) {
 func (app *TMSPEthereumApplication) createIntermediateBlockHeader() (*ethTypes.Header, error) {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
-	tstart := time.Now()
-	tstamp := tstart.Unix()
+	var tstamp big.Int
+	tstamp.SetUint64(app.currentHeader.Time)
 	header := &ethTypes.Header{
 		Number:     currentBlock.Number().Add(currentBlock.Number(), big.NewInt(1)),
 		ParentHash: currentBlock.Hash(),
 		GasLimit:   core.CalcGasLimit(currentBlock),
-		Difficulty: core.CalcDifficulty(app.backend.Config().ChainConfig, uint64(tstamp), currentBlock.Time().Uint64(), currentBlock.Number(), currentBlock.Difficulty()),
-		Time:       big.NewInt(tstamp),
+		Difficulty: core.CalcDifficulty(app.backend.Config().ChainConfig, app.currentHeader.Time, currentBlock.Time().Uint64(), currentBlock.Number(), currentBlock.Difficulty()),
+		Time:       &tstamp,
 	}
 	return header, nil
+}
+
+// BeginBlock starts a new Ethereum block
+func (app *TMSPEthereumApplication) BeginBlock(hash []byte, header *types.Header) {
+	app.commitMutex.Lock()
+	defer app.commitMutex.Unlock()
+
+	glog.V(logger.Debug).Infof("Begin block")
+
+	app.currentHeader = header
+	app.currentBlockHash = hash
+}
+
+// EndBlock adds the block to chain db
+func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Validator) {
+
+	glog.V(logger.Debug).Infof("End block")
+
+	header, err := app.createIntermediateBlockHeader()
+	if err != nil {
+		app.currentBlockError = types.ErrInternalError
+		return
+	}
+	pendingPerAddress := app.backend.Ethereum().TxPool().Pending()
+	pending := []*ethTypes.Transaction{}
+	for _, v := range pendingPerAddress {
+		pending = append(pending, v...)
+	}
+	block := ethTypes.NewBlock(header, pending, nil, nil)
+	blockchain := app.backend.Ethereum().BlockChain()
+	state, err := blockchain.State()
+	if err != nil {
+		app.currentBlockError = types.ErrInternalError
+		return
+	}
+
+	receipts, _, totalGasUsed, _ := blockchain.Processor().Process(block, state, app.backend.Config().ChainConfig.VmConfig)
+	header.GasUsed = totalGasUsed
+	header.Root = state.IntermediateRoot()
+	block = ethTypes.NewBlock(header, pending, nil, receipts)
+	blockHash := block.Hash()
+
+	glog.V(logger.Debug).Infof("Writing block: %s", hex.EncodeToString(blockHash[:]))
+	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
+	if err != nil {
+		app.currentBlockError = types.ErrInternalError
+		return
+	}
+
+	hashArray, err := state.Commit()
+	hash := hashArray[:]
+	if err != nil {
+		app.currentBlockError = types.ErrInternalError
+		return
+	}
+	glog.V(logger.Debug).Infof("Committing %s", hex.EncodeToString(hash))
+
+	//	app.backend.Ethereum().TxPool().RemoveBatch(app.currentTransactions)
+	return nil
+}
+
+// InitChain does nothing
+func (app *TMSPEthereumApplication) InitChain(validators []*types.Validator) {
 }
