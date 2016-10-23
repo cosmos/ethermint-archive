@@ -1,0 +1,40 @@
+package: .
+import:
+- package: github.com/ethereum/go-ethereum
+  subpackages:
+  - cmd/utils
+  - common
+  - core
+  - core/state
+  - core/types
+  - eth
+  - event
+  - logger
+  - logger/glog
+  - node
+  - p2p
+  - pow
+  - rlp
+  - rpc
+- package: github.com/kobigurk/tmsp-ethereum
+  subpackages:
+  - application
+  - backend
+  - node
+  - processor
+- package: github.com/tendermint/go-rpc
+  subpackages:
+  - client
+  version: develop
+- package: github.com/tendermint/tendermint
+  subpackages:
+  - rpc/core/types
+  version: handshake
+  vcs: git
+  repo: http://github.com/kobigurk/tendermint
+- package: github.com/tendermint/tmsp
+  subpackages:
+  - server
+  - types
+  version: info_and_header
+- package: gopkg.in/urfave/cli.v1

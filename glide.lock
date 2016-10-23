@@ -1,0 +1,248 @@
+hash: 4555ec074f14a46251770be57d718ea8a285cd43c0c52f0fcfac625cc601af70
+updated: 2016-10-23T21:45:08.145484665+03:00
+imports:
+- name: github.com/btcsuite/btcd
+  version: 2ef82e7db35dc8c499fa9091d768dc99bbaff893
+  subpackages:
+  - btcec
+- name: github.com/btcsuite/fastsha256
+  version: 637e656429416087660c84436a2a035d69d54e2e
+- name: github.com/BurntSushi/toml
+  version: 99064174e013895bbd9b025c31100bd1d9b590ca
+- name: github.com/ethereum/ethash
+  version: 2e80de5022370cfe632195b1720db52d07ff8a77
+- name: github.com/ethereum/go-ethereum
+  version: c72f5459ac110de47fa068bfa560164078508b1e
+  subpackages:
+  - accounts
+  - accounts/abi
+  - accounts/abi/bind
+  - cmd/utils
+  - common
+  - common/compiler
+  - common/httpclient
+  - common/registrar
+  - common/registrar/ethreg
+  - core
+  - core/state
+  - core/types
+  - core/vm
+  - crypto
+  - crypto/ecies
+  - crypto/randentropy
+  - crypto/secp256k1
+  - crypto/sha3
+  - eth
+  - eth/downloader
+  - eth/fetcher
+  - eth/filters
+  - ethdb
+  - event
+  - event/filter
+  - internal/debug
+  - logger
+  - logger/glog
+  - metrics
+  - miner
+  - node
+  - p2p
+  - p2p/discover
+  - p2p/nat
+  - params
+  - pow
+  - release
+  - rlp
+  - rpc
+  - trie
+  - whisper
+- name: github.com/go-stack/stack
+  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+- name: github.com/golang/protobuf
+  version: 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
+  subpackages:
+  - proto
+- name: github.com/golang/snappy
+  version: 799c780093d646c1b79d30894e22512c319fa137
+- name: github.com/gorilla/websocket
+  version: a69d25be2fe2923a97c2af6849b2f52426f68fc0
+- name: github.com/Gustav-Simonsson/go-opencl
+  version: 593e01cfc4f3353585015321e01951d4a907d3ef
+  subpackages:
+  - cl
+- name: github.com/hashicorp/golang-lru
+  version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
+  subpackages:
+  - simplelru
+- name: github.com/huin/goupnp
+  version: 46bde78b11f3f021f2a511df138be9e2fc7506e8
+  subpackages:
+  - dcps/internetgateway1
+  - dcps/internetgateway2
+  - httpu
+  - scpd
+  - soap
+  - ssdp
+- name: github.com/jackpal/gateway
+  version: 192609c58b8985e645cbe82ddcb28a4362ca0fdc
+- name: github.com/jackpal/go-nat-pmp
+  version: 46523a463303c6ede3ddfe45bde1c7ed52ebaacd
+- name: github.com/kobigurk/tmsp-ethereum
+  version: 0767009edb9c0337d7ab39737150b03b6c45f679
+  subpackages:
+  - application
+  - backend
+  - node
+  - processor
+- name: github.com/mattn/go-colorable
+  version: 9fdad7c47650b7d2e1da50644c1f4ba7f172f252
+- name: github.com/mattn/go-isatty
+  version: 56b76bdf51f7708750eac80fa38b952bb9f32639
+- name: github.com/microsoft/go-winio
+  version: 9e2895e5f6c3f16473b91d37fae6e89990a4520c
+- name: github.com/pborman/uuid
+  version: 0f1a46960a86dcdf5dd30d3e6568a497a997909f
+- name: github.com/rcrowley/go-metrics
+  version: 51425a2415d21afadfd55cd93432c0bc69e9598d
+  subpackages:
+  - exp
+- name: github.com/rjeczalik/notify
+  version: f627deca7a510d96f0ef9388f2d0e8b16d21f87f
+- name: github.com/rs/cors
+  version: 5950cf11d77f8a61b432a25dd4d444b4ced01379
+- name: github.com/rs/xhandler
+  version: d9d9599b6aaf6a058cb7b1f48291ded2cbd13390
+- name: github.com/syndtr/goleveldb
+  version: 917f41c560270110ceb73c5b38be2a9127387071
+  subpackages:
+  - leveldb
+  - leveldb/cache
+  - leveldb/comparer
+  - leveldb/errors
+  - leveldb/filter
+  - leveldb/iterator
+  - leveldb/journal
+  - leveldb/memdb
+  - leveldb/opt
+  - leveldb/storage
+  - leveldb/table
+  - leveldb/util
+- name: github.com/tendermint/ed25519
+  version: 1f52c6f8b8a5c7908aff4497c186af344b428925
+  subpackages:
+  - edwards25519
+  - extra25519
+- name: github.com/tendermint/flowcontrol
+  version: 84d9671090430e8ec80e35b339907e0579b999eb
+- name: github.com/tendermint/go-common
+  version: 47e06734f6ee488cc2e61550a38642025e1d4227
+- name: github.com/tendermint/go-config
+  version: e64b424499acd0eb9856b88e10c0dff41628c0d6
+- name: github.com/tendermint/go-crypto
+  version: 4b11d62bdb324027ea01554e5767b71174680ba0
+- name: github.com/tendermint/go-db
+  version: 31fdd21c7eaeed53e0ea7ca597fb1e960e2988a5
+- name: github.com/tendermint/go-events
+  version: 48fa21511b259278b871a37b6951da2d5bef698d
+- name: github.com/tendermint/go-logger
+  version: cefb3a45c0bf3c493a04e9bcd9b1540528be59f2
+- name: github.com/tendermint/go-merkle
+  version: 05042c6ab9cad51d12e4cecf717ae68e3b1409a8
+- name: github.com/tendermint/go-p2p
+  version: f508f3f20b5bb36f03d3bc83647b7a92425139d1
+  subpackages:
+  - upnp
+- name: github.com/tendermint/go-rpc
+  version: 855255d73eecd25097288be70f3fb208a5817d80
+  subpackages:
+  - client
+  - types
+- name: github.com/tendermint/go-wire
+  version: 3b0adbc86ed8425eaed98516165b6788d9f4de7a
+- name: github.com/tendermint/log15
+  version: 9545b249b3aacafa97f79e0838b02b274adc6f5f
+  subpackages:
+  - term
+- name: github.com/tendermint/tendermint
+  version: fb0c3ebc214a4555eb6ad3e1f3912bf0c6961d72
+  repo: http://github.com/kobigurk/tendermint
+  vcs: git
+  subpackages:
+  - rpc/core/types
+  - types
+- name: github.com/tendermint/tmsp
+  version: b1f70b35c402d009fc934ac28a05a99847d4556f
+  subpackages:
+  - server
+  - types
+- name: golang.org/x/crypto
+  version: 1f22c0103821b9390939b6776727195525381532
+  subpackages:
+  - curve25519
+  - nacl/box
+  - nacl/secretbox
+  - openpgp/armor
+  - openpgp/errors
+  - pbkdf2
+  - poly1305
+  - ripemd160
+  - salsa20/salsa
+  - scrypt
+- name: golang.org/x/net
+  version: 8968c61983e8f51a91b8c0ef25bf739278c89634
+  subpackages:
+  - context
+  - html
+  - html/atom
+  - html/charset
+  - http2
+  - http2/hpack
+  - internal/timeseries
+  - trace
+  - websocket
+- name: golang.org/x/sys
+  version: 50c6bc5e4292a1d4e65c6e9be5f53be28bcbe28e
+  subpackages:
+  - unix
+- name: golang.org/x/text
+  version: 09761194ac5034a97b2bfad4f5b896b0ac350b3e
+  subpackages:
+  - encoding
+  - encoding/charmap
+  - encoding/htmlindex
+  - encoding/internal
+  - encoding/internal/identifier
+  - encoding/japanese
+  - encoding/korean
+  - encoding/simplifiedchinese
+  - encoding/traditionalchinese
+  - encoding/unicode
+  - internal/tag
+  - internal/utf8internal
+  - language
+  - runes
+  - transform
+- name: golang.org/x/tools
+  version: 758728c4b28cfbac299730969ef8f655c4761283
+  subpackages:
+  - go/ast/astutil
+  - imports
+- name: google.golang.org/grpc
+  version: 28707e14b1d2b2f5da81474dea2790d71e526987
+  subpackages:
+  - codes
+  - credentials
+  - grpclog
+  - internal
+  - metadata
+  - naming
+  - peer
+  - transport
+- name: gopkg.in/fatih/set.v0
+  version: 27c40922c40b43fe04554d8223a402af3ea333f3
+- name: gopkg.in/karalabe/cookiejar.v2
+  version: 8dcd6a7f4951f6ff3ee9cbb919a06d8925822e57
+  subpackages:
+  - collections/prque
+- name: gopkg.in/urfave/cli.v1
+  version: 01857ac33766ce0c93856370626f9799281c14f4
+testImports: []
