@@ -1,4 +1,4 @@
-package: .
+package: github.com/kobigurk/tmsp-ethereum
 import:
 - package: github.com/ethereum/go-ethereum
   subpackages:
@@ -16,25 +16,23 @@ import:
   - pow
   - rlp
   - rpc
-- package: github.com/kobigurk/tmsp-ethereum
-  subpackages:
-  - application
-  - backend
-  - node
-  - processor
 - package: github.com/tendermint/go-rpc
+  version: develop
   subpackages:
   - client
-  version: develop
 - package: github.com/tendermint/tendermint
+  version: handshake
+  repo: http://github.com/kobigurk/tendermint
+  vcs: git
   subpackages:
   - rpc/core/types
-  version: handshake
-  vcs: git
-  repo: http://github.com/kobigurk/tendermint
 - package: github.com/tendermint/tmsp
+  version: info_and_header
   subpackages:
   - server
   - types
-  version: info_and_header
 - package: gopkg.in/urfave/cli.v1
+- package: google.golang.org/grpc
+  version: 2b7e876a2eb64e93cb8140f497d3ea9d8882279c
+- package: golang.org/x/net
+  version: c33d37840d93fc75251f49ab83c5fc8b2faea5e8
