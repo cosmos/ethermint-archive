@@ -17,7 +17,7 @@ import:
   - rlp
   - rpc
 - package: github.com/tendermint/go-rpc
-  version: develop
+  version: master
   subpackages:
   - client
 - package: github.com/tendermint/tendermint

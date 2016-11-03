@@ -1,5 +1,5 @@
-hash: 5d78ad496ad1a373ace4618ea3b60463e5d642825041b289ec87b9c57278f303
-updated: 2016-11-03T11:15:02.065968563+02:00
+hash: 3c752f2fedd092bdbe54713fc75b5557b40c58420e86a2d319ff4d52011136fa
+updated: 2016-11-03T11:45:31.776015748+02:00
 imports:
 - name: github.com/btcsuite/btcd
   version: b8df516b4b267acf2de46be593a9d948d1d2c420
@@ -151,7 +151,7 @@ imports:
   subpackages:
   - upnp
 - name: github.com/tendermint/go-rpc
-  version: 855255d73eecd25097288be70f3fb208a5817d80
+  version: e6e3853dc711b8ad92109cf9ea31319588b94fe0
   subpackages:
   - client
   - types
