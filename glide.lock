@@ -1,5 +1,5 @@
-hash: fab627a4ca94fb85406324cdad54b7493e0390ed60d75496fbe4f4f81e87ca81
-updated: 2016-10-23T22:47:25.094290922+03:00
+hash: 5d78ad496ad1a373ace4618ea3b60463e5d642825041b289ec87b9c57278f303
+updated: 2016-11-03T11:15:02.065968563+02:00
 imports:
 - name: github.com/btcsuite/btcd
   version: b8df516b4b267acf2de46be593a9d948d1d2c420
@@ -9,6 +9,8 @@ imports:
   version: 637e656429416087660c84436a2a035d69d54e2e
 - name: github.com/BurntSushi/toml
   version: 99064174e013895bbd9b025c31100bd1d9b590ca
+- name: github.com/ebuchman/fail-test
+  version: c1eddaa09da2b4017351245b0d43234955276798
 - name: github.com/ethereum/ethash
   version: 2e80de5022370cfe632195b1720db52d07ff8a77
 - name: github.com/ethereum/go-ethereum
@@ -104,6 +106,8 @@ imports:
   version: 5950cf11d77f8a61b432a25dd4d444b4ced01379
 - name: github.com/rs/xhandler
   version: d9d9599b6aaf6a058cb7b1f48291ded2cbd13390
+- name: github.com/spf13/pflag
+  version: 5ccb023bc27df288a957c5e994cd44fd19619465
 - name: github.com/syndtr/goleveldb
   version: 917f41c560270110ceb73c5b38be2a9127387071
   subpackages:
@@ -126,6 +130,8 @@ imports:
   - extra25519
 - name: github.com/tendermint/flowcontrol
   version: 84d9671090430e8ec80e35b339907e0579b999eb
+- name: github.com/tendermint/go-clist
+  version: 3baa390bbaf7634251c42ad69a8682e7e3990552
 - name: github.com/tendermint/go-common
   version: 1c62bb6dadc6269aeecad5f9e7b153d950a54362
 - name: github.com/tendermint/go-config
