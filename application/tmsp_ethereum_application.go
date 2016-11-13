@@ -233,6 +233,7 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 
 // InitChain does nothing
 func (app *TMSPEthereumApplication) InitChain(validators []*types.Validator) {
+	glog.V(logger.Debug).Infof("InitChain")
 	if app.validatorsStrategy != nil {
 		app.validatorsStrategy.SetValidators(validators)
 	}
