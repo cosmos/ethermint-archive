@@ -15,6 +15,8 @@ import (
 	"github.com/kobigurk/tmsp-ethereum/application"
 	"github.com/kobigurk/tmsp-ethereum/backend"
 	"github.com/kobigurk/tmsp-ethereum/node"
+	minerRewardStrategies "github.com/kobigurk/tmsp-ethereum/strategies/miner"
+	validatorsStrategy "github.com/kobigurk/tmsp-ethereum/strategies/validators"
 )
 
 const (
@@ -71,7 +73,19 @@ func tmspEthereumAction(ctx *cli.Context) error {
 	if err != nil {
 		utils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
-	_, err = server.NewServer(addr, tmsp, application.NewTMSPEthereumApplication(backend, client))
+	_, err = server.NewServer(addr, tmsp, application.NewTMSPEthereumApplication(backend, client, nil, nil))
+	/*
+		_, err = server.NewServer(
+			addr,
+			tmsp,
+			application.NewTMSPEthereumApplication(
+				backend,
+				client,
+				&minerRewardStrategies.RewardConstant{},
+				&validatorsStrategy.TxBasedValidatorsStrategy{},
+			),
+		)
+	*/
 	if err != nil {
 		os.Exit(1)
 	}
