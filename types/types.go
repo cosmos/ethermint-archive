@@ -3,7 +3,7 @@ package types
 import (
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/kobigurk/tmsp-ethereum/backend"
+	"github.com/tendermint/ethermint/backend"
 	"github.com/tendermint/tmsp/types"
 )
 

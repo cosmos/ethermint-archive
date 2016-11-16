@@ -5,7 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/kobigurk/tmsp-ethereum/backend"
+	"github.com/tendermint/ethermint/backend"
 	"gopkg.in/urfave/cli.v1"
 )
 

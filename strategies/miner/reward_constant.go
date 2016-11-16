@@ -2,7 +2,7 @@ package minerRewardStrategies
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	tmspEthTypes "github.com/kobigurk/tmsp-ethereum/types"
+	tmspEthTypes "github.com/tendermint/ethermint/types"
 )
 
 type RewardConstant struct {

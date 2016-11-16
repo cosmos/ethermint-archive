@@ -1,4 +1,4 @@
-package: github.com/kobigurk/tmsp-ethereum
+package: github.com/tendermint/ethermint
 import:
 - package: github.com/ethereum/go-ethereum
   subpackages:

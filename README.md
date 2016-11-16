@@ -1,4 +1,4 @@
-## TMSP-Ethereum
+## Ethermint 
 
 ### Overview
 Ethereum as a TMSP application. 
@@ -12,19 +12,19 @@ An easy way to get started is to use the docker image:
 docker run kobigurk/tmsp-ethereum
 ```
 
-If you prefer instead to build locally, go to the `docker` directory and run `docker built -t tmsp-ethereum .`.
+If you prefer instead to build locally, go to the `docker` directory and run `docker built -t ethermint .`.
 
 After running the container, you can attach to it:
 * First, find its ID using `docker ps` and use it to find its IP using `docker inspect CONTAINER_ID | grep IPAddress`. 
 * Use the IP address to attach with `geth attach rpc:http://CONTAINER_IP:8545`.
 
 ### Development and building locally
-tmsp-ethereum uses glide for package management. After running `glide install`, you may build the `tmsp-ethereum` executable by changing to the `cmd/tmsp-ethereum` directory and running `go build .`.
+Ethermint uses glide for package management. After running `glide install`, you may build the `ethermint` executable by changing to the `cmd/ethermint` directory and running `go build .`.
 
 ### Running
-#### TMSP-Ethereum
-Then, you need to init the genesis block for tendermint and geth. This part is still very much a work-in-progress, but it's possible to work with it now. 
-By running `./tmsp-ethereum -datadir data init genesis.json`, both the tendermint genesis and geth genesis will be generated. The tendermint genesis resides in `~/.tendermint`. I recommend using the `genesis.json` that exists in the `dev` directory as it gives an initial balance to an address whose private key is in the `geth_data` folder. Its password is `123`.
+#### Ethermint
+You need to init the genesis block for tendermint and geth. This part is still very much a work-in-progress, but it's possible to work with it now. 
+By running `./ethermint -datadir data init genesis.json`, both the tendermint genesis and geth genesis will be generated. The tendermint genesis resides in `~/.tendermint`. I recommend using the `genesis.json` that exists in the `dev` directory as it gives an initial balance to an address whose private key is in the `geth_data` folder. Its password is `123`.
 
 #### Mining reward and validator management
-TMSP-Ethereum implements hooks that can be customized for mining rewards and validator management. The default at this point is to not reward and not change the validator set. Example strategies can be found in the `strategies` folder.
+Ethermint implements hooks that can be customized for mining rewards and validator management. The default at this point is to not reward and not change the validator set. Example strategies can be found in the `strategies` folder.

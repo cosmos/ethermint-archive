@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/pow"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/kobigurk/tmsp-ethereum/processor"
+	"github.com/tendermint/ethermint/processor"
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
 )

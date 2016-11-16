@@ -12,11 +12,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/kobigurk/tmsp-ethereum/application"
-	"github.com/kobigurk/tmsp-ethereum/backend"
-	"github.com/kobigurk/tmsp-ethereum/node"
-	//	minerRewardStrategies "github.com/kobigurk/tmsp-ethereum/strategies/miner"
-	//	validatorsStrategy "github.com/kobigurk/tmsp-ethereum/strategies/validators"
+	"github.com/tendermint/ethermint/application"
+	"github.com/tendermint/ethermint/backend"
+	"github.com/tendermint/ethermint/node"
+	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
+	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
 	cfg "github.com/tendermint/go-config"
 	tmcfg "github.com/tendermint/tendermint/config/tendermint"
 	tendermintNode "github.com/tendermint/tendermint/node"
@@ -26,11 +26,11 @@ import (
 var config cfg.Config
 
 const (
-	clientIdentifier = "TMSPEthereum" // Client identifier to advertise over the network
-	versionMajor     = 0              // Major version component of the current release
-	versionMinor     = 1              // Minor version component of the current release
-	versionPatch     = 0              // Patch version component of the current release
-	versionMeta      = "unstable"     // Version metadata to append to the version string
+	clientIdentifier = "Ethermint" // Client identifier to advertise over the network
+	versionMajor     = 0           // Major version component of the current release
+	versionMinor     = 1           // Minor version component of the current release
+	versionPatch     = 0           // Patch version component of the current release
+	versionMeta      = "unstable"  // Version metadata to append to the version string
 )
 
 var (

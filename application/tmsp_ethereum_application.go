@@ -14,8 +14,8 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/kobigurk/tmsp-ethereum/backend"
-	tmspEthTypes "github.com/kobigurk/tmsp-ethereum/types"
+	"github.com/tendermint/ethermint/backend"
+	tmspEthTypes "github.com/tendermint/ethermint/types"
 	"github.com/tendermint/tmsp/types"
 )
 
