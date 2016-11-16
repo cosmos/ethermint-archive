@@ -7,7 +7,7 @@ This means running an Ethereum EVM-based network that uses Tendermint consesnsus
 The way it's built makes it easy to use existing Ethereum tools (geth attach, web3) to interact with the node.
 
 ### Docker image
-The easiest way to get started is to use the docker image:
+An easy way to get started is to use the docker image:
 ```
 docker run kobigurk/tmsp-ethereum
 ```
@@ -19,18 +19,12 @@ After running the container, you can attach to it:
 * Use the IP address to attach with `geth attach rpc:http://CONTAINER_IP:8545`.
 
 ### Development and building locally
-tmsp-ethereum uses glide for package management. After running `glide install`, issue the following commands to build the appropriate development version of tendermint and geth locally:
-* `pushd vendor/github.com/tendermint/tendermint/cmd/tendermint && go get . && go build . && popd`
-* `pushd vendor/github.com/ethereum/go-ethereum/cmd/geth && go get . && go build . && popd`
+tmsp-ethereum uses glide for package management. After running `glide install`, you may build the `tmsp-ethereum` executable by changing to the `cmd/tmsp-ethereum` directory and running `go build .`.
 
-Then, you need to run:
-* `vendor/github.com/tendermint/tendermint/cmd/tendermint/tendermint init` - to initialize tendermint
-* `vendor/github.com/ethereum/go-ethereum/cmd/geth --datadir geth_data init dev/genesis.json` - to initialize a geth data directory with a genesis block with balance for a pre-made account. 
+### Running
+#### TMSP-Ethereum
+Then, you need to init the genesis block for tendermint and geth. This part is still very much a work-in-progress, but it's possible to work with it now. 
+By running `./tmsp-ethereum -datadir data init genesis.json`, both the tendermint genesis and geth genesis will be generated. The tendermint genesis resides in `~/.tendermint`. I recommend using the `genesis.json` that exists in the `dev` directory as it gives an initial balance to an address whose private key is in the `geth_data` folder. Its password is `123`.
 
-tmsp-ethereum is based on the following development branches of tendermint and tmsp:
-* tendermint: handshake
-* tmsp: info\_and\_header
-
-### TODO
-* Validator management
-* Some more :-)
+#### Mining reward and validator management
+TMSP-Ethereum implements hooks that can be customized for mining rewards and validator management. The default at this point is to not reward and not change the validator set. Example strategies can be found in the `strategies` folder.
