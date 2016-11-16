@@ -2,22 +2,28 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/urfave/cli.v1"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/tendermint/tmsp/server"
-	"gopkg.in/urfave/cli.v1"
-
 	"github.com/kobigurk/tmsp-ethereum/application"
 	"github.com/kobigurk/tmsp-ethereum/backend"
 	"github.com/kobigurk/tmsp-ethereum/node"
-	minerRewardStrategies "github.com/kobigurk/tmsp-ethereum/strategies/miner"
-	validatorsStrategy "github.com/kobigurk/tmsp-ethereum/strategies/validators"
+	//	minerRewardStrategies "github.com/kobigurk/tmsp-ethereum/strategies/miner"
+	//	validatorsStrategy "github.com/kobigurk/tmsp-ethereum/strategies/validators"
+	cfg "github.com/tendermint/go-config"
+	tmcfg "github.com/tendermint/tendermint/config/tendermint"
+	tendermintNode "github.com/tendermint/tendermint/node"
+	"github.com/tendermint/tmsp/server"
 )
+
+var config cfg.Config
 
 const (
 	clientIdentifier = "TMSPEthereum" // Client identifier to advertise over the network
@@ -40,6 +46,14 @@ func init() {
 	}
 	app = newCliApp(verString, "the tmsp-ethereum command line interface")
 	app.Action = tmspEthereumAction
+	app.Commands = []cli.Command{
+		{
+			Action:      initCommand,
+			Name:        "init",
+			Usage:       "init genesis.json",
+			Description: "",
+		},
+	}
 	app.HideVersion = true // we have a command to print the version
 
 	app.After = func(ctx *cli.Context) error {
@@ -57,6 +71,33 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func initCommand(ctx *cli.Context) error {
+	config = tmcfg.GetConfig("")
+	init_files()
+
+	genesisPath := ctx.Args().First()
+	if len(genesisPath) == 0 {
+		utils.Fatalf("must supply path to genesis JSON file")
+	}
+
+	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(utils.MustMakeDataDir(ctx), "chaindata"), 0, 0)
+	if err != nil {
+		utils.Fatalf("could not open database: %v", err)
+	}
+
+	genesisFile, err := os.Open(genesisPath)
+	if err != nil {
+		utils.Fatalf("failed to read genesis file: %v", err)
+	}
+
+	block, err := core.WriteGenesisBlock(chainDb, genesisFile)
+	if err != nil {
+		utils.Fatalf("failed to write genesis block: %v", err)
+	}
+	glog.V(logger.Info).Infof("successfully wrote genesis block and/or chain rule set: %x", block.Hash())
+	return nil
 }
 
 func tmspEthereumAction(ctx *cli.Context) error {
@@ -90,7 +131,8 @@ func tmspEthereumAction(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	stack.Wait()
+	config = tmcfg.GetConfig("")
+	tendermintNode.RunNode(config)
 	return nil
 }
 
