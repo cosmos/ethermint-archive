@@ -128,12 +128,20 @@ imports:
   subpackages:
   - edwards25519
   - extra25519
+- name: github.com/tendermint/go-autofile
+  version: dc8fa06e642c53339987acfd90154c81c1ab4c6d
+- name: github.com/tendermint/go-flowrate
+  version: a20c98e61957faa93b4014fbd902f20ab9317a6a
+  subpackages:
+  - flowrate
 - name: github.com/tendermint/flowcontrol
   version: 84d9671090430e8ec80e35b339907e0579b999eb
 - name: github.com/tendermint/go-clist
   version: 3baa390bbaf7634251c42ad69a8682e7e3990552
 - name: github.com/tendermint/go-common
-  version: 1c62bb6dadc6269aeecad5f9e7b153d950a54362
+  version: fa3daa7abc253264c916c12fecce3effa01a1287
+  subpackages:
+  - test
 - name: github.com/tendermint/go-config
   version: e64b424499acd0eb9856b88e10c0dff41628c0d6
 - name: github.com/tendermint/go-crypto
@@ -147,29 +155,29 @@ imports:
 - name: github.com/tendermint/go-merkle
   version: 05042c6ab9cad51d12e4cecf717ae68e3b1409a8
 - name: github.com/tendermint/go-p2p
-  version: 1eb390680d33299ba0e3334490eca587efd18414
+  version: 62b37014a89b5eddff74844846979d30911cffda
   subpackages:
   - upnp
 - name: github.com/tendermint/go-rpc
-  version: e6e3853dc711b8ad92109cf9ea31319588b94fe0
+  version: 161e36fd56c2f95ad133dd03ddb33db0363ca742
   subpackages:
   - client
   - types
 - name: github.com/tendermint/go-wire
-  version: 3b0adbc86ed8425eaed98516165b6788d9f4de7a
+  version: 287d8caeae91d21686340f5f87170560531681e6
 - name: github.com/tendermint/log15
-  version: 9545b249b3aacafa97f79e0838b02b274adc6f5f
+  version: ae0f3d6450da9eac7074b439c8e1c3cabf0d5ce6
   subpackages:
   - term
 - name: github.com/tendermint/tendermint
-  version: fb0c3ebc214a4555eb6ad3e1f3912bf0c6961d72
-  repo: http://github.com/kobigurk/tendermint
+  version: 3206e101f5b82d5a93e27df8a0ec222973eb2f09
+  repo: http://github.com/tendermint/tendermint
   vcs: git
   subpackages:
   - rpc/core/types
   - types
 - name: github.com/tendermint/tmsp
-  version: b1f70b35c402d009fc934ac28a05a99847d4556f
+  version: 3a70c07ed1d3041f749dea296a7e91e9f324f1af
   subpackages:
   - server
   - types
@@ -228,7 +236,7 @@ imports:
   - go/ast/astutil
   - imports
 - name: google.golang.org/grpc
-  version: 2b7e876a2eb64e93cb8140f497d3ea9d8882279c
+  version: 941cc894cea3c87a12943fd12b594964541b6d28
   subpackages:
   - codes
   - credentials
