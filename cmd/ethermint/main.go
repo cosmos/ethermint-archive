@@ -5,7 +5,11 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"log"
 	"os"
+	"os/user"
+	"path"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/core"
@@ -23,7 +27,14 @@ import (
 	"github.com/tendermint/tmsp/server"
 )
 
-var config cfg.Config
+var (
+	config      cfg.Config
+	DataDirFlag = utils.DirectoryFlag{
+		Name:  "datadir",
+		Usage: "Data directory for the databases and keystore",
+		Value: utils.DirectoryString{DefaultDataDir()},
+	}
+)
 
 const (
 	clientIdentifier = "Ethermint" // Client identifier to advertise over the network
@@ -74,7 +85,10 @@ func main() {
 }
 
 func initCommand(ctx *cli.Context) error {
-	config = tmcfg.GetConfig("")
+	datadir := ctx.GlobalString(DataDirFlag.Name)
+	os.Setenv("TMROOT", datadir)
+
+	config = getTendermintConfig(ctx)
 	init_files()
 
 	genesisPath := ctx.Args().First()
@@ -98,6 +112,16 @@ func initCommand(ctx *cli.Context) error {
 	}
 	glog.V(logger.Info).Infof("successfully wrote genesis block and/or chain rule set: %x", block.Hash())
 	return nil
+}
+
+func getTendermintConfig(ctx *cli.Context) cfg.Config {
+	config = tmcfg.GetConfig("")
+	config.Set("node_laddr", ctx.GlobalString("node_laddr"))
+	config.Set("seeds", ctx.GlobalString("seeds"))
+	config.Set("fast_sync", ctx.GlobalBool("no_fast_sync"))
+	config.Set("skip_upnp", ctx.GlobalBool("skip_upnp"))
+	config.Set("rpc_laddr", ctx.GlobalString("rpc_laddr"))
+	return config
 }
 
 func tmspEthereumAction(ctx *cli.Context) error {
@@ -131,9 +155,57 @@ func tmspEthereumAction(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	config = tmcfg.GetConfig("")
+	config = getTendermintConfig(ctx)
 	tendermintNode.RunNode(config)
 	return nil
+}
+
+func expandPath(p string) string {
+	if strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~\\") {
+		if user, err := user.Current(); err == nil {
+			p = user.HomeDir + p[1:]
+		}
+	}
+	return path.Clean(os.ExpandEnv(p))
+}
+
+type DirectoryString struct {
+	Value string
+}
+
+func (self *DirectoryString) String() string {
+	return self.Value
+}
+
+func (self *DirectoryString) Set(value string) error {
+	self.Value = expandPath(value)
+	return nil
+}
+
+func HomeDir() string {
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+	if usr, err := user.Current(); err == nil {
+		return usr.HomeDir
+	}
+	return ""
+}
+
+func DefaultDataDir() string {
+	// Try to place the data folder in the user's home dir
+	home := HomeDir()
+	if home != "" {
+		if runtime.GOOS == "darwin" {
+			return filepath.Join(home, "Library", "Ethermint")
+		} else if runtime.GOOS == "windows" {
+			return filepath.Join(home, "AppData", "Roaming", "Ethermint")
+		} else {
+			return filepath.Join(home, ".ethermint")
+		}
+	}
+	// As we cannot guess a stable location, return empty and handle later
+	return ""
 }
 
 func newCliApp(version, usage string) *cli.App {
@@ -149,11 +221,9 @@ func newCliApp(version, usage string) *cli.App {
 		utils.UnlockedAccountFlag,
 		utils.PasswordFileFlag,
 		utils.BootnodesFlag,
-		utils.DataDirFlag,
+		DataDirFlag,
 		utils.KeyStoreDirFlag,
 		utils.BlockchainVersionFlag,
-		utils.OlympicFlag,
-		utils.FastSyncFlag,
 		utils.CacheFlag,
 		utils.LightKDFFlag,
 		utils.JSpathFlag,
@@ -162,16 +232,8 @@ func newCliApp(version, usage string) *cli.App {
 		utils.MaxPendingPeersFlag,
 		utils.EtherbaseFlag,
 		utils.GasPriceFlag,
-		utils.SupportDAOFork,
-		utils.OpposeDAOFork,
-		utils.MinerThreadsFlag,
-		utils.MiningEnabledFlag,
-		utils.MiningGPUFlag,
-		utils.AutoDAGFlag,
-		utils.TargetGasLimitFlag,
 		utils.NATFlag,
 		utils.NatspecEnabledFlag,
-		utils.NoDiscoverFlag,
 		utils.NodeKeyFileFlag,
 		utils.NodeKeyHexFlag,
 		utils.RPCEnabledFlag,
@@ -188,8 +250,6 @@ func newCliApp(version, usage string) *cli.App {
 		utils.IPCPathFlag,
 		utils.ExecFlag,
 		utils.PreloadJSFlag,
-		utils.WhisperEnabledFlag,
-		utils.DevModeFlag,
 		utils.TestNetFlag,
 		utils.VMForceJitFlag,
 		utils.VMJitCacheFlag,
@@ -197,7 +257,6 @@ func newCliApp(version, usage string) *cli.App {
 		utils.NetworkIdFlag,
 		utils.RPCCORSDomainFlag,
 		utils.MetricsEnabledFlag,
-		utils.FakePoWFlag,
 		utils.SolcPathFlag,
 		utils.GpoMinGasPriceFlag,
 		utils.GpoMaxGasPriceFlag,
@@ -205,11 +264,33 @@ func newCliApp(version, usage string) *cli.App {
 		utils.GpobaseStepDownFlag,
 		utils.GpobaseStepUpFlag,
 		utils.GpobaseCorrectionFactorFlag,
-		utils.ExtraDataFlag,
+		cli.StringFlag{
+			Name:  "node_laddr",
+			Value: "tcp://0.0.0.0:46656",
+			Usage: "Node listen address. (0.0.0.0:0 means any interface, any port)",
+		},
+		cli.StringFlag{
+			Name:  "seeds",
+			Value: "",
+			Usage: "Comma delimited host:port seed nodes",
+		},
+		cli.BoolFlag{
+			Name:  "no_fast_sync",
+			Usage: "Disable fast blockchain syncing",
+		},
+		cli.BoolFlag{
+			Name:  "skip_upnp",
+			Usage: "Skip UPNP configuration",
+		},
+		cli.StringFlag{
+			Name:  "rpc_laddr",
+			Value: "tcp://0.0.0.0:46657",
+			Usage: "RPC listen address. Port required",
+		},
 		cli.StringFlag{
 			Name:  "addr",
 			Value: "tcp://0.0.0.0:46658",
-			Usage: "Listen address",
+			Usage: "TMSP app listen address",
 		},
 		cli.StringFlag{
 			Name:  "tmsp",
