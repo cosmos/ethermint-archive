@@ -1,0 +1,45 @@
+language: go
+go_import_path: github.com/ethereum/go-ethereum
+sudo: false
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      go: 1.4.2
+    - os: linux
+      dist: trusty
+      go: 1.5.4
+    - os: linux
+      dist: trusty
+      go: 1.6.2
+    - os: osx
+      go: 1.6.2
+
+    # This builder does the PPA upload (and nothing else).
+    - os: linux
+      dist: trusty
+      go: 1.6.2
+      env: PPA
+      addons:
+        apt:
+          packages:
+            - devscripts
+            - debhelper
+            - dput
+      script:
+        - go run build/ci.go debsrc -signer "Felix Lange (Geth CI Testing Key) <fjl@twurst.com>" -upload ppa:lp-fjl/geth-ci-testing
+
+install:
+  - go get golang.org/x/tools/cmd/cover
+script:
+  - go run build/ci.go install
+  - go run build/ci.go test -coverage -vet
+after_success:
+  # - go run build/ci.go archive -type tar
+
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/e09ccdce1048c5e03445
+    on_success: change
+    on_failure: always

@@ -1,4 +1,3 @@
-cmd/tmsp-ethereum/tmsp-ethereum
+cmd/ethermintethermint/
 data
 dev/data
-vendor
