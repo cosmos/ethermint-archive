@@ -9,7 +9,7 @@ The way it's built makes it easy to use existing Ethereum tools (geth attach, we
 ### Docker image
 An easy way to get started is to use the docker image:
 ```
-docker run kobigurk/tmsp-ethereum
+docker run kobigurk/ethermint
 ```
 
 If you prefer instead to build locally, go to the `docker` directory and run `docker built -t ethermint .`.
@@ -19,7 +19,7 @@ After running the container, you can attach to it:
 * Use the IP address to attach with `geth attach rpc:http://CONTAINER_IP:8545`.
 
 ### Development and building locally
-Ethermint uses glide for package management. After running `glide install`, you may build the `ethermint` executable by changing to the `cmd/ethermint` directory and running `go build .`.
+You can build the `ethermint` executable by running `go install cmd/ethermint`. For vendored packages, Ethermint uses glide. 
 
 ### Running
 #### Ethermint
