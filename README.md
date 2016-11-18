@@ -1,5 +1,7 @@
 ## Ethermint 
 
+[![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=master)](https://travis-ci.org/tendermint/ethermint)
+
 ### Overview
 Ethereum as a TMSP application. 
 
