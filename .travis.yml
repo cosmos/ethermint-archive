@@ -3,4 +3,4 @@ go:
   - 1.7
 install: true
 script:
-  - go install cmd/ethermint
+  - go install ./cmd/ethermint
