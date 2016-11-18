@@ -44,7 +44,7 @@ func init() {
 	if versionMeta != "" {
 		verString += "-" + versionMeta
 	}
-	app = newCliApp(verString, "the tmsp-ethereum command line interface")
+	app = newCliApp(verString, "the ethermint command line interface")
 	app.Action = tmspEthereumAction
 	app.Commands = []cli.Command{
 		{
@@ -66,7 +66,7 @@ func init() {
 }
 
 func main() {
-	mainLogger.Infoln("Starting tmsp-ethereum")
+	mainLogger.Infoln("Starting ethermint")
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

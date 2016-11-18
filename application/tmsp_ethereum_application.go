@@ -33,7 +33,7 @@ type TMSPEthereumApplication struct {
 	validatorsStrategy  tmspEthTypes.ValidatorsStrategy
 }
 
-// NewTMSPEthereumApplication creates the tmsp application for tmsp-ethereum
+// NewTMSPEthereumApplication creates the tmsp application for ethermint
 func NewTMSPEthereumApplication(
 	backend *backend.TMSPEthereumBackend,
 	client rpc.Client,
