@@ -4,3 +4,7 @@ go:
 install: true
 script:
   - go install ./cmd/ethermint
+os:
+  - linux
+  - osx
+  - windows
