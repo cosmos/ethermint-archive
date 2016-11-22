@@ -85,9 +85,6 @@ func main() {
 }
 
 func initCommand(ctx *cli.Context) error {
-	datadir := ctx.GlobalString(DataDirFlag.Name)
-	os.Setenv("TMROOT", datadir)
-
 	config = getTendermintConfig(ctx)
 	init_files()
 
@@ -115,6 +112,8 @@ func initCommand(ctx *cli.Context) error {
 }
 
 func getTendermintConfig(ctx *cli.Context) cfg.Config {
+	datadir := ctx.GlobalString(DataDirFlag.Name)
+	os.Setenv("TMROOT", datadir)
 	config = tmcfg.GetConfig("")
 	config.Set("node_laddr", ctx.GlobalString("node_laddr"))
 	config.Set("seeds", ctx.GlobalString("seeds"))
