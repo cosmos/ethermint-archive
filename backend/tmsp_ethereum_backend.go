@@ -39,6 +39,19 @@ func setFakePow(ethereum *eth.Ethereum) {
 	*realPtrToPow = powToSet
 }
 
+func (s *TMSPEthereumBackend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+	mux := new(event.TypeMux)
+	s.txSub = mux.Subscribe(core.TxPreEvent{})
+	txPool := core.NewTxPool(s.Config().ChainConfig, mux, s.Ethereum().BlockChain().State, s.Ethereum().BlockChain().GasLimit)
+	txPool.Pending()
+	pointerVal := reflect.ValueOf(txPoolAPI)
+	val := reflect.Indirect(pointerVal)
+	member := val.FieldByName("txPool")
+	ptrToTxPool := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
+	*realPtrToTxPool = txPool
+}
+
 func (s *TMSPEthereumBackend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	mux := new(event.TypeMux)
 	s.txSub = mux.Subscribe(core.TxPreEvent{})
@@ -82,7 +95,7 @@ func (s *TMSPEthereumBackend) APIs() []rpc.API {
 			continue
 		}
 		if txPoolAPI, ok := v.Service.(*eth.PublicTransactionPoolAPI); ok {
-			s.setFakeMuxTxPool(txPoolAPI)
+			s.setFakeTxPool(txPoolAPI)
 			go s.txBroadcastLoop()
 		}
 		retApis = append(retApis, v)

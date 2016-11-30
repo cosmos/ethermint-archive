@@ -120,6 +120,7 @@ func getTendermintConfig(ctx *cli.Context) cfg.Config {
 	config.Set("fast_sync", ctx.GlobalBool("no_fast_sync"))
 	config.Set("skip_upnp", ctx.GlobalBool("skip_upnp"))
 	config.Set("rpc_laddr", ctx.GlobalString("rpc_laddr"))
+	config.Set("proxy_app", ctx.GlobalString("addr"))
 	return config
 }
 
