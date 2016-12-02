@@ -56,7 +56,7 @@ func N(l, r interface{}) *IAVLNode {
 
 // Setup a deep node
 func T(n *IAVLNode) *IAVLTree {
-	t := NewIAVLTree(0, nil)
+	t := NewIAVLTree(0, "", nil)
 	n.hashWithCount(t)
 	t.root = n
 	return t
@@ -72,7 +72,7 @@ func P(n *IAVLNode) string {
 }
 
 func TestBasic(t *testing.T) {
-	var tree *IAVLTree = NewIAVLTree(0, nil)
+	var tree *IAVLTree = NewIAVLTree(0, "", nil)
 	var up bool
 	up = tree.Set([]byte("1"), []byte("one"))
 	if up {
@@ -239,7 +239,7 @@ func TestIntegration(t *testing.T) {
 	}
 
 	records := make([]*record, 400)
-	var tree *IAVLTree = NewIAVLTree(0, nil)
+	var tree *IAVLTree = NewIAVLTree(0, "", nil)
 
 	randomRecord := func() *record {
 		return &record{randstr(20), randstr(20)}
@@ -301,6 +301,7 @@ func TestIntegration(t *testing.T) {
 
 func TestPersistence(t *testing.T) {
 	db := db.NewMemDB()
+	_, walDir := Tempdir("test.wal.")
 
 	// Create some random key value pairs
 	records := make(map[string]string)
@@ -309,7 +310,7 @@ func TestPersistence(t *testing.T) {
 	}
 
 	// Construct some tree and save it
-	t1 := NewIAVLTree(0, db)
+	t1 := NewIAVLTree(0, walDir, db)
 	for key, value := range records {
 		t1.Set([]byte(key), []byte(value))
 	}
@@ -318,7 +319,7 @@ func TestPersistence(t *testing.T) {
 	hash, _ := t1.HashWithCount()
 
 	// Load a tree
-	t2 := NewIAVLTree(0, db)
+	t2 := NewIAVLTree(0, walDir, db)
 	t2.Load(hash)
 	for key, value := range records {
 		_, t2value, _ := t2.Get([]byte(key))
@@ -365,7 +366,8 @@ func TestIAVLProof(t *testing.T) {
 
 	// Construct some random tree
 	db := db.NewMemDB()
-	var tree *IAVLTree = NewIAVLTree(100, db)
+	_, walDir := Tempdir("test.wal.")
+	var tree *IAVLTree = NewIAVLTree(100, walDir, db)
 	for i := 0; i < 1000; i++ {
 		key, value := randstr(20), randstr(20)
 		tree.Set([]byte(key), []byte(value))
@@ -396,10 +398,13 @@ func BenchmarkImmutableAvlTree(b *testing.B) {
 	b.StopTimer()
 
 	db := db.NewMemDB()
-	t := NewIAVLTree(0, db)
+	_, walDir := Tempdir("test.wal.")
+	fmt.Println("WAL dir: ", walDir)
+	t := NewIAVLTree(0, walDir, db)
 	// 23000ns/op, 43000ops/s
 	// for i := 0; i < 10000000; i++ {
 	for i := 0; i < 1000000; i++ {
+		// for i := 0; i < 1000; i++ {
 		t.Set(i2b(int(RandInt32())), nil)
 	}
 	t.Save()

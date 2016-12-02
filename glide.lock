@@ -129,7 +129,7 @@ imports:
   - edwards25519
   - extra25519
 - name: github.com/tendermint/go-autofile
-  version: dc8fa06e642c53339987acfd90154c81c1ab4c6d
+  version: 63186e34b33d78ae47fb0d25e5717b307fdf3603
 - name: github.com/tendermint/go-flowrate
   version: a20c98e61957faa93b4014fbd902f20ab9317a6a
   subpackages:
@@ -153,7 +153,7 @@ imports:
 - name: github.com/tendermint/go-logger
   version: cefb3a45c0bf3c493a04e9bcd9b1540528be59f2
 - name: github.com/tendermint/go-merkle
-  version: 05042c6ab9cad51d12e4cecf717ae68e3b1409a8
+  version: bfc4afe28c7a50045d4d1eb043e67460f8a51a4f
 - name: github.com/tendermint/go-p2p
   version: 62b37014a89b5eddff74844846979d30911cffda
   subpackages:
@@ -170,14 +170,14 @@ imports:
   subpackages:
   - term
 - name: github.com/tendermint/tendermint
-  version: 3206e101f5b82d5a93e27df8a0ec222973eb2f09
+  version: dc436e72f96b112f3d902f82efb392b203e3ad84
   repo: http://github.com/tendermint/tendermint
   vcs: git
   subpackages:
   - rpc/core/types
   - types
 - name: github.com/tendermint/tmsp
-  version: 3a70c07ed1d3041f749dea296a7e91e9f324f1af
+  version: 40448a3897dc870cc8e57a41a1e2872e976de539
   subpackages:
   - server
   - types

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -46,13 +47,18 @@ The Group can also be used to binary-search for some line,
 assuming that marker lines are written occasionally.
 */
 
-const groupCheckDuration = 1000 * time.Millisecond
-const defaultHeadSizeLimit = 10 * 1024 * 1024 // 10MB
+const groupCheckDuration = 5000 * time.Millisecond
+const defaultHeadSizeLimit = 10 * 1024 * 1024        // 10MB
+const defaultTotalSizeLimit = 1 * 1024 * 1024 * 1024 // 1GB
+const maxFilesToRemove = 4                           // needs to be greater than 1
 
 type Group struct {
+	BaseService
+
 	ID             string
 	Head           *AutoFile // The head AutoFile to write to
-	Dir            string    // Directory that contains .Head
+	headBuf        *bufio.Writer
+	Dir            string // Directory that contains .Head
 	ticker         *time.Ticker
 	mtx            sync.Mutex
 	headSizeLimit  int64
@@ -64,22 +70,43 @@ type Group struct {
 	// and their dependencies.
 }
 
-func OpenGroup(head *AutoFile) (g *Group, err error) {
-	dir := path.Dir(head.Path)
+func OpenGroup(headPath string) (g *Group, err error) {
+
+	dir := path.Dir(headPath)
+	head, err := OpenAutoFile(headPath)
+	if err != nil {
+		return nil, err
+	}
 
 	g = &Group{
-		ID:            "group:" + head.ID,
-		Head:          head,
-		Dir:           dir,
-		ticker:        time.NewTicker(groupCheckDuration),
-		headSizeLimit: defaultHeadSizeLimit,
-		minIndex:      0,
-		maxIndex:      0,
+		ID:             "group:" + head.ID,
+		Head:           head,
+		headBuf:        bufio.NewWriterSize(head, 4096*10),
+		Dir:            dir,
+		ticker:         time.NewTicker(groupCheckDuration),
+		headSizeLimit:  defaultHeadSizeLimit,
+		totalSizeLimit: defaultTotalSizeLimit,
+		minIndex:       0,
+		maxIndex:       0,
 	}
+	g.BaseService = *NewBaseService(nil, "Group", g)
+
 	gInfo := g.readGroupInfo()
 	g.minIndex = gInfo.MinIndex
 	g.maxIndex = gInfo.MaxIndex
+	return
+}
+
+func (g *Group) OnStart() error {
+	g.BaseService.OnStart()
 	go g.processTicks()
+	return nil
+}
+
+// NOTE: g.Head must be closed separately
+func (g *Group) OnStop() {
+	g.BaseService.OnStop()
+	g.ticker.Stop()
 	return
 }
 
@@ -114,16 +141,19 @@ func (g *Group) MaxIndex() int {
 }
 
 // Auto appends "\n"
+// NOTE: Writes are buffered so they don't write synchronously
 // TODO: Make it halt if space is unavailable
 func (g *Group) WriteLine(line string) error {
-	_, err := g.Head.Write([]byte(line + "\n"))
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	_, err := g.headBuf.Write([]byte(line + "\n"))
 	return err
 }
 
-// NOTE: g.Head must be closed separately
-func (g *Group) Close() error {
-	g.ticker.Stop()
-	return nil
+func (g *Group) Flush() error {
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	return g.headBuf.Flush()
 }
 
 func (g *Group) processTicks() {
@@ -144,25 +174,57 @@ func (g *Group) stopTicker() {
 
 // NOTE: this function is called manually in tests.
 func (g *Group) checkHeadSizeLimit() {
+	limit := g.HeadSizeLimit()
+	if limit == 0 {
+		return
+	}
 	size, err := g.Head.Size()
 	if err != nil {
 		panic(err)
 	}
-	if size >= g.HeadSizeLimit() {
+	if size >= limit {
 		g.RotateFile()
 	}
 }
 
 func (g *Group) checkTotalSizeLimit() {
-	// TODO enforce total size limit
-	// CHALLENGE
+	limit := g.TotalSizeLimit()
+	if limit == 0 {
+		return
+	}
+
+	gInfo := g.readGroupInfo()
+	totalSize := gInfo.TotalSize
+	for i := 0; i < maxFilesToRemove; i++ {
+		index := gInfo.MinIndex + i
+		if totalSize < limit {
+			return
+		}
+		if index == gInfo.MaxIndex {
+			// Special degenerate case, just do nothing.
+			log.Println("WARNING: Group's head " + g.Head.Path + "may grow without bound")
+			return
+		}
+		pathToRemove := filePathForIndex(g.Head.Path, index, gInfo.MaxIndex)
+		fileInfo, err := os.Stat(pathToRemove)
+		if err != nil {
+			log.Println("WARNING: Failed to fetch info for file @" + pathToRemove)
+			continue
+		}
+		err = os.Remove(pathToRemove)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		totalSize -= fileInfo.Size()
+	}
 }
 
 func (g *Group) RotateFile() {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
 
-	dstPath := filePathForIndex(g.Head.Path, g.maxIndex)
+	dstPath := filePathForIndex(g.Head.Path, g.maxIndex, g.maxIndex+1)
 	err := os.Rename(g.Head.Path, dstPath)
 	if err != nil {
 		panic(err)
@@ -329,7 +391,7 @@ GROUP_LOOP:
 		}
 		// Scan each line and test whether line matches
 		for {
-			line, err := r.ReadLineInCurrent()
+			line, err := r.ReadLine()
 			if err == io.EOF {
 				if found {
 					return match, found, nil
@@ -342,6 +404,13 @@ GROUP_LOOP:
 			if strings.HasPrefix(line, prefix) {
 				match = line
 				found = true
+			}
+			if r.CurIndex() > i {
+				if found {
+					return match, found, nil
+				} else {
+					continue GROUP_LOOP
+				}
 			}
 		}
 	}
@@ -420,8 +489,12 @@ func (g *Group) readGroupInfo() GroupInfo {
 	return GroupInfo{minIndex, maxIndex, totalSize, headSize}
 }
 
-func filePathForIndex(headPath string, index int) string {
-	return fmt.Sprintf("%v.%03d", headPath, index)
+func filePathForIndex(headPath string, index int, maxIndex int) string {
+	if index == maxIndex {
+		return headPath
+	} else {
+		return fmt.Sprintf("%v.%03d", headPath, index)
+	}
 }
 
 //--------------------------------------------------------------------------------
@@ -461,21 +534,11 @@ func (gr *GroupReader) Close() error {
 	}
 }
 
+// Reads a line (without delimiter)
+// just return io.EOF if no new lines found.
 func (gr *GroupReader) ReadLine() (string, error) {
 	gr.mtx.Lock()
 	defer gr.mtx.Unlock()
-	return gr.readLineWithOptions(false)
-}
-
-func (gr *GroupReader) ReadLineInCurrent() (string, error) {
-	gr.mtx.Lock()
-	defer gr.mtx.Unlock()
-	return gr.readLineWithOptions(true)
-}
-
-// curFileOnly: if True, do not open new files,
-// just return io.EOF if no new lines found.
-func (gr *GroupReader) readLineWithOptions(curFileOnly bool) (string, error) {
 
 	// From PushLine
 	if gr.curLine != nil {
@@ -493,23 +556,25 @@ func (gr *GroupReader) readLineWithOptions(curFileOnly bool) (string, error) {
 	}
 
 	// Iterate over files until line is found
+	var linePrefix string
 	for {
-		bytes, err := gr.curReader.ReadBytes('\n')
-		if err != nil {
-			if err != io.EOF {
+		bytesRead, err := gr.curReader.ReadBytes('\n')
+		if err == io.EOF {
+			// Open the next file
+			err := gr.openFile(gr.curIndex + 1)
+			if err != nil {
 				return "", err
-			} else if curFileOnly {
-				return "", err
+			}
+			if len(bytesRead) > 0 && bytesRead[len(bytesRead)-1] == byte('\n') {
+				return linePrefix + string(bytesRead[:len(bytesRead)-1]), nil
 			} else {
-				// Open the next file
-				err := gr.openFile(gr.curIndex + 1)
-				if err != nil {
-					return "", err
-				}
+				linePrefix += string(bytesRead)
 				continue
 			}
+		} else if err != nil {
+			return "", err
 		}
-		return string(bytes), nil
+		return linePrefix + string(bytesRead[:len(bytesRead)-1]), nil
 	}
 }
 
@@ -521,15 +586,11 @@ func (gr *GroupReader) openFile(index int) error {
 	gr.Group.mtx.Lock()
 	defer gr.Group.mtx.Unlock()
 
-	var curFilePath string
-	if index == gr.Group.maxIndex {
-		curFilePath = gr.Head.Path
-	} else if index > gr.Group.maxIndex {
+	if index > gr.Group.maxIndex {
 		return io.EOF
-	} else {
-		curFilePath = filePathForIndex(gr.Head.Path, index)
 	}
 
+	curFilePath := filePathForIndex(gr.Head.Path, index, gr.Group.maxIndex)
 	curFile, err := os.Open(curFilePath)
 	if err != nil {
 		return err
