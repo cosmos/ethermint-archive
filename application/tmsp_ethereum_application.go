@@ -53,7 +53,14 @@ func NewTMSPEthereumApplication(
 
 // Info returns information about TMSPEthereumApplication to the tendermint engine
 func (app *TMSPEthereumApplication) Info() (string, *types.TMSPInfo, *types.LastBlockInfo, *types.ConfigInfo) {
-	return "TMSPEthereum", nil, nil, nil
+	blockchain := app.backend.Ethereum().BlockChain()
+	currentBlock := blockchain.CurrentBlock()
+	height := currentBlock.Number()
+	hash := currentBlock.Hash()
+	return "TMSPEthereum", nil, &types.LastBlockInfo{
+		BlockHeight: height.Uint64(),
+		AppHash:     hash[:],
+	}, nil
 }
 
 // SetOption sets a configuration option for TMSPEthereumApplication
