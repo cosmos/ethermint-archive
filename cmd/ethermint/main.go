@@ -22,6 +22,7 @@ import (
 	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
 	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
 	cfg "github.com/tendermint/go-config"
+	tmlog "github.com/tendermint/go-logger"
 	tmcfg "github.com/tendermint/tendermint/config/tendermint"
 	tendermintNode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tmsp/server"
@@ -121,6 +122,10 @@ func getTendermintConfig(ctx *cli.Context) cfg.Config {
 	config.Set("skip_upnp", ctx.GlobalBool("skip_upnp"))
 	config.Set("rpc_laddr", ctx.GlobalString("rpc_laddr"))
 	config.Set("proxy_app", ctx.GlobalString("addr"))
+	config.Set("log_level", ctx.GlobalString("log_level"))
+
+	tmlog.SetLogLevel(config.GetString("log_level"))
+
 	return config
 }
 
@@ -268,6 +273,11 @@ func newCliApp(version, usage string) *cli.App {
 			Name:  "node_laddr",
 			Value: "tcp://0.0.0.0:46656",
 			Usage: "Node listen address. (0.0.0.0:0 means any interface, any port)",
+		},
+		cli.StringFlag{
+			Name:  "log_level",
+			Value: "info",
+			Usage: "Tendermint Log level",
 		},
 		cli.StringFlag{
 			Name:  "seeds",
