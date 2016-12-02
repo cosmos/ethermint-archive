@@ -1,9 +1,12 @@
-package common
+package autofile
 
 import (
+	. "github.com/tendermint/go-common"
 	"os"
+	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestSIGHUP(t *testing.T) {
@@ -30,13 +33,19 @@ func TestSIGHUP(t *testing.T) {
 		t.Fatalf("Error writing to autofile: %v", err)
 	}
 
-	// Send SIGHUP to self.
-	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
-
 	// Move the file over
 	err = os.Rename(name, name+"_old")
 	if err != nil {
 		t.Fatalf("Error moving autofile: %v", err)
+	}
+
+	// Send SIGHUP to self.
+	oldSighupCounter := atomic.LoadInt32(&sighupCounter)
+	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+
+	// Wait a bit... signals are not handled synchronously.
+	for atomic.LoadInt32(&sighupCounter) == oldSighupCounter {
+		time.Sleep(time.Millisecond * 10)
 	}
 
 	// Write more to the file.

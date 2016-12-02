@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/codegangsta/cli"
 	. "github.com/tendermint/go-common"
 	"github.com/tendermint/tmsp/client"
 	"github.com/tendermint/tmsp/types"
+	"github.com/urfave/cli"
 )
 
 // client is a global variable so it can be reused by the console
@@ -22,7 +22,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "tmsp-cli"
 	app.Usage = "tmsp-cli [command] [args...]"
-	app.Version = "0.2"
+	app.Version = "0.2.1" // better error handling in console
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "address",
@@ -123,6 +123,14 @@ func before(c *cli.Context) error {
 	return nil
 }
 
+// badCmd is called when we invoke with an invalid first argument (just for console for now)
+func badCmd(c *cli.Context, cmd string) {
+	fmt.Println("Unknown command:", cmd)
+	fmt.Println("Please try one of the following:")
+	fmt.Println("")
+	cli.DefaultAppComplete(c)
+}
+
 //--------------------------------------------------------------------------------
 
 func cmdBatch(app *cli.App, c *cli.Context) error {
@@ -149,6 +157,8 @@ func cmdBatch(app *cli.App, c *cli.Context) error {
 }
 
 func cmdConsole(app *cli.App, c *cli.Context) error {
+	// don't hard exit on mistyped commands (eg. check vs check_tx)
+	app.CommandNotFound = badCmd
 	for {
 		fmt.Printf("\n> ")
 		bufReader := bufio.NewReader(os.Stdin)
@@ -162,10 +172,10 @@ func cmdConsole(app *cli.App, c *cli.Context) error {
 		args := []string{"tmsp-cli"}
 		args = append(args, strings.Split(string(line), " ")...)
 		if err := app.Run(args); err != nil {
-			return err
+			// if the command doesn't succeed, inform the user without exiting
+			fmt.Println("Error:", err.Error())
 		}
 	}
-	return nil
 }
 
 // Have the application echo a message

@@ -6,9 +6,22 @@ import (
 	"testing"
 )
 
+const arch64 = uint64(^uint(0)) == ^uint64(0)
+
+// Returns true of overflow or underflow
+func checkIntSpill(i int64) bool {
+	return i == (int64)((int)(i))
+}
+
+// Returns true of overflow or underflow
+func checkUintSpill(i uint64) bool {
+	return i == (uint64)((uint)(i))
+}
+
 func TestVarint(t *testing.T) {
 
-	check := func(i int, s string) {
+	check := func(i64 int64, s string) {
+		i := int(i64)
 		// Test with WriteVarint
 		{
 			buf := new(bytes.Buffer)
@@ -61,7 +74,11 @@ func TestVarint(t *testing.T) {
 	}
 
 	// 123457 is some prime.
-	for i := -(2 << 33); i < (2 << 33); i += 123457 {
+	var i int64
+	for i = -(2 << 33); i < (2 << 33); i += 123457 {
+		if !arch64 && checkIntSpill(i) {
+			continue
+		}
 		check(i, "")
 	}
 
@@ -70,20 +87,27 @@ func TestVarint(t *testing.T) {
 	check(0, "00")
 	check(1, "0101")
 	// Positives
-	check(1<<32-1, "04FFFFFFFF")
-	check(1<<32+0, "050100000000")
-	check(1<<32+1, "050100000001")
-	check(1<<53-1, "071FFFFFFFFFFFFF")
+	check(1<<31-1, "047FFFFFFF")
+	if arch64 {
+		check(1<<32-1, "04FFFFFFFF")
+		check(1<<32+0, "050100000000")
+		check(1<<32+1, "050100000001")
+		check(1<<53-1, "071FFFFFFFFFFFFF")
+	}
 	// Negatives
-	check(-1<<32+1, "F4FFFFFFFF")
-	check(-1<<32-0, "F50100000000")
-	check(-1<<32-1, "F50100000001")
-	check(-1<<53+1, "F71FFFFFFFFFFFFF")
+	check(-1<<31+1, "F47FFFFFFF")
+	if arch64 {
+		check(-1<<32+1, "F4FFFFFFFF")
+		check(-1<<32-0, "F50100000000")
+		check(-1<<32-1, "F50100000001")
+		check(-1<<53+1, "F71FFFFFFFFFFFFF")
+	}
 }
 
 func TestUvarint(t *testing.T) {
 
-	check := func(i uint, s string) {
+	check := func(i64 uint64, s string) {
+		i := uint(i64)
 		// Test with WriteUvarint
 		{
 			buf := new(bytes.Buffer)
@@ -136,14 +160,22 @@ func TestUvarint(t *testing.T) {
 	}
 
 	// 123457 is some prime.
-	for i := 0; i < (2 << 33); i += 123457 {
-		check(uint(i), "")
+	var i uint64
+	for i = 0; i < (2 << 33); i += 123457 {
+		if !arch64 && checkUintSpill(i) {
+			continue
+		}
+		check(i, "")
 	}
 
 	check(1, "0101")
+	check(1<<31-1, "047FFFFFFF")
 	check(1<<32-1, "04FFFFFFFF")
-	check(1<<32+0, "050100000000")
-	check(1<<32+1, "050100000001")
-	check(1<<53-1, "071FFFFFFFFFFFFF")
+	if arch64 {
+		check(1<<32-1, "04FFFFFFFF")
+		check(1<<32+0, "050100000000")
+		check(1<<32+1, "050100000001")
+		check(1<<53-1, "071FFFFFFFFFFFFF")
+	}
 
 }

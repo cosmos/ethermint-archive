@@ -11,6 +11,7 @@ For more information on TMSP, motivations, and tutorials, please visit [our blog
 Other implementations:
 * [cpp-tmsp](https://github.com/mdyring/cpp-tmsp) by Martin Dyring-Andersen
 * [js-tmsp](https://github.com/tendermint/js-tmsp)
+* [jTMSP](https://github.com/jTMSP/) for Java
 
 ## Contents
 
@@ -18,7 +19,7 @@ This repository holds a number of important pieces:
 
 - `types/types.proto`
 	- the protobuf file defining TMSP message types, and the optional grpc interface. 
-	- run `protoc --go_out=plugins=grpc:. types.proto` in the `types` dir to generate the `types/types.pb.go` file
+        - to build, run `make protoc`
 	- see `protoc --help` and [the grpc docs](https://www.grpc.io/docs) for examples and details of other languages
 
 - golang implementation of TMSP client and server
@@ -67,7 +68,11 @@ TMSP requests/responses are simple Protobuf messages.  Check out the [schema fil
     * `Data ([]byte)`: Result bytes, if any
     * `Log (string)`: Debug or error message
   * __Usage__:<br/>
-    Validate a transaction.  This message should not mutate the state.
+    Validate a mempool transaction, prior to broadcasting or proposing.  This message should not mutate the main state, but application
+    developers may want to keep a separate CheckTx state that gets reset upon Commit.
+
+    CheckTx can happen interspersed with AppendTx, but they happen on different connections - CheckTx from the mempool connection, and AppendTx from the consensus connection.  During Commit, the mempool is locked, so you can reset the mempool state to the latest state after running all those appendtxs, and then the mempool will re run whatever txs it has against that latest mempool stte
+
     Transactions are first run through CheckTx before broadcast to peers in the mempool layer.
     You can make CheckTx semi-stateful and clear the state upon `Commit` or `BeginBlock`,
     to allow for dependent sequences of transactions in the same block.

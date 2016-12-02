@@ -33,6 +33,7 @@ func initTMRoot(rootDir string) {
 	}
 	// Create new dir
 	EnsureDir(rootDir, 0700)
+	EnsureDir(rootDir+"/data", 0700)
 
 	configFilePath := path.Join(rootDir, "config.toml")
 	genesisFilePath := path.Join(rootDir, "genesis.json")
@@ -81,11 +82,12 @@ func ResetConfig(localPath string) cfg.Config {
 	mapConfig.SetDefault("rpc_laddr", "tcp://0.0.0.0:36657")
 	mapConfig.SetDefault("prof_laddr", "")
 	mapConfig.SetDefault("revision_file", rootDir+"/revision")
-	mapConfig.SetDefault("cswal", rootDir+"/data/cswal")
-	mapConfig.SetDefault("cswal_light", false)
+	mapConfig.SetDefault("cs_wal_dir", rootDir+"/data/cs.wal")
+	mapConfig.SetDefault("cs_wal_light", false)
 	mapConfig.SetDefault("filter_peers", false)
 
 	mapConfig.SetDefault("block_size", 10000)
+	mapConfig.SetDefault("block_part_size", 65536) // part size 64K
 	mapConfig.SetDefault("disable_data_hash", false)
 	mapConfig.SetDefault("timeout_propose", 2000)
 	mapConfig.SetDefault("timeout_propose_delta", 500)
@@ -97,6 +99,7 @@ func ResetConfig(localPath string) cfg.Config {
 	mapConfig.SetDefault("mempool_recheck", true)
 	mapConfig.SetDefault("mempool_recheck_empty", true)
 	mapConfig.SetDefault("mempool_broadcast", true)
+	mapConfig.SetDefault("mempool_wal_dir", "")
 
 	return mapConfig
 }
