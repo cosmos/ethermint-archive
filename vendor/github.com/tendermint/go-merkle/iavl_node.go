@@ -341,11 +341,10 @@ func (node *IAVLNode) remove(t *IAVLTree, key []byte) (
 			node.rightHash, node.rightNode = newRightHash, newRightNode
 			if newKey != nil {
 				node.key = newKey
-				newKey = nil
 			}
 			node.calcHeightAndSize(t)
 			node = node.balance(t)
-			return node.hash, node, newKey, value, true
+			return node.hash, node, nil, value, true
 		}
 	}
 }

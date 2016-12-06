@@ -18,13 +18,13 @@ type IAVLTree struct {
 	ndb  *nodeDB
 }
 
-func NewIAVLTree(cacheSize int, walDir string, db dbm.DB) *IAVLTree {
+func NewIAVLTree(cacheSize int, db dbm.DB) *IAVLTree {
 	if db == nil {
 		// In-memory IAVLTree
 		return &IAVLTree{}
 	} else {
 		// Persistent IAVLTree
-		ndb := newNodeDB(cacheSize, walDir, db)
+		ndb := newNodeDB(cacheSize, db)
 		return &IAVLTree{
 			ndb: ndb,
 		}
@@ -176,23 +176,17 @@ type nodeDB struct {
 	cacheSize  int
 	cacheQueue *list.List
 	db         dbm.DB
-	wal        *WAL
+	batch      dbm.Batch
 }
 
-func newNodeDB(cacheSize int, walDir string, db dbm.DB) *nodeDB {
-	wal, err := NewWAL(walDir, db)
-	if err != nil {
-		panic(Fmt("Error opening nodeDB WAL: %v", err))
-	}
+func newNodeDB(cacheSize int, db dbm.DB) *nodeDB {
 	ndb := &nodeDB{
 		cache:      make(map[string]*list.Element),
 		cacheSize:  cacheSize,
 		cacheQueue: list.New(),
 		db:         db,
-		wal:        wal,
+		batch:      db.NewBatch(),
 	}
-	wal.Start()
-	wal.OpenBatch()
 	return ndb
 }
 
@@ -241,7 +235,7 @@ func (ndb *nodeDB) SaveNode(t *IAVLTree, node *IAVLNode) {
 	if err != nil {
 		PanicCrisis(err)
 	}
-	ndb.wal.AddNode(node.hash, buf.Bytes())
+	ndb.batch.Set(node.hash, buf.Bytes())
 	node.persisted = true
 	ndb.cacheNode(node)
 }
@@ -255,7 +249,7 @@ func (ndb *nodeDB) RemoveNode(t *IAVLTree, node *IAVLNode) {
 	if !node.persisted {
 		PanicSanity("Shouldn't be calling remove on a non-persisted node.")
 	}
-	ndb.wal.DelNode(node.hash)
+	ndb.batch.Delete(node.hash)
 	elem, ok := ndb.cache[string(node.hash)]
 	if ok {
 		ndb.cacheQueue.Remove(elem)
@@ -275,7 +269,7 @@ func (ndb *nodeDB) cacheNode(node *IAVLNode) {
 }
 
 func (ndb *nodeDB) Commit() {
-	ndb.wal.CloseBatchSync()
-	ndb.wal.ProcessBatchSync()
-	ndb.wal.OpenBatch()
+	ndb.batch.Write()
+	ndb.db.SetSync(nil, nil)
+	ndb.batch = ndb.db.NewBatch()
 }
