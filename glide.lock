@@ -124,7 +124,7 @@ imports:
   - leveldb/table
   - leveldb/util
 - name: github.com/tendermint/tendermint
-  version: 1c16ce8cf0c6b8b7f38d4c85625ca17cb24f572e
+  version: 6f88d04ac48b2181b0ca8b42d2429c1a67663941
 - name: github.com/tendermint/ed25519
   version: 1f52c6f8b8a5c7908aff4497c186af344b428925
   subpackages:
