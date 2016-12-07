@@ -119,6 +119,7 @@ func (app *TMSPEthereumApplication) Commit() types.Result {
 	hash := app.backend.Ethereum().BlockChain().CurrentBlock().Hash()
 	glog.V(logger.Debug).Infof("Committing %v", hash)
 
+	app.currentTxPool.Stop()
 	app.currentTxPool = app.createNewTxPool()
 	return types.NewResultOK(hash[:], "")
 }
