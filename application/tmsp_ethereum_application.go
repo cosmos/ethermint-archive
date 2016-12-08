@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
+	"sort"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -199,8 +200,19 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 		return
 	}
 	pendingPerAddress := app.backend.Ethereum().TxPool().Pending()
+
+	// Order addrs for determinism
+	addrStrs := []string{}
+	for addr, _ := range pendingPerAddress {
+		addrStrs = append(addrStrs, string(addr[:]))
+	}
+	sort.Sort(sort.StringSlice(addrStrs))
+
 	pending := []*ethTypes.Transaction{}
-	for _, v := range pendingPerAddress {
+	for _, addrStr := range addrStrs {
+		var addr common.Address
+		copy(addr[:], []byte(addrStr))
+		v := pendingPerAddress[addr]
 		pending = append(pending, v...)
 	}
 	block := ethTypes.NewBlock(header, pending, nil, nil)
