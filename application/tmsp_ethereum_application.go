@@ -5,11 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
+	"reflect"
 	"sync"
+	"unsafe"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -21,16 +25,30 @@ import (
 
 // TMSPEthereumApplication implements a TMSP application
 type TMSPEthereumApplication struct {
-	backend           *backend.TMSPEthereumBackend
-	commitMutex       *sync.Mutex
-	currentHeader     *types.Header
-	currentBlockHash  []byte
-	currentBlockError error
-	currentTxPool     *core.TxPool
-	rpcClient         rpc.Client
+	backend                       *backend.TMSPEthereumBackend
+	commitMutex                   *sync.Mutex
+	currentHeader                 *types.Header
+	currentBlockHash              []byte
+	currentBlockError             error
+	currentBlockProcessingDetails *BlockProcessingDetails
+	currentTxPool                 *core.TxPool
+	rpcClient                     rpc.Client
 
 	minerRewardStrategy tmspEthTypes.MinerRewardStrategy
 	validatorsStrategy  tmspEthTypes.ValidatorsStrategy
+}
+
+type BlockProcessingDetails struct {
+	receipts     ethTypes.Receipts
+	totalUsedGas *big.Int
+	err          error
+	header       *ethTypes.Header
+	allLogs      vm.Logs
+	gp           *core.GasPool
+
+	state        *state.StateDB
+	transactions []*ethTypes.Transaction
+	txIndex      int
 }
 
 // NewTMSPEthereumApplication creates the tmsp application for ethermint
@@ -78,11 +96,29 @@ func (app *TMSPEthereumApplication) AppendTx(txBytes []byte) types.Result {
 	if err != nil {
 		return types.ErrEncodingError
 	}
-	txpool := app.backend.Ethereum().TxPool()
-	txpool.SetLocal(tx)
-	if err := txpool.Add(tx); err != nil {
+	glog.V(logger.Debug).Infof("Got AppendTx (tx): %v", tx)
+
+	blockHash := common.Hash{}
+	app.currentBlockProcessingDetails.state.StartRecord(tx.Hash(), blockHash, app.currentBlockProcessingDetails.txIndex)
+	receipt, logs, _, err := core.ApplyTransaction(
+		app.backend.Config().ChainConfig,
+		app.backend.Ethereum().BlockChain(),
+		app.currentBlockProcessingDetails.gp,
+		app.currentBlockProcessingDetails.state,
+		app.currentBlockProcessingDetails.header,
+		tx,
+		app.currentBlockProcessingDetails.totalUsedGas,
+		app.backend.Config().ChainConfig.VmConfig,
+	)
+	if err != nil {
+		glog.V(logger.Debug).Infof("AppendTx error: %v", err)
 		return types.ErrInternalError
 	}
+
+	app.currentBlockProcessingDetails.transactions = append(app.currentBlockProcessingDetails.transactions, tx)
+	app.currentBlockProcessingDetails.receipts = append(app.currentBlockProcessingDetails.receipts, receipt)
+	app.currentBlockProcessingDetails.allLogs = append(app.currentBlockProcessingDetails.allLogs, logs...)
+
 	if app.validatorsStrategy != nil {
 		app.validatorsStrategy.CollectTx(tx)
 	}
@@ -157,6 +193,28 @@ func decodeTx(txBytes []byte) (*ethTypes.Transaction, error) {
 	return tx, nil
 }
 
+func getStateCache(blockchain *core.BlockChain) *state.StateDB {
+	pointerVal := reflect.ValueOf(blockchain)
+	val := reflect.Indirect(pointerVal)
+	member := val.FieldByName("stateCache")
+	ptrToState := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToState := (**state.StateDB)(ptrToState)
+	return *realPtrToState
+}
+
+func (app *TMSPEthereumApplication) resetBlockProcessingDetails() error {
+	ethHeader, _ := app.createIntermediateBlockHeader()
+	state, _ := app.backend.Ethereum().BlockChain().State()
+	app.currentBlockProcessingDetails = &BlockProcessingDetails{
+		totalUsedGas: big.NewInt(0),
+		header:       ethHeader,
+		gp:           new(core.GasPool).AddGas(ethHeader.GasLimit),
+		state:        state,
+		txIndex:      0,
+	}
+	return nil
+}
+
 func (app *TMSPEthereumApplication) createIntermediateBlockHeader() (*ethTypes.Header, error) {
 	var receiver common.Address
 	if app.minerRewardStrategy != nil {
@@ -186,6 +244,8 @@ func (app *TMSPEthereumApplication) BeginBlock(hash []byte, header *types.Header
 
 	app.currentHeader = header
 	app.currentBlockHash = hash
+
+	app.resetBlockProcessingDetails()
 }
 
 // EndBlock adds the block to chain db
@@ -193,43 +253,31 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 
 	glog.V(logger.Debug).Infof("End block")
 
-	header, err := app.createIntermediateBlockHeader()
-	if err != nil {
-		app.currentBlockError = types.ErrInternalError
-		return
-	}
-	pendingPerAddress := app.backend.Ethereum().TxPool().Pending()
-	pending := []*ethTypes.Transaction{}
-	for _, v := range pendingPerAddress {
-		pending = append(pending, v...)
-	}
-	block := ethTypes.NewBlock(header, pending, nil, nil)
-	blockchain := app.backend.Ethereum().BlockChain()
-	state, err := blockchain.State()
-	if err != nil {
-		app.currentBlockError = types.ErrInternalError
-		return
-	}
-
-	receipts, _, totalGasUsed, _ := blockchain.Processor().Process(block, state, app.backend.Config().ChainConfig.VmConfig)
-	header.GasUsed = totalGasUsed
-	header.Root = state.IntermediateRoot()
-	block = ethTypes.NewBlock(header, pending, nil, receipts)
-	blockHash := block.Hash()
-
-	glog.V(logger.Debug).Infof("Writing block: %s", hex.EncodeToString(blockHash[:]))
-	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
-	if err != nil {
-		app.currentBlockError = types.ErrInternalError
-		return
-	}
-
-	hashArray, err := state.Commit()
+	core.AccumulateRewards(app.currentBlockProcessingDetails.state, app.currentBlockProcessingDetails.header, []*ethTypes.Header{})
+	app.currentBlockProcessingDetails.header.GasUsed = app.currentBlockProcessingDetails.totalUsedGas
+	hashArray, err := app.currentBlockProcessingDetails.state.Commit()
 	hash := hashArray[:]
 	if err != nil {
 		app.currentBlockError = types.ErrInternalError
 		return
 	}
+
+	for _, log := range app.currentBlockProcessingDetails.allLogs {
+		log.BlockHash = hashArray
+	}
+	glog.V(logger.Debug).Infof("Block transactions: %v", app.currentBlockProcessingDetails.transactions)
+	app.currentBlockProcessingDetails.header.Root = hashArray
+	block := ethTypes.NewBlock(app.currentBlockProcessingDetails.header, app.currentBlockProcessingDetails.transactions, nil, app.currentBlockProcessingDetails.receipts)
+	blockHash := block.Hash()
+
+	glog.V(logger.Debug).Infof("Writing block: %s", hex.EncodeToString(blockHash[:]))
+	_, err = app.backend.Ethereum().BlockChain().InsertChain([]*ethTypes.Block{block})
+	if err != nil {
+		app.currentBlockError = types.ErrInternalError
+		return
+	}
+
+	app.resetBlockProcessingDetails()
 	glog.V(logger.Debug).Infof("Committing %s", hex.EncodeToString(hash))
 
 	//	app.backend.Ethereum().TxPool().RemoveBatch(app.currentTransactions)
