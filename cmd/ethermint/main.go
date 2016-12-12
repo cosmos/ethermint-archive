@@ -242,6 +242,7 @@ func newCliApp(version, usage string) *cli.App {
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
 		utils.EtherbaseFlag,
+		utils.TargetGasLimitFlag,
 		utils.GasPriceFlag,
 		utils.NATFlag,
 		utils.NatspecEnabledFlag,

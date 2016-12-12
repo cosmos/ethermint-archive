@@ -5,12 +5,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/params"
 	emtTypes "github.com/tendermint/ethermint/types"
 	"gopkg.in/urfave/cli.v1"
 )
 
 // MakeSystemNode sets up a local node and configures the services to launch
 func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
+	params.TargetGasLimit = common.String2Big(ctx.GlobalString(utils.TargetGasLimitFlag.Name))
+
 	// Configure the node's service container
 	stackConf := &node.Config{
 		DataDir:     utils.MustMakeDataDir(ctx),
