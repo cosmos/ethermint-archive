@@ -25,47 +25,44 @@ import (
 
 // TMSPEthereumApplication implements a TMSP application
 type TMSPEthereumApplication struct {
-	backend                       *backend.TMSPEthereumBackend
-	commitMutex                   *sync.Mutex
-	currentHeader                 *types.Header
-	currentBlockHash              []byte
-	currentBlockError             error
-	currentBlockProcessingDetails *BlockProcessingDetails
-	currentTxPool                 *core.TxPool
-	rpcClient                     rpc.Client
+	backend      *backend.TMSPEthereumBackend
+	commitMutex  *sync.Mutex
+	header       *types.Header
+	blockError   error
+	blockResults *BlockResults
+	txPool       *core.TxPool
+	rpcClient    rpc.Client
 
-	minerRewardStrategy tmspEthTypes.MinerRewardStrategy
-	validatorsStrategy  tmspEthTypes.ValidatorsStrategy
+	strategy *Strategy
 }
 
-type BlockProcessingDetails struct {
+type Strategy struct {
+	tmspEthTypes.MinerRewardStrategy
+	tmspEthTypes.ValidatorsStrategy
+}
+
+type BlockResults struct {
 	receipts     ethTypes.Receipts
 	totalUsedGas *big.Int
-	err          error
-	header       *ethTypes.Header
-	allLogs      vm.Logs
 	gp           *core.GasPool
+	allLogs      vm.Logs
+	err          error
 
+	header       *ethTypes.Header
 	state        *state.StateDB
 	transactions []*ethTypes.Transaction
 	txIndex      int
 }
 
 // NewTMSPEthereumApplication creates the tmsp application for ethermint
-func NewTMSPEthereumApplication(
-	backend *backend.TMSPEthereumBackend,
-	client rpc.Client,
-	minerRewardStrategy tmspEthTypes.MinerRewardStrategy,
-	validatorsStrategy tmspEthTypes.ValidatorsStrategy,
-) *TMSPEthereumApplication {
+func NewTMSPEthereumApplication(backend *backend.TMSPEthereumBackend, client rpc.Client, strategy *Strategy) *TMSPEthereumApplication {
 	app := &TMSPEthereumApplication{
 		backend:     backend,
 		commitMutex: &sync.Mutex{},
 		rpcClient:   client,
+		strategy:    strategy,
 	}
-	app.currentTxPool = app.createNewTxPool()
-	app.minerRewardStrategy = minerRewardStrategy
-	app.validatorsStrategy = validatorsStrategy
+	app.txPool = app.createNewTxPool()
 	return app
 }
 
@@ -99,15 +96,15 @@ func (app *TMSPEthereumApplication) AppendTx(txBytes []byte) types.Result {
 	glog.V(logger.Debug).Infof("Got AppendTx (tx): %v", tx)
 
 	blockHash := common.Hash{}
-	app.currentBlockProcessingDetails.state.StartRecord(tx.Hash(), blockHash, app.currentBlockProcessingDetails.txIndex)
+	app.blockResults.state.StartRecord(tx.Hash(), blockHash, app.blockResults.txIndex)
 	receipt, logs, _, err := core.ApplyTransaction(
 		app.backend.Config().ChainConfig,
 		app.backend.Ethereum().BlockChain(),
-		app.currentBlockProcessingDetails.gp,
-		app.currentBlockProcessingDetails.state,
-		app.currentBlockProcessingDetails.header,
+		app.blockResults.gp,
+		app.blockResults.state,
+		app.blockResults.header,
 		tx,
-		app.currentBlockProcessingDetails.totalUsedGas,
+		app.blockResults.totalUsedGas,
 		app.backend.Config().ChainConfig.VmConfig,
 	)
 	if err != nil {
@@ -115,13 +112,13 @@ func (app *TMSPEthereumApplication) AppendTx(txBytes []byte) types.Result {
 		return types.ErrInternalError
 	}
 
-	app.currentBlockProcessingDetails.transactions = append(app.currentBlockProcessingDetails.transactions, tx)
-	app.currentBlockProcessingDetails.receipts = append(app.currentBlockProcessingDetails.receipts, receipt)
-	app.currentBlockProcessingDetails.allLogs = append(app.currentBlockProcessingDetails.allLogs, logs...)
+	app.blockResults.txIndex += 1
 
-	if app.validatorsStrategy != nil {
-		app.validatorsStrategy.CollectTx(tx)
-	}
+	app.blockResults.transactions = append(app.blockResults.transactions, tx)
+	app.blockResults.receipts = append(app.blockResults.receipts, receipt)
+	app.blockResults.allLogs = append(app.blockResults.allLogs, logs...)
+
+	app.strategy.CollectTx(tx)
 	return types.OK
 }
 
@@ -133,7 +130,7 @@ func (app *TMSPEthereumApplication) CheckTx(txBytes []byte) types.Result {
 	if err != nil {
 		return types.ErrEncodingError
 	}
-	txpool := app.currentTxPool
+	txpool := app.txPool
 	txpool.SetLocal(tx)
 	if err := txpool.Add(tx); err != nil {
 		return types.ErrInternalError
@@ -146,8 +143,8 @@ func (app *TMSPEthereumApplication) Commit() types.Result {
 	app.commitMutex.Lock()
 	defer app.commitMutex.Unlock()
 
-	if app.currentBlockError != nil {
-		glog.V(logger.Debug).Infof("Commit error %v", app.currentBlockError)
+	if app.blockError != nil {
+		glog.V(logger.Debug).Infof("Commit error %v", app.blockError)
 		return types.ErrInternalError
 	}
 
@@ -155,13 +152,14 @@ func (app *TMSPEthereumApplication) Commit() types.Result {
 	hash := app.backend.Ethereum().BlockChain().CurrentBlock().Hash()
 	glog.V(logger.Debug).Infof("Committing %v", hash)
 
-	app.currentTxPool.Stop()
-	app.currentTxPool = app.createNewTxPool()
+	app.txPool.Stop()
+	app.txPool = app.createNewTxPool()
 	return types.NewResultOK(hash[:], "")
 }
 
 func (app *TMSPEthereumApplication) createNewTxPool() *core.TxPool {
-	return core.NewTxPool(app.backend.Config().ChainConfig, app.backend.Ethereum().EventMux(), app.backend.Ethereum().BlockChain().State, app.backend.Ethereum().BlockChain().GasLimit)
+	eth, cfg := app.backend.Ethereum(), app.backend.Config()
+	return core.NewTxPool(cfg.ChainConfig, eth.EventMux(), eth.BlockChain().State, eth.BlockChain().GasLimit)
 }
 
 // Query queries the state of TMSPEthereumApplication
@@ -202,10 +200,10 @@ func getStateCache(blockchain *core.BlockChain) *state.StateDB {
 	return *realPtrToState
 }
 
-func (app *TMSPEthereumApplication) resetBlockProcessingDetails() error {
+func (app *TMSPEthereumApplication) resetBlockResults() error {
 	ethHeader, _ := app.createIntermediateBlockHeader()
 	state, _ := app.backend.Ethereum().BlockChain().State()
-	app.currentBlockProcessingDetails = &BlockProcessingDetails{
+	app.blockResults = &BlockResults{
 		totalUsedGas: big.NewInt(0),
 		header:       ethHeader,
 		gp:           new(core.GasPool).AddGas(ethHeader.GasLimit),
@@ -217,18 +215,18 @@ func (app *TMSPEthereumApplication) resetBlockProcessingDetails() error {
 
 func (app *TMSPEthereumApplication) createIntermediateBlockHeader() (*ethTypes.Header, error) {
 	var receiver common.Address
-	if app.minerRewardStrategy != nil {
-		receiver = app.minerRewardStrategy.Receiver(app)
+	if app.strategy != nil {
+		receiver = app.strategy.Receiver(app)
 	}
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
 	var tstamp big.Int
-	tstamp.SetUint64(app.currentHeader.Time)
+	tstamp.SetUint64(app.header.Time)
 	header := &ethTypes.Header{
 		Number:     currentBlock.Number().Add(currentBlock.Number(), big.NewInt(1)),
 		ParentHash: currentBlock.Hash(),
 		GasLimit:   core.CalcGasLimit(currentBlock),
-		Difficulty: core.CalcDifficulty(app.backend.Config().ChainConfig, app.currentHeader.Time, currentBlock.Time().Uint64(), currentBlock.Number(), currentBlock.Difficulty()),
+		Difficulty: core.CalcDifficulty(app.backend.Config().ChainConfig, app.header.Time, currentBlock.Time().Uint64(), currentBlock.Number(), currentBlock.Difficulty()),
 		Time:       &tstamp,
 		Coinbase:   receiver,
 	}
@@ -242,10 +240,9 @@ func (app *TMSPEthereumApplication) BeginBlock(hash []byte, header *types.Header
 
 	glog.V(logger.Debug).Infof("Begin block")
 
-	app.currentHeader = header
-	app.currentBlockHash = hash
+	app.header = header
 
-	app.resetBlockProcessingDetails()
+	app.resetBlockResults()
 }
 
 // EndBlock adds the block to chain db
@@ -253,36 +250,36 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 
 	glog.V(logger.Debug).Infof("End block")
 
-	core.AccumulateRewards(app.currentBlockProcessingDetails.state, app.currentBlockProcessingDetails.header, []*ethTypes.Header{})
-	app.currentBlockProcessingDetails.header.GasUsed = app.currentBlockProcessingDetails.totalUsedGas
-	hashArray, err := app.currentBlockProcessingDetails.state.Commit()
+	core.AccumulateRewards(app.blockResults.state, app.blockResults.header, []*ethTypes.Header{})
+	app.blockResults.header.GasUsed = app.blockResults.totalUsedGas
+	hashArray, err := app.blockResults.state.Commit()
 	hash := hashArray[:]
 	if err != nil {
-		app.currentBlockError = types.ErrInternalError
+		app.blockError = types.ErrInternalError
 		return
 	}
 
-	for _, log := range app.currentBlockProcessingDetails.allLogs {
+	for _, log := range app.blockResults.allLogs {
 		log.BlockHash = hashArray
 	}
-	glog.V(logger.Debug).Infof("Block transactions: %v", app.currentBlockProcessingDetails.transactions)
-	app.currentBlockProcessingDetails.header.Root = hashArray
-	block := ethTypes.NewBlock(app.currentBlockProcessingDetails.header, app.currentBlockProcessingDetails.transactions, nil, app.currentBlockProcessingDetails.receipts)
+	glog.V(logger.Debug).Infof("Block transactions: %v", app.blockResults.transactions)
+	app.blockResults.header.Root = hashArray
+	block := ethTypes.NewBlock(app.blockResults.header, app.blockResults.transactions, nil, app.blockResults.receipts)
 	blockHash := block.Hash()
 
 	glog.V(logger.Debug).Infof("Writing block: %s", hex.EncodeToString(blockHash[:]))
 	_, err = app.backend.Ethereum().BlockChain().InsertChain([]*ethTypes.Block{block})
 	if err != nil {
-		app.currentBlockError = types.ErrInternalError
+		app.blockError = types.ErrInternalError
 		return
 	}
 
-	app.resetBlockProcessingDetails()
+	app.resetBlockResults()
 	glog.V(logger.Debug).Infof("Committing %s", hex.EncodeToString(hash))
 
 	//	app.backend.Ethereum().TxPool().RemoveBatch(app.currentTransactions)
-	if app.validatorsStrategy != nil {
-		return app.validatorsStrategy.GetUpdatedValidators()
+	if app.strategy != nil {
+		return app.strategy.GetUpdatedValidators()
 	}
 	return nil
 }
@@ -290,17 +287,17 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 // InitChain does nothing
 func (app *TMSPEthereumApplication) InitChain(validators []*types.Validator) {
 	glog.V(logger.Debug).Infof("InitChain")
-	if app.validatorsStrategy != nil {
-		app.validatorsStrategy.SetValidators(validators)
+	if app.strategy != nil {
+		app.strategy.SetValidators(validators)
 	}
 }
 
 func (app *TMSPEthereumApplication) ValidatorsStrategy() tmspEthTypes.ValidatorsStrategy {
-	return app.validatorsStrategy
+	return app.strategy.ValidatorsStrategy
 }
 
 func (app *TMSPEthereumApplication) MinerRewardStrategy() tmspEthTypes.MinerRewardStrategy {
-	return app.minerRewardStrategy
+	return app.strategy.MinerRewardStrategy
 }
 
 func (app *TMSPEthereumApplication) Backend() *backend.TMSPEthereumBackend {
