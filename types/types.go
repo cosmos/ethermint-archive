@@ -17,8 +17,11 @@ type ValidatorsStrategy interface {
 	GetUpdatedValidators() []*types.Validator
 }
 
+type Strategy struct {
+	MinerRewardStrategy
+	ValidatorsStrategy
+}
 type TMSPEthereumApplicationInterface interface {
 	Backend() *backend.TMSPEthereumBackend
-	ValidatorsStrategy() ValidatorsStrategy
-	MinerRewardStrategy() MinerRewardStrategy
+	Strategy() *Strategy
 }
