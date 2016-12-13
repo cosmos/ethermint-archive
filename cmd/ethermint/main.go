@@ -143,7 +143,13 @@ func tmspEthereumAction(ctx *cli.Context) error {
 	if err != nil {
 		utils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
-	_, err = server.NewServer(addr, tmsp, app.NewEthermintApplication(backend, client, nil))
+	ethApp, err := app.NewEthermintApplication(backend, client, nil)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+
+	}
+	_, err = server.NewServer(addr, tmsp, ethApp)
 	/*
 		_, err = server.NewServer(
 			addr,
