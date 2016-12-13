@@ -1,4 +1,4 @@
-package processor
+package types
 
 import (
 	"github.com/ethereum/go-ethereum/core/state"

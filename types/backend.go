@@ -1,4 +1,4 @@
-package backend
+package types
 
 import (
 	"bytes"
@@ -16,13 +16,12 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/pow"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/tendermint/ethermint/processor"
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-// TMSPEthereumBackend handles the chain database and VM
-type TMSPEthereumBackend struct {
+// EthereumBackend handles the chain database and VM
+type EthereumBackend struct {
 	ethereum *eth.Ethereum
 	txSub    event.Subscription
 	client   *client.ClientURI
@@ -39,7 +38,7 @@ func setFakePow(ethereum *eth.Ethereum) {
 	*realPtrToPow = powToSet
 }
 
-func (s *TMSPEthereumBackend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+func (s *EthereumBackend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	mux := new(event.TypeMux)
 	s.txSub = mux.Subscribe(core.TxPreEvent{})
 	txPool := core.NewTxPool(s.Config().ChainConfig, mux, s.Ethereum().BlockChain().State, s.Ethereum().BlockChain().GasLimit)
@@ -52,7 +51,7 @@ func (s *TMSPEthereumBackend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPool
 	*realPtrToTxPool = txPool
 }
 
-func (s *TMSPEthereumBackend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+func (s *EthereumBackend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	mux := new(event.TypeMux)
 	s.txSub = mux.Subscribe(core.TxPreEvent{})
 	pointerVal := reflect.ValueOf(txPoolAPI)
@@ -68,26 +67,26 @@ func (s *TMSPEthereumBackend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionP
 	*realPtrToEventMux = mux
 }
 
-// New creates a new TMSPEthereumBackend
-func New(ctx *node.ServiceContext, config *eth.Config) (*TMSPEthereumBackend, error) {
+// New creates a new EthereumBackend
+func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*EthereumBackend, error) {
 	ethereum, err := eth.New(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 	setFakePow(ethereum)
-	ethereum.BlockChain().SetValidator(processor.NullBlockProcessor{})
-	tmspBackend := &TMSPEthereumBackend{
+	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
+	ethBackend := &EthereumBackend{
 		ethereum: ethereum,
 		client:   client.NewClientURI("tcp://localhost:46657"),
 		config:   config,
 		//		client: client.NewClientURI(fmt.Sprintf("http://%s", ctx.String(TendermintCoreHostFlag.Name))),
 	}
 
-	return tmspBackend, nil
+	return ethBackend, nil
 }
 
 // APIs returns the collection of RPC services the ethereum package offers.
-func (s *TMSPEthereumBackend) APIs() []rpc.API {
+func (s *EthereumBackend) APIs() []rpc.API {
 	apis := s.Ethereum().APIs()
 	retApis := []rpc.API{}
 	for _, v := range apis {
@@ -105,30 +104,30 @@ func (s *TMSPEthereumBackend) APIs() []rpc.API {
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
-func (s *TMSPEthereumBackend) Start(srvr *p2p.Server) error {
+func (s *EthereumBackend) Start(srvr *p2p.Server) error {
 	//	s.netRPCService = NewPublicNetAPI(srvr, s.NetVersion())
 	return nil
 }
 
 // Stop implements node.Service, terminating all internal goroutines used by the
 // Ethereum protocol.
-func (s *TMSPEthereumBackend) Stop() error {
+func (s *EthereumBackend) Stop() error {
 	s.ethereum.Stop()
 	return nil
 }
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
-func (s *TMSPEthereumBackend) Protocols() []p2p.Protocol {
+func (s *EthereumBackend) Protocols() []p2p.Protocol {
 	return nil
 }
 
 // Ethereum returns the underlying the ethereum object
-func (s *TMSPEthereumBackend) Ethereum() *eth.Ethereum {
+func (s *EthereumBackend) Ethereum() *eth.Ethereum {
 	return s.ethereum
 }
 
-func (s *TMSPEthereumBackend) txBroadcastLoop() {
+func (s *EthereumBackend) txBroadcastLoop() {
 	for obj := range s.txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		err := s.BroadcastTx(event.Tx)
@@ -137,7 +136,7 @@ func (s *TMSPEthereumBackend) txBroadcastLoop() {
 }
 
 // BroadcastTx broadcasts a transaction to tendermint core
-func (s *TMSPEthereumBackend) BroadcastTx(tx *ethTypes.Transaction) error {
+func (s *EthereumBackend) BroadcastTx(tx *ethTypes.Transaction) error {
 	var result core_types.TMResult
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
@@ -151,6 +150,6 @@ func (s *TMSPEthereumBackend) BroadcastTx(tx *ethTypes.Transaction) error {
 }
 
 // Config returns the eth.Config
-func (s *TMSPEthereumBackend) Config() *eth.Config {
+func (s *EthereumBackend) Config() *eth.Config {
 	return s.config
 }

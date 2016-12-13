@@ -1,13 +1,10 @@
-package application
+package app
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"math/big"
-	"reflect"
 	"sync"
-	"unsafe"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -18,14 +15,13 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/tendermint/ethermint/backend"
-	tmspEthTypes "github.com/tendermint/ethermint/types"
+	emtTypes "github.com/tendermint/ethermint/types"
 	"github.com/tendermint/tmsp/types"
 )
 
-// TMSPEthereumApplication implements a TMSP application
-type TMSPEthereumApplication struct {
-	backend *backend.TMSPEthereumBackend
+// EthermintApplication implements a TMSP application
+type EthermintApplication struct {
+	backend *emtTypes.EthereumBackend
 
 	// block processing
 	commitMutex  *sync.Mutex
@@ -40,7 +36,7 @@ type TMSPEthereumApplication struct {
 	rpcClient rpc.Client
 
 	// economics
-	strategy *tmspEthTypes.Strategy
+	strategy *emtTypes.Strategy
 }
 
 // Intermediate state of a block, updated with each AppendTx
@@ -57,29 +53,29 @@ type BlockResults struct {
 	txIndex      int
 }
 
-func (app *TMSPEthereumApplication) Backend() *backend.TMSPEthereumBackend {
+func (app *EthermintApplication) Backend() *emtTypes.EthereumBackend {
 	return app.backend
 }
 
-func (app *TMSPEthereumApplication) Strategy() *tmspEthTypes.Strategy {
+func (app *EthermintApplication) Strategy() *emtTypes.Strategy {
 	return app.strategy
 }
 
-// NewTMSPEthereumApplication creates the tmsp application for ethermint
-func NewTMSPEthereumApplication(backend *backend.TMSPEthereumBackend,
-	client rpc.Client, strategy *tmspEthTypes.Strategy) *TMSPEthereumApplication {
-	app := &TMSPEthereumApplication{
+// NewEthermintApplication creates the tmsp application for ethermint
+func NewEthermintApplication(backend *emtTypes.EthereumBackend,
+	client rpc.Client, strategy *emtTypes.Strategy) *EthermintApplication {
+	app := &EthermintApplication{
 		backend:     backend,
 		commitMutex: &sync.Mutex{},
 		rpcClient:   client,
+		txPool:      createNewTxPool(backend),
 		strategy:    strategy,
 	}
-	app.txPool = app.createNewTxPool()
 	return app
 }
 
-// Info returns information about TMSPEthereumApplication to the tendermint engine
-func (app *TMSPEthereumApplication) Info() (string, *types.TMSPInfo, *types.LastBlockInfo, *types.ConfigInfo) {
+// Info returns information about EthermintApplication to the tendermint engine
+func (app *EthermintApplication) Info() (string, *types.TMSPInfo, *types.LastBlockInfo, *types.ConfigInfo) {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
 	height := currentBlock.Number()
@@ -90,13 +86,13 @@ func (app *TMSPEthereumApplication) Info() (string, *types.TMSPInfo, *types.Last
 	}, nil
 }
 
-// SetOption sets a configuration option for TMSPEthereumApplication
-func (app *TMSPEthereumApplication) SetOption(key string, value string) (log string) {
+// SetOption sets a configuration option for EthermintApplication
+func (app *EthermintApplication) SetOption(key string, value string) (log string) {
 	return ""
 }
 
 // InitChain does nothing
-func (app *TMSPEthereumApplication) InitChain(validators []*types.Validator) {
+func (app *EthermintApplication) InitChain(validators []*types.Validator) {
 	glog.V(logger.Debug).Infof("InitChain")
 	if app.strategy != nil {
 		app.strategy.SetValidators(validators)
@@ -104,7 +100,7 @@ func (app *TMSPEthereumApplication) InitChain(validators []*types.Validator) {
 }
 
 // CheckTx checks a transaction is valid but does not mutate the state
-func (app *TMSPEthereumApplication) CheckTx(txBytes []byte) types.Result {
+func (app *EthermintApplication) CheckTx(txBytes []byte) types.Result {
 	glog.V(logger.Debug).Infof("Check tx")
 
 	tx, err := decodeTx(txBytes)
@@ -120,7 +116,7 @@ func (app *TMSPEthereumApplication) CheckTx(txBytes []byte) types.Result {
 }
 
 // BeginBlock starts a new Ethereum block
-func (app *TMSPEthereumApplication) BeginBlock(hash []byte, header *types.Header) {
+func (app *EthermintApplication) BeginBlock(hash []byte, header *types.Header) {
 	app.commitMutex.Lock()
 	defer app.commitMutex.Unlock()
 
@@ -131,12 +127,12 @@ func (app *TMSPEthereumApplication) BeginBlock(hash []byte, header *types.Header
 	app.resetBlockResults()
 }
 
-// AppendTx processes a transaction in the TMSPEthereumApplication state
-func (app *TMSPEthereumApplication) AppendTx(txBytes []byte) types.Result {
+// AppendTx processes a transaction in the EthermintApplication state
+func (app *EthermintApplication) AppendTx(txBytes []byte) types.Result {
 	app.commitMutex.Lock()
 	defer app.commitMutex.Unlock()
 
-	glog.V(logger.Debug).Infof("Got AppendTx: %s", hex.EncodeToString(txBytes))
+	glog.V(logger.Debug).Infof("Got AppendTx: %X", txBytes)
 	tx, err := decodeTx(txBytes)
 	if err != nil {
 		return types.ErrEncodingError
@@ -171,14 +167,13 @@ func (app *TMSPEthereumApplication) AppendTx(txBytes []byte) types.Result {
 }
 
 // EndBlock adds the block to chain db
-func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Validator) {
+func (app *EthermintApplication) EndBlock(height uint64) (diffs []*types.Validator) {
 
 	glog.V(logger.Debug).Infof("End block")
 
 	core.AccumulateRewards(app.blockResults.state, app.blockResults.header, []*ethTypes.Header{})
 	app.blockResults.header.GasUsed = app.blockResults.totalUsedGas
 	hashArray, err := app.blockResults.state.Commit()
-	hash := hashArray[:]
 	if err != nil {
 		app.blockError = types.ErrInternalError
 		return
@@ -192,7 +187,7 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 	block := ethTypes.NewBlock(app.blockResults.header, app.blockResults.transactions, nil, app.blockResults.receipts)
 	blockHash := block.Hash()
 
-	glog.V(logger.Debug).Infof("Writing block: %s", hex.EncodeToString(blockHash[:]))
+	glog.V(logger.Debug).Infof("Writing block: %X", blockHash[:])
 	_, err = app.backend.Ethereum().BlockChain().InsertChain([]*ethTypes.Block{block})
 	if err != nil {
 		app.blockError = types.ErrInternalError
@@ -200,7 +195,7 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 	}
 
 	app.resetBlockResults()
-	glog.V(logger.Debug).Infof("Committing %s", hex.EncodeToString(hash))
+	glog.V(logger.Debug).Infof("Committing %X", hashArray)
 
 	//	app.backend.Ethereum().TxPool().RemoveBatch(app.currentTransactions)
 	if app.strategy != nil {
@@ -210,7 +205,7 @@ func (app *TMSPEthereumApplication) EndBlock(height uint64) (diffs []*types.Vali
 }
 
 // Commit returns a hash of the current state
-func (app *TMSPEthereumApplication) Commit() types.Result {
+func (app *EthermintApplication) Commit() types.Result {
 	app.commitMutex.Lock()
 	defer app.commitMutex.Unlock()
 
@@ -219,19 +214,19 @@ func (app *TMSPEthereumApplication) Commit() types.Result {
 		return types.ErrInternalError
 	}
 
-	glog.V(logger.Debug).Infof("Commit")
+	// we use the hash of the ethereum block as the merkle root of the ethermint state
 	hash := app.backend.Ethereum().BlockChain().CurrentBlock().Hash()
 	glog.V(logger.Debug).Infof("Committing %v", hash)
 
 	// CheckTx and Commit should not run concurrently
 	// so its safe to replace txpool here
 	app.txPool.Stop()
-	app.txPool = app.createNewTxPool()
+	app.txPool = createNewTxPool(app.backend)
 	return types.NewResultOK(hash[:], "")
 }
 
-// Query queries the state of TMSPEthereumApplication
-func (app *TMSPEthereumApplication) Query(query []byte) types.Result {
+// Query queries the state of EthermintApplication
+func (app *EthermintApplication) Query(query []byte) types.Result {
 	var in rpc.JSONRequest
 	if err := json.Unmarshal(query, &in); err != nil {
 		return types.ErrInternalError
@@ -252,30 +247,8 @@ func (app *TMSPEthereumApplication) Query(query []byte) types.Result {
 
 //----------------------------------------------------------------------------
 
-func (app *TMSPEthereumApplication) createNewTxPool() *core.TxPool {
-	eth, cfg := app.backend.Ethereum(), app.backend.Config()
-	return core.NewTxPool(cfg.ChainConfig, eth.EventMux(), eth.BlockChain().State, eth.BlockChain().GasLimit)
-}
-
-func decodeTx(txBytes []byte) (*ethTypes.Transaction, error) {
-	tx := new(ethTypes.Transaction)
-	rlpStream := rlp.NewStream(bytes.NewBuffer(txBytes), 0)
-	if err := tx.DecodeRLP(rlpStream); err != nil {
-		return nil, err
-	}
-	return tx, nil
-}
-
-func getStateCache(blockchain *core.BlockChain) *state.StateDB {
-	pointerVal := reflect.ValueOf(blockchain)
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("stateCache")
-	ptrToState := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToState := (**state.StateDB)(ptrToState)
-	return *realPtrToState
-}
-
-func (app *TMSPEthereumApplication) resetBlockResults() error {
+// NOTE: this is being called in both Being/End Block
+func (app *EthermintApplication) resetBlockResults() error {
 	ethHeader, _ := app.createIntermediateBlockHeader()
 	state, _ := app.backend.Ethereum().BlockChain().State()
 	app.blockResults = &BlockResults{
@@ -288,7 +261,7 @@ func (app *TMSPEthereumApplication) resetBlockResults() error {
 	return nil
 }
 
-func (app *TMSPEthereumApplication) createIntermediateBlockHeader() (*ethTypes.Header, error) {
+func (app *EthermintApplication) createIntermediateBlockHeader() (*ethTypes.Header, error) {
 	var receiver common.Address
 	if app.strategy != nil {
 		receiver = app.strategy.Receiver(app)
@@ -306,4 +279,18 @@ func (app *TMSPEthereumApplication) createIntermediateBlockHeader() (*ethTypes.H
 		Coinbase:   receiver,
 	}
 	return header, nil
+}
+
+func createNewTxPool(backend *emtTypes.EthereumBackend) *core.TxPool {
+	eth, cfg := backend.Ethereum(), backend.Config()
+	return core.NewTxPool(cfg.ChainConfig, eth.EventMux(), eth.BlockChain().State, eth.BlockChain().GasLimit)
+}
+
+func decodeTx(txBytes []byte) (*ethTypes.Transaction, error) {
+	tx := new(ethTypes.Transaction)
+	rlpStream := rlp.NewStream(bytes.NewBuffer(txBytes), 0)
+	if err := tx.DecodeRLP(rlpStream); err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
