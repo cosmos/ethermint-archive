@@ -3,11 +3,12 @@ package types
 import (
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/tendermint/tmsp/types"
 )
 
 type MinerRewardStrategy interface {
-	Receiver(app EthermintApplicationInterface) common.Address
+	Receiver() common.Address
 }
 
 type ValidatorsStrategy interface {
@@ -19,8 +20,4 @@ type ValidatorsStrategy interface {
 type Strategy struct {
 	MinerRewardStrategy
 	ValidatorsStrategy
-}
-type EthermintApplicationInterface interface {
-	Backend() *EthereumBackend
-	Strategy() *Strategy
 }

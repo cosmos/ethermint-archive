@@ -17,8 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/tendermint/ethermint/app"
-	"github.com/tendermint/ethermint/node"
-	emtTypes "github.com/tendermint/ethermint/types"
+	"github.com/tendermint/ethermint/ethereum"
 	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
 	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
 	cfg "github.com/tendermint/go-config"
@@ -130,12 +129,12 @@ func getTendermintConfig(ctx *cli.Context) cfg.Config {
 }
 
 func tmspEthereumAction(ctx *cli.Context) error {
-	stack := node.MakeSystemNode(clientIdentifier, verString, ctx)
+	stack := ethereum.MakeSystemNode(clientIdentifier, verString, ctx)
 	utils.StartNode(stack)
 	addr := ctx.GlobalString("addr")
 	tmsp := ctx.GlobalString("tmsp")
 
-	var backend *emtTypes.EthereumBackend
+	var backend *ethereum.Backend
 	if err := stack.Service(&backend); err != nil {
 		utils.Fatalf("backend service not running: %v", err)
 	}

@@ -1,4 +1,4 @@
-package node
+package ethereum
 
 import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
-	emtTypes "github.com/tendermint/ethermint/types"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -58,7 +57,7 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return emtTypes.NewBackend(ctx, ethConf)
+		return NewBackend(ctx, ethConf)
 	}); err != nil {
 		utils.Fatalf("Failed to register the TMSP application service: %v", err)
 	}

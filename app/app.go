@@ -15,13 +15,16 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
+
 	tmspTypes "github.com/tendermint/tmsp/types"
 )
 
 // EthermintApplication implements a TMSP application
 type EthermintApplication struct {
-	backend *emtTypes.EthereumBackend
+	backend *ethereum.Backend
 
 	// block processing
 	commitMutex  *sync.Mutex
@@ -53,7 +56,7 @@ type BlockResults struct {
 	gp           *core.GasPool
 }
 
-func (app *EthermintApplication) Backend() *emtTypes.EthereumBackend {
+func (app *EthermintApplication) Backend() *ethereum.Backend {
 	return app.backend
 }
 
@@ -62,7 +65,7 @@ func (app *EthermintApplication) Strategy() *emtTypes.Strategy {
 }
 
 // NewEthermintApplication creates the tmsp application for ethermint
-func NewEthermintApplication(backend *emtTypes.EthereumBackend,
+func NewEthermintApplication(backend *ethereum.Backend,
 	client rpc.Client, strategy *emtTypes.Strategy) (*EthermintApplication, error) {
 	app := &EthermintApplication{
 		backend:     backend,
@@ -110,12 +113,12 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) tmspTypes.Result {
 
 	tx, err := decodeTx(txBytes)
 	if err != nil {
-		return tmspTypes.ErrEncodingError
+		return types.ErrEncodingError
 	}
-	txpool := app.txPool
+	txpool := app.currentTxPool
 	txpool.SetLocal(tx)
 	if err := txpool.Add(tx); err != nil {
-		return tmspTypes.ErrInternalError
+		return types.ErrInternalError
 	}
 	return tmspTypes.OK
 }
@@ -166,7 +169,9 @@ func (app *EthermintApplication) AppendTx(txBytes []byte) tmspTypes.Result {
 	app.blockResults.receipts = append(app.blockResults.receipts, receipt)
 	app.blockResults.allLogs = append(app.blockResults.allLogs, logs...)
 
-	app.strategy.CollectTx(tx)
+	if app.strategy != nil {
+		app.strategy.CollectTx(tx)
+	}
 	return tmspTypes.OK
 }
 
@@ -262,7 +267,7 @@ func (app *EthermintApplication) Query(query []byte) tmspTypes.Result {
 func (app *EthermintApplication) resetBlockResults(state *state.StateDB) {
 	var receiver common.Address
 	if app.strategy != nil {
-		receiver = app.strategy.Receiver(app)
+		receiver = app.strategy.Receiver()
 	}
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
@@ -299,7 +304,7 @@ func newBlockHeader(receiver common.Address, prevBlock *ethTypes.Block) *ethType
 	}
 }
 
-func createNewTxPool(backend *emtTypes.EthereumBackend) *core.TxPool {
+func createNewTxPool(backend *ethereum.Backend) *core.TxPool {
 	eth, cfg := backend.Ethereum(), backend.Config()
 	return core.NewTxPool(cfg.ChainConfig, eth.EventMux(), eth.BlockChain().State, eth.BlockChain().GasLimit)
 }
