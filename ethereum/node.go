@@ -1,16 +1,18 @@
-package node
+package ethereum
 
 import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/tendermint/ethermint/backend"
+	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 )
 
 // MakeSystemNode sets up a local node and configures the services to launch
 func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
+	params.TargetGasLimit = common.String2Big(ctx.GlobalString(utils.TargetGasLimitFlag.Name))
+
 	// Configure the node's service container
 	stackConf := &node.Config{
 		DataDir:     utils.MustMakeDataDir(ctx),
@@ -55,7 +57,7 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return backend.New(ctx, ethConf)
+		return NewBackend(ctx, ethConf)
 	}); err != nil {
 		utils.Fatalf("Failed to register the TMSP application service: %v", err)
 	}

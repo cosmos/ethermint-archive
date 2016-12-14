@@ -1,9 +1,10 @@
-package processor
+package ethereum
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"math/big"
 )
 
 // NullBlockProcessor does not validate anything
