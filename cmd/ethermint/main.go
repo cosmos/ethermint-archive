@@ -88,6 +88,7 @@ func initCommand(ctx *cli.Context) error {
 	config = getTendermintConfig(ctx)
 	init_files()
 
+	// ethereum genesis.json
 	genesisPath := ctx.Args().First()
 	if len(genesisPath) == 0 {
 		utils.Fatalf("must supply path to genesis JSON file")

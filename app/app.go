@@ -113,12 +113,12 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) tmspTypes.Result {
 
 	tx, err := decodeTx(txBytes)
 	if err != nil {
-		return types.ErrEncodingError
+		return tmspTypes.ErrEncodingError
 	}
-	txpool := app.currentTxPool
+	txpool := app.txPool
 	txpool.SetLocal(tx)
 	if err := txpool.Add(tx); err != nil {
-		return types.ErrInternalError
+		return tmspTypes.ErrInternalError
 	}
 	return tmspTypes.OK
 }
