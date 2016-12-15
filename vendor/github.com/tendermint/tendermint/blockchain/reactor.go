@@ -8,7 +8,7 @@ import (
 	"time"
 
 	. "github.com/tendermint/go-common"
-	"github.com/tendermint/go-events"
+	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-p2p"
 	"github.com/tendermint/go-wire"
 	"github.com/tendermint/tendermint/proxy"
@@ -42,7 +42,7 @@ type consensusReactor interface {
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	sw           *p2p.Switch
+	config       cfg.Config
 	state        *sm.State
 	proxyAppConn proxy.AppConnConsensus // same as consensus.proxyAppConn
 	store        *BlockStore
@@ -52,10 +52,10 @@ type BlockchainReactor struct {
 	timeoutsCh   chan string
 	lastBlock    *types.Block
 
-	evsw events.EventSwitch
+	evsw types.EventSwitch
 }
 
-func NewBlockchainReactor(state *sm.State, proxyAppConn proxy.AppConnConsensus, store *BlockStore, fastSync bool) *BlockchainReactor {
+func NewBlockchainReactor(config cfg.Config, state *sm.State, proxyAppConn proxy.AppConnConsensus, store *BlockStore, fastSync bool) *BlockchainReactor {
 	if state.LastBlockHeight == store.Height()-1 {
 		store.height -= 1 // XXX HACK, make this better
 	}
@@ -70,6 +70,7 @@ func NewBlockchainReactor(state *sm.State, proxyAppConn proxy.AppConnConsensus, 
 		timeoutsCh,
 	)
 	bcR := &BlockchainReactor{
+		config:       config,
 		state:        state,
 		proxyAppConn: proxyAppConn,
 		store:        store,
@@ -130,7 +131,7 @@ func (bcR *BlockchainReactor) Receive(chID byte, src *p2p.Peer, msgBytes []byte)
 		return
 	}
 
-	log.Notice("Receive", "src", src, "chID", chID, "msg", msg)
+	log.Debug("Receive", "src", src, "chID", chID, "msg", msg)
 
 	switch msg := msg.(type) {
 	case *bcBlockRequestMessage:
@@ -220,11 +221,14 @@ FOR_LOOP:
 					// We need both to sync the first block.
 					break SYNC_LOOP
 				}
-				firstParts := first.MakePartSet()
+				firstParts := first.MakePartSet(bcR.config.GetInt("block_part_size")) // TODO: put part size in parts header?
 				firstPartsHeader := firstParts.Header()
 				// Finally, verify the first block using the second's commit
+				// NOTE: we can probably make this more efficient, but note that calling
+				// first.Hash() doesn't verify the tx contents, so MakePartSet() is
+				// currently necessary.
 				err := bcR.state.Validators.VerifyCommit(
-					bcR.state.ChainID, first.Hash(), firstPartsHeader, first.Height, second.LastCommit)
+					bcR.state.ChainID, types.BlockID{first.Hash(), firstPartsHeader}, first.Height, second.LastCommit)
 				if err != nil {
 					log.Info("error in validation", "error", err)
 					bcR.pool.RedoRequest(first.Height)
@@ -232,6 +236,7 @@ FOR_LOOP:
 				} else {
 					bcR.pool.PopRequest()
 					// TODO: use ApplyBlock instead of Exec/Commit/SetAppHash/Save
+					// TODO: should we be firing events? need to fire NewBlock events manually ...
 					err := bcR.state.ExecBlock(bcR.evsw, bcR.proxyAppConn, first, firstPartsHeader)
 					if err != nil {
 						// TODO This is bad, are we zombie?
@@ -268,7 +273,7 @@ func (bcR *BlockchainReactor) BroadcastStatusRequest() error {
 }
 
 // implements events.Eventable
-func (bcR *BlockchainReactor) SetEventSwitch(evsw events.EventSwitch) {
+func (bcR *BlockchainReactor) SetEventSwitch(evsw types.EventSwitch) {
 	bcR.evsw = evsw
 }
 

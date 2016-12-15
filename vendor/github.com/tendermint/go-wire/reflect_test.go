@@ -485,7 +485,7 @@ func TestBadAlloc(t *testing.T) {
 	data := RandBytes(100 * 1024)
 	b := new(bytes.Buffer)
 	// this slice of data claims to be much bigger than it really is
-	WriteUvarint(uint(10000000000000000), b, n, err)
+	WriteUvarint(uint(1<<32-1), b, n, err)
 	b.Write(data)
 	res := ReadBinary(instance, b, 0, n, err)
 	fmt.Println(res, *err)

@@ -16,12 +16,12 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/tendermint/ethermint/application"
-	"github.com/tendermint/ethermint/backend"
-	"github.com/tendermint/ethermint/node"
+	"github.com/tendermint/ethermint/app"
+	"github.com/tendermint/ethermint/ethereum"
 	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
 	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
 	cfg "github.com/tendermint/go-config"
+	tmlog "github.com/tendermint/go-logger"
 	tmcfg "github.com/tendermint/tendermint/config/tendermint"
 	tendermintNode "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tmsp/server"
@@ -46,7 +46,7 @@ const (
 
 var (
 	verString  string // Combined textual representation of all the version components
-	app        *cli.App
+	cliApp     *cli.App
 	mainLogger = logger.NewLogger("main")
 )
 
@@ -55,9 +55,9 @@ func init() {
 	if versionMeta != "" {
 		verString += "-" + versionMeta
 	}
-	app = newCliApp(verString, "the ethermint command line interface")
-	app.Action = tmspEthereumAction
-	app.Commands = []cli.Command{
+	cliApp = newCliApp(verString, "the ethermint command line interface")
+	cliApp.Action = tmspEthereumAction
+	cliApp.Commands = []cli.Command{
 		{
 			Action:      initCommand,
 			Name:        "init",
@@ -65,9 +65,9 @@ func init() {
 			Description: "",
 		},
 	}
-	app.HideVersion = true // we have a command to print the version
+	cliApp.HideVersion = true // we have a command to print the version
 
-	app.After = func(ctx *cli.Context) error {
+	cliApp.After = func(ctx *cli.Context) error {
 		logger.Flush()
 		return nil
 	}
@@ -78,7 +78,7 @@ func init() {
 
 func main() {
 	mainLogger.Infoln("Starting ethermint")
-	if err := app.Run(os.Args); err != nil {
+	if err := cliApp.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -88,6 +88,7 @@ func initCommand(ctx *cli.Context) error {
 	config = getTendermintConfig(ctx)
 	init_files()
 
+	// ethereum genesis.json
 	genesisPath := ctx.Args().First()
 	if len(genesisPath) == 0 {
 		utils.Fatalf("must supply path to genesis JSON file")
@@ -121,16 +122,20 @@ func getTendermintConfig(ctx *cli.Context) cfg.Config {
 	config.Set("skip_upnp", ctx.GlobalBool("skip_upnp"))
 	config.Set("rpc_laddr", ctx.GlobalString("rpc_laddr"))
 	config.Set("proxy_app", ctx.GlobalString("addr"))
+	config.Set("log_level", ctx.GlobalString("log_level"))
+
+	tmlog.SetLogLevel(config.GetString("log_level"))
+
 	return config
 }
 
 func tmspEthereumAction(ctx *cli.Context) error {
-	stack := node.MakeSystemNode(clientIdentifier, verString, ctx)
+	stack := ethereum.MakeSystemNode(clientIdentifier, verString, ctx)
 	utils.StartNode(stack)
 	addr := ctx.GlobalString("addr")
 	tmsp := ctx.GlobalString("tmsp")
 
-	var backend *backend.TMSPEthereumBackend
+	var backend *ethereum.Backend
 	if err := stack.Service(&backend); err != nil {
 		utils.Fatalf("backend service not running: %v", err)
 	}
@@ -138,12 +143,18 @@ func tmspEthereumAction(ctx *cli.Context) error {
 	if err != nil {
 		utils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
-	_, err = server.NewServer(addr, tmsp, application.NewTMSPEthereumApplication(backend, client, nil, nil))
+	ethApp, err := app.NewEthermintApplication(backend, client, nil)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+
+	}
+	_, err = server.NewServer(addr, tmsp, ethApp)
 	/*
 		_, err = server.NewServer(
 			addr,
 			tmsp,
-			application.NewTMSPEthereumApplication(
+			app.NewTMSPEthereumApplication(
 				backend,
 				client,
 				&minerRewardStrategies.RewardConstant{},
@@ -231,6 +242,7 @@ func newCliApp(version, usage string) *cli.App {
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
 		utils.EtherbaseFlag,
+		utils.TargetGasLimitFlag,
 		utils.GasPriceFlag,
 		utils.NATFlag,
 		utils.NatspecEnabledFlag,
@@ -268,6 +280,11 @@ func newCliApp(version, usage string) *cli.App {
 			Name:  "node_laddr",
 			Value: "tcp://0.0.0.0:46656",
 			Usage: "Node listen address. (0.0.0.0:0 means any interface, any port)",
+		},
+		cli.StringFlag{
+			Name:  "log_level",
+			Value: "info",
+			Usage: "Tendermint Log level",
 		},
 		cli.StringFlag{
 			Name:  "seeds",

@@ -65,6 +65,7 @@ import (
 	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/tap"
 	testpb "google.golang.org/grpc/test/grpc_testing"
 )
 
@@ -418,6 +419,7 @@ type test struct {
 	testServer        testpb.TestServiceServer // nil means none
 	healthServer      *health.Server           // nil means disabled
 	maxStream         uint32
+	tapHandle         tap.ServerInHandle
 	maxMsgSize        int
 	userAgent         string
 	clientCompression bool
@@ -472,6 +474,9 @@ func (te *test) startServer(ts testpb.TestServiceServer) {
 	sopts := []grpc.ServerOption{grpc.MaxConcurrentStreams(te.maxStream)}
 	if te.maxMsgSize > 0 {
 		sopts = append(sopts, grpc.MaxMsgSize(te.maxMsgSize))
+	}
+	if te.tapHandle != nil {
+		sopts = append(sopts, grpc.InTapHandle(te.tapHandle))
 	}
 	if te.serverCompression {
 		sopts = append(sopts,
@@ -625,7 +630,10 @@ func testTimeoutOnDeadServer(t *testing.T, e env) {
 	}
 	te.srv.Stop()
 	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
-	if _, err := tc.EmptyCall(ctx, &testpb.Empty{}, grpc.FailFast(false)); grpc.Code(err) != codes.DeadlineExceeded {
+	_, err := tc.EmptyCall(ctx, &testpb.Empty{}, grpc.FailFast(false))
+	if e.balancer && grpc.Code(err) != codes.DeadlineExceeded {
+		// If e.balancer == nil, the ac will stop reconnecting because the dialer returns non-temp error,
+		// the error will be an internal error.
 		t.Fatalf("TestService/EmptyCall(%v, _) = _, %v, want _, error code: %s", ctx, err, codes.DeadlineExceeded)
 	}
 	awaitNewConnLogOutput()
@@ -1003,6 +1011,68 @@ func testFailFast(t *testing.T, e env) {
 	}
 
 	awaitNewConnLogOutput()
+}
+
+func TestTap(t *testing.T) {
+	defer leakCheck(t)()
+	for _, e := range listTestEnv() {
+		if e.name == "handler-tls" {
+			continue
+		}
+		testTap(t, e)
+	}
+}
+
+type myTap struct {
+	cnt int
+}
+
+func (t *myTap) handle(ctx context.Context, info *tap.Info) (context.Context, error) {
+	if info != nil {
+		if info.FullMethodName == "/grpc.testing.TestService/EmptyCall" {
+			t.cnt++
+		} else if info.FullMethodName == "/grpc.testing.TestService/UnaryCall" {
+			return nil, fmt.Errorf("tap error")
+		}
+	}
+	return ctx, nil
+}
+
+func testTap(t *testing.T, e env) {
+	te := newTest(t, e)
+	te.userAgent = testAppUA
+	ttap := &myTap{}
+	te.tapHandle = ttap.handle
+	te.declareLogNoise(
+		"transport: http2Client.notifyError got notified that the client transport was broken EOF",
+		"grpc: addrConn.transportMonitor exits due to: grpc: the connection is closing",
+		"grpc: addrConn.resetTransport failed to create client transport: connection error",
+	)
+	te.startServer(&testServer{security: e.security})
+	defer te.tearDown()
+
+	cc := te.clientConn()
+	tc := testpb.NewTestServiceClient(cc)
+	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); err != nil {
+		t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want _, <nil>", err)
+	}
+	if ttap.cnt != 1 {
+		t.Fatalf("Get the count in ttap %d, want 1", ttap.cnt)
+	}
+
+	payload, err := newPayload(testpb.PayloadType_COMPRESSABLE, 31)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := &testpb.SimpleRequest{
+		ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize: proto.Int32(45),
+		Payload:      payload,
+	}
+	if _, err := tc.UnaryCall(context.Background(), req); grpc.Code(err) != codes.Unavailable {
+		t.Fatalf("TestService/UnaryCall(_, _) = _, %v, want _, %s", err, codes.Unavailable)
+	}
 }
 
 func healthCheck(d time.Duration, cc *grpc.ClientConn, serviceName string) (*healthpb.HealthCheckResponse, error) {
@@ -2504,8 +2574,7 @@ func testStreamsQuotaRecovery(t *testing.T, e env) {
 
 	cc := te.clientConn()
 	tc := testpb.NewTestServiceClient(cc)
-	ctx, cancel := context.WithCancel(context.Background())
-	if _, err := tc.StreamingInputCall(ctx); err != nil {
+	if _, err := tc.StreamingInputCall(context.Background()); err != nil {
 		t.Fatalf("%v.StreamingInputCall(_) = _, %v, want _, <nil>", tc, err)
 	}
 	// Loop until the new max stream setting is effective.
@@ -2522,18 +2591,26 @@ func testStreamsQuotaRecovery(t *testing.T, e env) {
 		}
 		t.Fatalf("%v.StreamingInputCall(_) = _, %v, want _, %s", tc, err, codes.DeadlineExceeded)
 	}
-	cancel()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ctx, cancel := context.WithCancel(context.Background())
-			if _, err := tc.StreamingInputCall(ctx); err != nil {
-				t.Errorf("%v.StreamingInputCall(_) = _, %v, want _, <nil>", tc, err)
+			payload, err := newPayload(testpb.PayloadType_COMPRESSABLE, 314)
+			if err != nil {
+				t.Fatal(err)
 			}
-			cancel()
+			req := &testpb.SimpleRequest{
+				ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+				ResponseSize: proto.Int32(1592),
+				Payload:      payload,
+			}
+			// No rpc should go through due to the max streams limit.
+			ctx, _ := context.WithTimeout(context.Background(), 10*time.Millisecond)
+			if _, err := tc.UnaryCall(ctx, req, grpc.FailFast(false)); grpc.Code(err) != codes.DeadlineExceeded {
+				t.Errorf("TestService/UnaryCall(_, _) = _, %v, want _, %s", err, codes.DeadlineExceeded)
+			}
 		}()
 	}
 	wg.Wait()

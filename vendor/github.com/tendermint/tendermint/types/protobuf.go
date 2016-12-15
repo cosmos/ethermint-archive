@@ -15,11 +15,17 @@ func (tm2pb) Header(header *Header) *types.Header {
 		Height:         uint64(header.Height),
 		Time:           uint64(header.Time.Unix()),
 		NumTxs:         uint64(header.NumTxs),
-		LastBlockHash:  header.LastBlockHash,
-		LastBlockParts: TM2PB.PartSetHeader(header.LastBlockParts),
+		LastBlockId:    TM2PB.BlockID(header.LastBlockID),
 		LastCommitHash: header.LastCommitHash,
 		DataHash:       header.DataHash,
 		AppHash:        header.AppHash,
+	}
+}
+
+func (tm2pb) BlockID(blockID BlockID) *types.BlockID {
+	return &types.BlockID{
+		Hash:  blockID.Hash,
+		Parts: TM2PB.PartSetHeader(blockID.PartsHeader),
 	}
 }
 

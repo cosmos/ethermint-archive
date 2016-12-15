@@ -74,7 +74,7 @@ func DefaultClientCreator(config cfg.Config) ClientCreator {
 	case "nilapp":
 		return NewLocalClientCreator(nilapp.NewNilApplication())
 	default:
-		mustConnect := true
+		mustConnect := false // loop retrying
 		return NewRemoteClientCreator(addr, transport, mustConnect)
 	}
 }

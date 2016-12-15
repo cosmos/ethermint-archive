@@ -7,7 +7,8 @@ import (
 	"github.com/ebuchman/fail-test"
 
 	. "github.com/tendermint/go-common"
-	"github.com/tendermint/go-events"
+	cfg "github.com/tendermint/go-config"
+	"github.com/tendermint/go-crypto"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 	tmsp "github.com/tendermint/tmsp/types"
@@ -16,34 +17,36 @@ import (
 //--------------------------------------------------
 // Execute the block
 
-type (
-	ErrInvalidBlock error
-	ErrProxyAppConn error
-)
-
 // Execute the block to mutate State.
 // Validates block and then executes Data.Txs in the block.
-func (s *State) ExecBlock(eventCache events.Fireable, proxyAppConn proxy.AppConnConsensus, block *types.Block, blockPartsHeader types.PartSetHeader) error {
+func (s *State) ExecBlock(eventCache types.Fireable, proxyAppConn proxy.AppConnConsensus, block *types.Block, blockPartsHeader types.PartSetHeader) error {
 
 	// Validate the block.
-	err := s.validateBlock(block)
-	if err != nil {
+	if err := s.validateBlock(block); err != nil {
 		return ErrInvalidBlock(err)
 	}
 
-	// Update the validator set
+	// compute bitarray of validators that signed
+	signed := commitBitArrayFromBlock(block)
+	_ = signed // TODO send on begin block
+
+	// copy the valset
 	valSet := s.Validators.Copy()
-	// Update valSet with signatures from block.
-	updateValidatorsWithBlock(s.LastValidators, valSet, block)
-	// TODO: Update the validator set (e.g. block.Data.ValidatorUpdates?)
 	nextValSet := valSet.Copy()
 
 	// Execute the block txs
-	err = s.execBlockOnProxyApp(eventCache, proxyAppConn, block)
+	changedValidators, err := execBlockOnProxyApp(eventCache, proxyAppConn, block)
 	if err != nil {
 		// There was some error in proxyApp
 		// TODO Report error and wait for proxyApp to be available.
 		return ErrProxyAppConn(err)
+	}
+
+	// update the validator set
+	err = updateValidators(nextValSet, changedValidators)
+	if err != nil {
+		log.Warn("Error changing validator set", "error", err)
+		// TODO: err or carry on?
 	}
 
 	// All good!
@@ -59,8 +62,9 @@ func (s *State) ExecBlock(eventCache events.Fireable, proxyAppConn proxy.AppConn
 }
 
 // Executes block's transactions on proxyAppConn.
+// Returns a list of updates to the validator set
 // TODO: Generate a bitmap or otherwise store tx validity in state.
-func (s *State) execBlockOnProxyApp(eventCache events.Fireable, proxyAppConn proxy.AppConnConsensus, block *types.Block) error {
+func execBlockOnProxyApp(eventCache types.Fireable, proxyAppConn proxy.AppConnConsensus, block *types.Block) ([]*tmsp.Validator, error) {
 
 	var validTxs, invalidTxs = 0, 0
 
@@ -72,17 +76,25 @@ func (s *State) execBlockOnProxyApp(eventCache events.Fireable, proxyAppConn pro
 			// TODO: make use of this info
 			// Blocks may include invalid txs.
 			// reqAppendTx := req.(tmsp.RequestAppendTx)
-			if r.AppendTx.Code == tmsp.CodeType_OK {
+			txError := ""
+			apTx := r.AppendTx
+			if apTx.Code == tmsp.CodeType_OK {
 				validTxs += 1
 			} else {
 				log.Debug("Invalid tx", "code", r.AppendTx.Code, "log", r.AppendTx.Log)
 				invalidTxs += 1
+				txError = apTx.Code.String()
 			}
 			// NOTE: if we count we can access the tx from the block instead of
 			// pulling it from the req
-			if eventCache != nil {
-				eventCache.FireEvent(types.EventStringTx(req.GetAppendTx().Tx), res)
+			event := types.EventDataTx{
+				Tx:    req.GetAppendTx().Tx,
+				Data:  apTx.Data,
+				Code:  apTx.Code,
+				Log:   apTx.Log,
+				Error: txError,
 			}
+			types.FireEventTx(eventCache, event)
 		}
 	}
 	proxyAppConn.SetResponseCallback(proxyCb)
@@ -91,7 +103,7 @@ func (s *State) execBlockOnProxyApp(eventCache events.Fireable, proxyAppConn pro
 	err := proxyAppConn.BeginBlockSync(block.Hash(), types.TM2PB.Header(block.Header))
 	if err != nil {
 		log.Warn("Error in proxyAppConn.BeginBlock", "error", err)
-		return err
+		return nil, err
 	}
 
 	fail.Fail() // XXX
@@ -101,7 +113,7 @@ func (s *State) execBlockOnProxyApp(eventCache events.Fireable, proxyAppConn pro
 		fail.FailRand(len(block.Txs)) // XXX
 		proxyAppConn.AppendTxAsync(tx)
 		if err := proxyAppConn.Error(); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -111,44 +123,69 @@ func (s *State) execBlockOnProxyApp(eventCache events.Fireable, proxyAppConn pro
 	changedValidators, err := proxyAppConn.EndBlockSync(uint64(block.Height))
 	if err != nil {
 		log.Warn("Error in proxyAppConn.EndBlock", "error", err)
-		return err
+		return nil, err
 	}
 
 	fail.Fail() // XXX
 
-	// TODO: Do something with changedValidators
-	log.Info("TODO: Do something with changedValidators", changedValidators)
+	log.Info("Executed block", "height", block.Height, "valid txs", validTxs, "invalid txs", invalidTxs)
+	if len(changedValidators) > 0 {
+		log.Info("Update to validator set", "updates", tmsp.ValidatorsString(changedValidators))
+	}
+	return changedValidators, nil
+}
 
-	log.Info(Fmt("ExecBlock got %v valid txs and %v invalid txs", validTxs, invalidTxs))
+func updateValidators(validators *types.ValidatorSet, changedValidators []*tmsp.Validator) error {
+	// TODO: prevent change of 1/3+ at once
+
+	for _, v := range changedValidators {
+		pubkey, err := crypto.PubKeyFromBytes(v.PubKey) // NOTE: expects go-wire encoded pubkey
+		if err != nil {
+			return err
+		}
+
+		address := pubkey.Address()
+		power := int64(v.Power)
+		// mind the overflow from uint64
+		if power < 0 {
+			return errors.New(Fmt("Power (%d) overflows int64", v.Power))
+		}
+
+		_, val := validators.GetByAddress(address)
+		if val == nil {
+			// add val
+			added := validators.Add(types.NewValidator(pubkey, power))
+			if !added {
+				return errors.New(Fmt("Failed to add new validator %X with voting power %d", address, power))
+			}
+		} else if v.Power == 0 {
+			// remove val
+			_, removed := validators.Remove(address)
+			if !removed {
+				return errors.New(Fmt("Failed to remove validator %X)"))
+			}
+		} else {
+			// update val
+			val.VotingPower = power
+			updated := validators.Update(val)
+			if !updated {
+				return errors.New(Fmt("Failed to update validator %X with voting power %d", address, power))
+			}
+		}
+	}
 	return nil
 }
 
-// Updates the LastCommitHeight of the validators in valSet, in place.
-// Assumes that lastValSet matches the valset of block.LastCommit
-// CONTRACT: lastValSet is not mutated.
-func updateValidatorsWithBlock(lastValSet *types.ValidatorSet, valSet *types.ValidatorSet, block *types.Block) {
-
+// return a bit array of validators that signed the last commit
+// NOTE: assumes commits have already been authenticated
+func commitBitArrayFromBlock(block *types.Block) *BitArray {
+	signed := NewBitArray(len(block.LastCommit.Precommits))
 	for i, precommit := range block.LastCommit.Precommits {
-		if precommit == nil {
-			continue
-		}
-		_, val := lastValSet.GetByIndex(i)
-		if val == nil {
-			PanicCrisis(Fmt("Failed to fetch validator at index %v", i))
-		}
-		if _, val_ := valSet.GetByAddress(val.Address); val_ != nil {
-			val_.LastCommitHeight = block.Height - 1
-			updated := valSet.Update(val_)
-			if !updated {
-				PanicCrisis("Failed to update validator LastCommitHeight")
-			}
-		} else {
-			// XXX This is not an error if validator was removed.
-			// But, we don't mutate validators yet so go ahead and panic.
-			PanicCrisis("Could not find validator")
+		if precommit != nil {
+			signed.SetIndex(i, true) // val_.LastCommitHeight = block.Height - 1
 		}
 	}
-
+	return signed
 }
 
 //-----------------------------------------------------
@@ -160,7 +197,7 @@ func (s *State) ValidateBlock(block *types.Block) error {
 
 func (s *State) validateBlock(block *types.Block) error {
 	// Basic block validation.
-	err := block.ValidateBasic(s.ChainID, s.LastBlockHeight, s.LastBlockHash, s.LastBlockParts, s.LastBlockTime, s.AppHash)
+	err := block.ValidateBasic(s.ChainID, s.LastBlockHeight, s.LastBlockID, s.LastBlockTime, s.AppHash)
 	if err != nil {
 		return err
 	}
@@ -176,7 +213,7 @@ func (s *State) validateBlock(block *types.Block) error {
 				s.LastValidators.Size(), len(block.LastCommit.Precommits)))
 		}
 		err := s.LastValidators.VerifyCommit(
-			s.ChainID, s.LastBlockHash, s.LastBlockParts, block.Height-1, block.LastCommit)
+			s.ChainID, s.LastBlockID, block.Height-1, block.LastCommit)
 		if err != nil {
 			return err
 		}
@@ -189,7 +226,7 @@ func (s *State) validateBlock(block *types.Block) error {
 // ApplyBlock executes the block, then commits and updates the mempool atomically
 
 // Execute and commit block against app, save block and state
-func (s *State) ApplyBlock(eventCache events.Fireable, proxyAppConn proxy.AppConnConsensus,
+func (s *State) ApplyBlock(eventCache types.Fireable, proxyAppConn proxy.AppConnConsensus,
 	block *types.Block, partsHeader types.PartSetHeader, mempool Mempool) error {
 
 	// Run the block on the State:
@@ -227,6 +264,7 @@ func (s *State) CommitStateUpdateMempool(proxyAppConn proxy.AppConnConsensus, bl
 
 	// Set the state's new AppHash
 	s.AppHash = res.Data
+	s.AppHashIsStale = false
 
 	// Update mempool.
 	mempool.Update(block.Height, block.Txs)
@@ -250,126 +288,133 @@ func (m mockMempool) Unlock()                           {}
 func (m mockMempool) Update(height int, txs []types.Tx) {}
 
 //----------------------------------------------------------------
-// Replay blocks to sync app to latest state of core
+// Handshake with app to sync to latest state of core by replaying blocks
 
-type ErrReplay error
-
-type ErrAppBlockHeightTooHigh struct {
-	coreHeight int
-	appHeight  int
+// TODO: Should we move blockchain/store.go to its own package?
+type BlockStore interface {
+	Height() int
+	LoadBlock(height int) *types.Block
+	LoadBlockMeta(height int) *types.BlockMeta
 }
 
-func (e ErrAppBlockHeightTooHigh) Error() string {
-	return Fmt("App block height (%d) is higher than core (%d)", e.appHeight, e.coreHeight)
+type Handshaker struct {
+	config cfg.Config
+	state  *State
+	store  BlockStore
+
+	nBlocks int // number of blocks applied to the state
 }
 
-type ErrLastStateMismatch struct {
-	height int
-	core   []byte
-	app    []byte
+func NewHandshaker(config cfg.Config, state *State, store BlockStore) *Handshaker {
+	return &Handshaker{config, state, store, 0}
 }
 
-func (e ErrLastStateMismatch) Error() string {
-	return Fmt("Latest tendermint block (%d) LastAppHash (%X) does not match app's AppHash (%X)", e.height, e.core, e.app)
-}
+// TODO: retry the handshake/replay if it fails ?
+func (h *Handshaker) Handshake(proxyApp proxy.AppConns) error {
+	// handshake is done via info request on the query conn
+	res, tmspInfo, blockInfo, configInfo := proxyApp.Query().InfoSync()
+	if res.IsErr() {
+		return errors.New(Fmt("Error calling Info. Code: %v; Data: %X; Log: %s", res.Code, res.Data, res.Log))
+	}
 
-type ErrStateMismatch struct {
-	got      *State
-	expected *State
-}
+	if blockInfo == nil {
+		log.Warn("blockInfo is nil, aborting handshake")
+		return nil
+	}
 
-func (e ErrStateMismatch) Error() string {
-	return Fmt("State after replay does not match saved state. Got ----\n%v\nExpected ----\n%v\n", e.got, e.expected)
+	log.Notice("TMSP Handshake", "height", blockInfo.BlockHeight, "app_hash", blockInfo.AppHash)
+
+	blockHeight := int(blockInfo.BlockHeight) // XXX: beware overflow
+	appHash := blockInfo.AppHash
+
+	if tmspInfo != nil {
+		// TODO: check tmsp version (or do this in the tmspcli?)
+		_ = tmspInfo
+	}
+
+	if configInfo != nil {
+		// TODO: set config info
+		_ = configInfo
+	}
+
+	// replay blocks up to the latest in the blockstore
+	err := h.ReplayBlocks(appHash, blockHeight, proxyApp.Consensus())
+	if err != nil {
+		return errors.New(Fmt("Error on replay: %v", err))
+	}
+
+	// TODO: (on restart) replay mempool
+
+	return nil
 }
 
 // Replay all blocks after blockHeight and ensure the result matches the current state.
-// XXX: blockStore must guarantee to have blocks for height <= blockStore.Height()
-func (s *State) ReplayBlocks(appHash []byte, header *types.Header, partsHeader types.PartSetHeader,
-	appConnConsensus proxy.AppConnConsensus, blockStore proxy.BlockStore) error {
+func (h *Handshaker) ReplayBlocks(appHash []byte, appBlockHeight int, appConnConsensus proxy.AppConnConsensus) error {
 
-	// NOTE/TODO: tendermint may crash after the app commits
-	// but before it can save the new state root.
-	// it should save all eg. valset changes before calling Commit.
-	// then, if tm state is behind app state, the only thing missing can be app hash
-
-	// get a fresh state and reset to the apps latest
-	stateCopy := s.Copy()
-	if header != nil {
-		// TODO: put validators in iavl tree so we can set the state with an older validator set
-		lastVals, nextVals := stateCopy.GetValidators()
-		stateCopy.SetBlockAndValidators(header, partsHeader, lastVals, nextVals)
-		stateCopy.Stale = false
-		stateCopy.AppHash = appHash
-	}
-
-	appBlockHeight := stateCopy.LastBlockHeight
-	coreBlockHeight := blockStore.Height()
-	if coreBlockHeight < appBlockHeight {
+	storeBlockHeight := h.store.Height()
+	if storeBlockHeight < appBlockHeight {
 		// if the app is ahead, there's nothing we can do
-		return ErrAppBlockHeightTooHigh{coreBlockHeight, appBlockHeight}
+		return ErrAppBlockHeightTooHigh{storeBlockHeight, appBlockHeight}
 
-	} else if coreBlockHeight == appBlockHeight {
+	} else if storeBlockHeight == appBlockHeight {
 		// if we crashed between Commit and SaveState,
-		// the state's app hash is stale.
+		// the state's app hash is stale
 		// otherwise we're synced
-		if s.Stale {
-			s.Stale = false
-			s.AppHash = appHash
+		if h.state.AppHashIsStale {
+			h.state.AppHashIsStale = false
+			h.state.AppHash = appHash
 		}
-		return checkState(s, stateCopy)
+		return nil
 
-	} else if s.LastBlockHeight == appBlockHeight {
-		// core is ahead of app but core's state height is at apps height
+	} else if h.state.LastBlockHeight == appBlockHeight {
+		// store is ahead of app but core's state height is at apps height
 		// this happens if we crashed after saving the block,
 		// but before committing it. We should be 1 ahead
-		if coreBlockHeight != appBlockHeight+1 {
-			PanicSanity(Fmt("core.state.height == app.height but core.height (%d) > app.height+1 (%d)", coreBlockHeight, appBlockHeight+1))
+		if storeBlockHeight != appBlockHeight+1 {
+			PanicSanity(Fmt("core.state.height == app.height but store.height (%d) > app.height+1 (%d)", storeBlockHeight, appBlockHeight+1))
 		}
 
 		// check that the blocks last apphash is the states apphash
-		blockMeta := blockStore.LoadBlockMeta(coreBlockHeight)
-		if !bytes.Equal(blockMeta.Header.AppHash, appHash) {
-			return ErrLastStateMismatch{coreBlockHeight, blockMeta.Header.AppHash, appHash}
+		block := h.store.LoadBlock(storeBlockHeight)
+		if !bytes.Equal(block.Header.AppHash, appHash) {
+			return ErrLastStateMismatch{storeBlockHeight, block.Header.AppHash, appHash}
 		}
 
-		// replay the block against the actual tendermint state (not the copy)
-		return loadApplyBlock(coreBlockHeight, s, blockStore, appConnConsensus)
+		blockMeta := h.store.LoadBlockMeta(storeBlockHeight)
+
+		h.nBlocks += 1
+		var eventCache types.Fireable // nil
+
+		// replay the block against the actual tendermint state
+		return h.state.ApplyBlock(eventCache, appConnConsensus, block, blockMeta.PartsHeader, mockMempool{})
 
 	} else {
 		// either we're caught up or there's blocks to replay
 		// replay all blocks starting with appBlockHeight+1
-		for i := appBlockHeight + 1; i <= coreBlockHeight; i++ {
-			loadApplyBlock(i, stateCopy, blockStore, appConnConsensus)
+		var eventCache types.Fireable // nil
+		var appHash []byte
+		for i := appBlockHeight + 1; i <= storeBlockHeight; i++ {
+			h.nBlocks += 1
+			block := h.store.LoadBlock(i)
+			_, err := execBlockOnProxyApp(eventCache, appConnConsensus, block)
+			if err != nil {
+				log.Warn("Error executing block on proxy app", "height", i, "err", err)
+				return err
+			}
+			// Commit block, get hash back
+			res := appConnConsensus.CommitSync()
+			if res.IsErr() {
+				log.Warn("Error in proxyAppConn.CommitSync", "error", res)
+				return res
+			}
+			if res.Log != "" {
+				log.Info("Commit.Log: " + res.Log)
+			}
+			appHash = res.Data
 		}
-		return checkState(s, stateCopy)
-	}
-}
-
-func checkState(s, stateCopy *State) error {
-	// The computed state and the previously set state should be identical
-	if !s.Equals(stateCopy) {
-		return ErrStateMismatch{stateCopy, s}
-	}
-	return nil
-}
-
-func loadApplyBlock(blockIndex int, s *State, blockStore proxy.BlockStore, appConnConsensus proxy.AppConnConsensus) error {
-	blockMeta := blockStore.LoadBlockMeta(blockIndex)
-	block := blockStore.LoadBlock(blockIndex)
-	panicOnNilBlock(blockIndex, blockStore.Height(), block, blockMeta) // XXX
-
-	var eventCache events.Fireable // nil
-	return s.ApplyBlock(eventCache, appConnConsensus, block, blockMeta.PartsHeader, mockMempool{})
-}
-
-func panicOnNilBlock(height, bsHeight int, block *types.Block, blockMeta *types.BlockMeta) {
-	if block == nil || blockMeta == nil {
-		// Sanity?
-		PanicCrisis(Fmt(`
-block/blockMeta is nil for height <= blockStore.Height() (%d <= %d).
-Block: %v,
-BlockMeta: %v
-`, height, bsHeight, block, blockMeta))
-
+		if !bytes.Equal(h.state.AppHash, appHash) {
+			return errors.New(Fmt("Tendermint state.AppHash does not match AppHash after replay", "expected", h.state.AppHash, "got", appHash))
+		}
+		return nil
 	}
 }

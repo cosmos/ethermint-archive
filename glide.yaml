@@ -16,21 +16,12 @@ import:
   - pow
   - rlp
   - rpc
-- package: github.com/tendermint/go-rpc
-  version: master
-  subpackages:
-  - client
 - package: github.com/tendermint/tendermint
-  version: handshake
-  repo: http://github.com/kobigurk/tendermint
-  vcs: git
-  subpackages:
-  - rpc/core/types
+  version: develop
 - package: github.com/tendermint/tmsp
-  version: info_and_header
-  subpackages:
-  - server
-  - types
+  version: develop
+- package: github.com/tendermint/go-rpc
+  version: develop
 - package: gopkg.in/urfave/cli.v1
 - package: google.golang.org/grpc
   version: 2b7e876a2eb64e93cb8140f497d3ea9d8882279c

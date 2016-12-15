@@ -8,6 +8,6 @@ import (
 type RewardConstant struct {
 }
 
-func (rewardStrategy *RewardConstant) Receiver(app tmspEthTypes.TMSPEthereumApplicationInterface) common.Address {
+func (r *RewardConstant) Receiver() common.Address {
 	return common.HexToAddress("7ef5a6135f1fd6a02593eedc869c6d41d934aef8")
 }

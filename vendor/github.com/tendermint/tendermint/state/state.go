@@ -31,16 +31,15 @@ type State struct {
 
 	// updated at end of ExecBlock
 	LastBlockHeight int // Genesis state has this set to 0.  So, Block(H=0) does not exist.
-	LastBlockHash   []byte
-	LastBlockParts  types.PartSetHeader
+	LastBlockID     types.BlockID
 	LastBlockTime   time.Time
 	Validators      *types.ValidatorSet
-	LastValidators  *types.ValidatorSet
+	LastValidators  *types.ValidatorSet // block.LastCommit validated against this
 
 	// AppHash is updated after Commit;
 	// it's stale after ExecBlock and before Commit
-	Stale   bool
-	AppHash []byte
+	AppHashIsStale bool
+	AppHash        []byte
 }
 
 func LoadState(db dbm.DB) *State {
@@ -61,17 +60,19 @@ func LoadState(db dbm.DB) *State {
 }
 
 func (s *State) Copy() *State {
+	if s.AppHashIsStale {
+		PanicSanity(Fmt("App hash is stale: %v", s))
+	}
 	return &State{
 		db:              s.db,
 		GenesisDoc:      s.GenesisDoc,
 		ChainID:         s.ChainID,
 		LastBlockHeight: s.LastBlockHeight,
-		LastBlockHash:   s.LastBlockHash,
-		LastBlockParts:  s.LastBlockParts,
+		LastBlockID:     s.LastBlockID,
 		LastBlockTime:   s.LastBlockTime,
 		Validators:      s.Validators.Copy(),
 		LastValidators:  s.LastValidators.Copy(),
-		Stale:           s.Stale, // but really state shouldnt be copied while its stale
+		AppHashIsStale:  false,
 		AppHash:         s.AppHash,
 	}
 }
@@ -79,7 +80,7 @@ func (s *State) Copy() *State {
 func (s *State) Save() {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	s.db.Set(stateKey, s.Bytes())
+	s.db.SetSync(stateKey, s.Bytes())
 }
 
 func (s *State) Equals(s2 *State) bool {
@@ -96,16 +97,15 @@ func (s *State) Bytes() []byte {
 }
 
 // Mutate state variables to match block and validators
-// Since we don't have the AppHash yet, it becomes stale
+// Since we don't have the new AppHash yet, we set s.AppHashIsStale=true
 func (s *State) SetBlockAndValidators(header *types.Header, blockPartsHeader types.PartSetHeader, prevValSet, nextValSet *types.ValidatorSet) {
 	s.LastBlockHeight = header.Height
-	s.LastBlockHash = header.Hash()
-	s.LastBlockParts = blockPartsHeader
+	s.LastBlockID = types.BlockID{header.Hash(), blockPartsHeader}
 	s.LastBlockTime = header.Time
 	s.Validators = nextValSet
 	s.LastValidators = prevValSet
 
-	s.Stale = true
+	s.AppHashIsStale = true
 }
 
 func (s *State) GetValidators() (*types.ValidatorSet, *types.ValidatorSet) {
@@ -163,8 +163,7 @@ func MakeGenesisState(db dbm.DB, genDoc *types.GenesisDoc) *State {
 		GenesisDoc:      genDoc,
 		ChainID:         genDoc.ChainID,
 		LastBlockHeight: 0,
-		LastBlockHash:   nil,
-		LastBlockParts:  types.PartSetHeader{},
+		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
 		Validators:      types.NewValidatorSet(validators),
 		LastValidators:  types.NewValidatorSet(nil),

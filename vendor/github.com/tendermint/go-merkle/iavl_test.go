@@ -392,15 +392,18 @@ func TestIAVLProof(t *testing.T) {
 
 }
 
-func BenchmarkImmutableAvlTree(b *testing.B) {
+func BenchmarkImmutableAvlTreeLevelDB2(b *testing.B) {
 	b.StopTimer()
 
-	db := db.NewMemDB()
-	t := NewIAVLTree(0, db)
-	// 23000ns/op, 43000ops/s
+	db := db.NewDB("test", "leveldb2", "./")
+	t := NewIAVLTree(100000, db)
 	// for i := 0; i < 10000000; i++ {
 	for i := 0; i < 1000000; i++ {
+		// for i := 0; i < 1000; i++ {
 		t.Set(i2b(int(RandInt32())), nil)
+		if i > 990000 && i%1000 == 999 {
+			t.Save()
+		}
 	}
 	t.Save()
 
@@ -413,8 +416,42 @@ func BenchmarkImmutableAvlTree(b *testing.B) {
 		ri := i2b(int(RandInt32()))
 		t.Set(ri, nil)
 		t.Remove(ri)
-		if i%1000 == 0 {
+		if i%100 == 99 {
 			t.Save()
 		}
 	}
+
+	db.Close()
+}
+
+func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
+	b.StopTimer()
+
+	db := db.NewDB("test", "memdb", "")
+	t := NewIAVLTree(100000, db)
+	// for i := 0; i < 10000000; i++ {
+	for i := 0; i < 1000000; i++ {
+		// for i := 0; i < 1000; i++ {
+		t.Set(i2b(int(RandInt32())), nil)
+		if i > 990000 && i%1000 == 999 {
+			t.Save()
+		}
+	}
+	t.Save()
+
+	fmt.Println("ok, starting")
+
+	runtime.GC()
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		ri := i2b(int(RandInt32()))
+		t.Set(ri, nil)
+		t.Remove(ri)
+		if i%100 == 99 {
+			t.Save()
+		}
+	}
+
+	db.Close()
 }

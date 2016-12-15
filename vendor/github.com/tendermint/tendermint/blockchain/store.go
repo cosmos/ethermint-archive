@@ -163,6 +163,7 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	bs.db.Set(calcBlockCommitKey(height-1), blockCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
+	// NOTE: we can delete this at a later height
 	seenCommitBytes := wire.BinaryBytes(seenCommit)
 	bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
 
@@ -171,6 +172,9 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 
 	// Done!
 	bs.height = height
+
+	// Flush
+	bs.db.SetSync(nil, nil)
 }
 
 func (bs *BlockStore) saveBlockPart(height int, index int, part *types.Part) {
@@ -212,7 +216,7 @@ func (bsj BlockStoreStateJSON) Save(db dbm.DB) {
 	if err != nil {
 		PanicSanity(Fmt("Could not marshal state bytes: %v", err))
 	}
-	db.Set(blockStoreKey, bytes)
+	db.SetSync(blockStoreKey, bytes)
 }
 
 func LoadBlockStoreStateJSON(db dbm.DB) BlockStoreStateJSON {

@@ -2,7 +2,6 @@ FROM golang
 MAINTAINER kobigurk@gmail.com
 
 RUN curl https://glide.sh/get | sh
-RUN mkdir -p /go/src/github.com/kobigurk
 RUN go get github.com/tendermint/ethermint/cmd/ethermint
 
 RUN mkdir /ethermint && chmod 777 /ethermint
