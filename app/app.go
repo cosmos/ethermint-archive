@@ -198,12 +198,6 @@ func (app *EthermintApplication) Commit() tmspTypes.Result {
 	app.commitMutex.Lock()
 	defer app.commitMutex.Unlock()
 
-	// if there were nonces bumped by incomming txs, we need to bump them in the PublicTransactionPoolAPI too
-	rememberedManagedState := app.txPool.State()
-	if rememberedManagedState != nil {
-		app.backend.UpdateNonces(rememberedManagedState)
-	}
-
 	// commit ethereum state and update the header
 	hashArray, err := app.blockResults.state.Commit()
 	if err != nil {
@@ -228,6 +222,21 @@ func (app *EthermintApplication) Commit() tmspTypes.Result {
 	if err != nil {
 		glog.V(logger.Debug).Infof("Error inserting ethereum block in chain: %v", err)
 		return tmspTypes.ErrInternalError
+	}
+
+	// if there were nonces bumped by incomming txs, we need to bump them in the PublicTransactionPoolAPI too
+	nonces := make(map[common.Address]uint64)
+	newstate := app.txPool.State()
+	if newstate != nil {
+		for _, tx := range app.blockResults.transactions {
+			from, err := tx.From()
+			if err != nil {
+				glog.V(logger.Debug).Infof("Error while setting nonces in API for tx: %v", err)
+				return tmspTypes.ErrInternalError
+			}
+			nonces[from] = newstate.GetNonce(from)
+		}
+		app.backend.SetNoncesInAPI(nonces)
 	}
 
 	// reset the block results for the next block

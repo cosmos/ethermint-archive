@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/event"
@@ -168,10 +168,10 @@ func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	*realPtrToEventMux = mux
 }
 
-// updates the nonces in the RPC facing TxPool with some state containing up-to-date nonces
-func (s *Backend) UpdateNonces(stateWithNonces *state.ManagedState) {
+// updates the nonces in the RPC facing TxPool from PublicTransactionPoolAPI, which otherwise would become stale
+func (s *Backend) SetNoncesInAPI(nonces map[common.Address]uint64) {
 	stateToUpdate := s.apiFacingTxPool.State()
-	for addr, _ := range stateWithNonces.Accounts() {
-		stateToUpdate.SetNonce(addr, stateWithNonces.GetNonce(addr))
+	for addr, nonce := range nonces {
+		stateToUpdate.SetNonce(addr, nonce)
 	}
 }
