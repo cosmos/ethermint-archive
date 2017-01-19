@@ -7,6 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/event"
@@ -23,10 +24,11 @@ import (
 
 // Backend handles the chain database and VM
 type Backend struct {
-	ethereum *eth.Ethereum
-	txSub    event.Subscription
-	client   *client.ClientURI
-	config   *eth.Config
+	ethereum        *eth.Ethereum
+	txSub           event.Subscription
+	client          *client.ClientURI
+	config          *eth.Config
+	apiFacingTxPool *core.TxPool
 }
 
 // New creates a new Backend
@@ -146,6 +148,8 @@ func (s *Backend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	ptrToTxPool := unsafe.Pointer(member.UnsafeAddr())
 	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
 	*realPtrToTxPool = txPool
+
+	s.apiFacingTxPool = txPool // remember this in NewBackend to be able to bump the nonces in Commit
 }
 
 func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
@@ -162,4 +166,12 @@ func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	ptrToEventMux := unsafe.Pointer(member.UnsafeAddr())
 	realPtrToEventMux := (**event.TypeMux)(ptrToEventMux)
 	*realPtrToEventMux = mux
+}
+
+// updates the nonces in the RPC facing TxPool with some state containing up-to-date nonces
+func (s *Backend) UpdateNonces(stateWithNonces *state.ManagedState) {
+	stateToUpdate := s.apiFacingTxPool.State()
+	for addr, _ := range stateWithNonces.Accounts() {
+		stateToUpdate.SetNonce(addr, stateWithNonces.GetNonce(addr))
+	}
 }

@@ -198,6 +198,12 @@ func (app *EthermintApplication) Commit() tmspTypes.Result {
 	app.commitMutex.Lock()
 	defer app.commitMutex.Unlock()
 
+	// if there were nonces bumped by incomming txs, we need to bump them in the PublicTransactionPoolAPI too
+	rememberedManagedState := app.txPool.State()
+	if rememberedManagedState != nil {
+		app.backend.UpdateNonces(rememberedManagedState)
+	}
+
 	// commit ethereum state and update the header
 	hashArray, err := app.blockResults.state.Commit()
 	if err != nil {

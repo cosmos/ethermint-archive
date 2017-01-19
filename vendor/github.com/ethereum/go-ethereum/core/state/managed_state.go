@@ -136,6 +136,10 @@ func (ms *ManagedState) getAccount(addr common.Address) *account {
 	return ms.accounts[addr]
 }
 
+func (ms *ManagedState) Accounts() map[common.Address]*account {
+	return ms.accounts
+}
+
 func newAccount(so *StateObject) *account {
 	return &account{so, so.Nonce(), nil}
 }
