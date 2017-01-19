@@ -20,6 +20,7 @@ import (
 
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
+	tmspTypes "github.com/tendermint/tmsp/types"
 )
 
 // Backend handles the chain database and VM
@@ -149,7 +150,7 @@ func (s *Backend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
 	*realPtrToTxPool = txPool
 
-	s.apiFacingTxPool = txPool // remember this in NewBackend to be able to bump the nonces in Commit
+	s.apiFacingTxPool = txPool // remember this to be able to bump the nonces in Commit
 }
 
 func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
@@ -169,9 +170,13 @@ func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 }
 
 // updates the nonces in the RPC facing TxPool from PublicTransactionPoolAPI, which otherwise would become stale
-func (s *Backend) SetNoncesInAPI(nonces map[common.Address]uint64) {
+func (s *Backend) SetNoncesInAPI(nonces map[common.Address]uint64) error {
+	if s.apiFacingTxPool == nil {
+		return tmspTypes.ErrInternalError
+	}
 	stateToUpdate := s.apiFacingTxPool.State()
 	for addr, nonce := range nonces {
 		stateToUpdate.SetNonce(addr, nonce)
 	}
+	return nil
 }

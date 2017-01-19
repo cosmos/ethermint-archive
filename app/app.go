@@ -225,18 +225,21 @@ func (app *EthermintApplication) Commit() tmspTypes.Result {
 	}
 
 	// if there were nonces bumped by incomming txs, we need to bump them in the PublicTransactionPoolAPI too
-	nonces := make(map[common.Address]uint64)
 	newstate := app.txPool.State()
 	if newstate != nil {
+		nonces := make(map[common.Address]uint64)
 		for _, tx := range app.blockResults.transactions {
 			from, err := tx.From()
 			if err != nil {
-				glog.V(logger.Debug).Infof("Error while setting nonces in API for tx: %v", err)
+				glog.V(logger.Debug).Infof("Error reading new transactions for nonces: %v", err)
 				return tmspTypes.ErrInternalError
 			}
 			nonces[from] = newstate.GetNonce(from)
 		}
-		app.backend.SetNoncesInAPI(nonces)
+		if err := app.backend.SetNoncesInAPI(nonces); err != nil {
+			glog.V(logger.Debug).Infof("Error while setting nonces in API: %v", err)
+			return tmspTypes.ErrInternalError
+		}
 	}
 
 	// reset the block results for the next block
