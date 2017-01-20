@@ -14,7 +14,7 @@ An easy way to get started is to use the docker image:
 docker run kobigurk/ethermint
 ```
 
-If you prefer instead to build locally, go to the `docker` directory and run `docker built -t ethermint .`.
+If you prefer instead to build locally, go to the `docker` directory and run `docker build -t ethermint .`.
 
 After running the container, you can attach to it:
 * First, find its ID using `docker ps` and use it to find its IP using `docker inspect CONTAINER_ID | grep IPAddress`. 
