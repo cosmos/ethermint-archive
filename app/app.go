@@ -31,7 +31,7 @@ type EthermintApplication struct {
 	blockResults *BlockResults
 
 	// for CheckTx. reset on Commit
-	txPool *core.TxPool
+	currentState func() (*state.StateDB, error)
 
 	// for queries
 	rpcClient rpc.Client
@@ -68,11 +68,11 @@ func (app *EthermintApplication) Strategy() *emtTypes.Strategy {
 func NewEthermintApplication(backend *ethereum.Backend,
 	client rpc.Client, strategy *emtTypes.Strategy) (*EthermintApplication, error) {
 	app := &EthermintApplication{
-		backend:     backend,
-		commitMutex: &sync.Mutex{},
-		rpcClient:   client,
-		txPool:      createNewTxPool(backend),
-		strategy:    strategy,
+		backend:      backend,
+		commitMutex:  &sync.Mutex{},
+		rpcClient:    client,
+		currentState: backend.Ethereum().BlockChain().State,
+		strategy:     strategy,
 	}
 	state, err := app.backend.Ethereum().BlockChain().State()
 	if err != nil {
@@ -115,12 +115,63 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) tmspTypes.Result {
 	if err != nil {
 		return tmspTypes.ErrEncodingError
 	}
-	txpool := app.txPool
-	txpool.SetLocal(tx)
-	if err := txpool.Add(tx); err != nil {
-		return tmspTypes.ErrInternalError
+
+	err = app.validateTx(tx)
+	if err != nil {
+		return tmspTypes.ErrInternalError // TODO
 	}
+
 	return tmspTypes.OK
+}
+
+func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) error {
+	currentState, err := app.currentState()
+	if err != nil {
+		return err
+	}
+
+	from, err := tx.From()
+	if err != nil {
+		return core.ErrInvalidSender
+	}
+
+	// Make sure the account exist. Non existent accounts
+	// haven't got funds and well therefor never pass.
+	if !currentState.Exist(from) {
+		return core.ErrNonExistentAccount
+	}
+
+	// Last but not least check for nonce errors
+	if currentState.GetNonce(from) > tx.Nonce() {
+		return core.ErrNonce
+	}
+
+	// Check the transaction doesn't exceed the current
+	// block limit gas.
+	// TODO
+	/*if pool.gasLimit().Cmp(tx.Gas()) < 0 {
+		return core.ErrGasLimit
+	}*/
+
+	// Transactions can't be negative. This may never happen
+	// using RLP decoded transactions but may occur if you create
+	// a transaction using the RPC for example.
+	if tx.Value().Cmp(common.Big0) < 0 {
+		return core.ErrNegativeValue
+	}
+
+	// Transactor should have enough funds to cover the costs
+	// cost == V + GP * GL
+	if currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+		return core.ErrInsufficientFunds
+	}
+
+	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true) // homestead == true
+	if tx.Gas().Cmp(intrGas) < 0 {
+		return core.ErrIntrinsicGas
+	}
+
+	return nil
 }
 
 // BeginBlock starts a new Ethereum block
@@ -235,8 +286,8 @@ func (app *EthermintApplication) Commit() tmspTypes.Result {
 
 	// reset the tx pool for the next block
 	// (CheckTx and Commit should not run concurrently, so its safe)
-	app.txPool.Stop()
-	app.txPool = createNewTxPool(app.backend)
+	// app.txPool.Stop()
+	// app.txPool = createNewTxPool(app.backend)
 
 	return tmspTypes.NewResultOK(blockHash[:], "")
 }
