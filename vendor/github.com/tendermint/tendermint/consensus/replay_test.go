@@ -9,10 +9,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tendermint/tendermint/config/tendermint_test"
+
 	. "github.com/tendermint/go-common"
 	"github.com/tendermint/go-wire"
 	"github.com/tendermint/tendermint/types"
 )
+
+func init() {
+	config = tendermint_test.ResetConfig("consensus_replay_test")
+}
+
+// TODO: these tests ensure we can always recover from any state of the wal,
+// assuming it comes with a correct related state for the priv_validator.json.
+// It would be better to verify explicitly which states we can recover from without the wal
+// and which ones we need the wal for - then we'd also be able to only flush the
+// wal writer when we need to, instead of with every message.
 
 var data_dir = path.Join(GoPath, "src/github.com/tendermint/tendermint/consensus", "test_data")
 
@@ -106,7 +118,16 @@ func runReplayTest(t *testing.T, cs *ConsensusState, walDir string, newBlockCh c
 	// Assuming the consensus state is running, replay of any WAL, including the empty one,
 	// should eventually be followed by a new block, or else something is wrong
 	waitForBlock(newBlockCh, thisCase, i)
+	cs.evsw.Stop()
 	cs.Stop()
+LOOP:
+	for {
+		select {
+		case <-newBlockCh:
+		default:
+			break LOOP
+		}
+	}
 	cs.Wait()
 }
 
@@ -142,6 +163,16 @@ func setupReplayTest(thisCase *testCase, nLines int, crashAfter bool) (*Consensu
 	return cs, newBlockCh, lastMsg, walDir
 }
 
+func readTimedWALMessage(t *testing.T, walMsg string) TimedWALMessage {
+	var err error
+	var msg TimedWALMessage
+	wire.ReadJSON(&msg, []byte(walMsg), &err)
+	if err != nil {
+		t.Fatalf("Error reading json data: %v", err)
+	}
+	return msg
+}
+
 //-----------------------------------------------
 // Test the log at every iteration, and set the privVal last step
 // as if the log was written after signing, before the crash
@@ -163,15 +194,11 @@ func TestReplayCrashAfterWrite(t *testing.T) {
 func TestReplayCrashBeforeWritePropose(t *testing.T) {
 	for _, thisCase := range testCases {
 		lineNum := thisCase.proposeLine
-		cs, newBlockCh, proposalMsg, walDir := setupReplayTest(thisCase, lineNum, false) // propose
-		// Set LastSig
-		var err error
-		var msg TimedWALMessage
-		wire.ReadJSON(&msg, []byte(proposalMsg), &err)
+		// setup replay test where last message is a proposal
+		cs, newBlockCh, proposalMsg, walDir := setupReplayTest(thisCase, lineNum, false)
+		msg := readTimedWALMessage(t, proposalMsg)
 		proposal := msg.Msg.(msgInfo).Msg.(*ProposalMessage)
-		if err != nil {
-			t.Fatalf("Error reading json data: %v", err)
-		}
+		// Set LastSig
 		toPV(cs.privValidator).LastSignBytes = types.SignBytes(cs.state.ChainID, proposal.Proposal)
 		toPV(cs.privValidator).LastSignature = proposal.Proposal.Signature
 		runReplayTest(t, cs, walDir, newBlockCh, thisCase, lineNum)
@@ -180,40 +207,25 @@ func TestReplayCrashBeforeWritePropose(t *testing.T) {
 
 func TestReplayCrashBeforeWritePrevote(t *testing.T) {
 	for _, thisCase := range testCases {
-		lineNum := thisCase.prevoteLine
-		cs, newBlockCh, voteMsg, walDir := setupReplayTest(thisCase, lineNum, false) // prevote
-		types.AddListenerForEvent(cs.evsw, "tester", types.EventStringCompleteProposal(), func(data types.TMEventData) {
-			// Set LastSig
-			var err error
-			var msg TimedWALMessage
-			wire.ReadJSON(&msg, []byte(voteMsg), &err)
-			vote := msg.Msg.(msgInfo).Msg.(*VoteMessage)
-			if err != nil {
-				t.Fatalf("Error reading json data: %v", err)
-			}
-			toPV(cs.privValidator).LastSignBytes = types.SignBytes(cs.state.ChainID, vote.Vote)
-			toPV(cs.privValidator).LastSignature = vote.Vote.Signature
-		})
-		runReplayTest(t, cs, walDir, newBlockCh, thisCase, lineNum)
+		testReplayCrashBeforeWriteVote(t, thisCase, thisCase.prevoteLine, types.EventStringCompleteProposal())
 	}
 }
 
 func TestReplayCrashBeforeWritePrecommit(t *testing.T) {
 	for _, thisCase := range testCases {
-		lineNum := thisCase.precommitLine
-		cs, newBlockCh, voteMsg, walDir := setupReplayTest(thisCase, lineNum, false) // precommit
-		types.AddListenerForEvent(cs.evsw, "tester", types.EventStringPolka(), func(data types.TMEventData) {
-			// Set LastSig
-			var err error
-			var msg TimedWALMessage
-			wire.ReadJSON(&msg, []byte(voteMsg), &err)
-			vote := msg.Msg.(msgInfo).Msg.(*VoteMessage)
-			if err != nil {
-				t.Fatalf("Error reading json data: %v", err)
-			}
-			toPV(cs.privValidator).LastSignBytes = types.SignBytes(cs.state.ChainID, vote.Vote)
-			toPV(cs.privValidator).LastSignature = vote.Vote.Signature
-		})
-		runReplayTest(t, cs, walDir, newBlockCh, thisCase, lineNum)
+		testReplayCrashBeforeWriteVote(t, thisCase, thisCase.precommitLine, types.EventStringPolka())
 	}
+}
+
+func testReplayCrashBeforeWriteVote(t *testing.T, thisCase *testCase, lineNum int, eventString string) {
+	// setup replay test where last message is a vote
+	cs, newBlockCh, voteMsg, walDir := setupReplayTest(thisCase, lineNum, false)
+	types.AddListenerForEvent(cs.evsw, "tester", eventString, func(data types.TMEventData) {
+		msg := readTimedWALMessage(t, voteMsg)
+		vote := msg.Msg.(msgInfo).Msg.(*VoteMessage)
+		// Set LastSig
+		toPV(cs.privValidator).LastSignBytes = types.SignBytes(cs.state.ChainID, vote.Vote)
+		toPV(cs.privValidator).LastSignature = vote.Vote.Signature
+	})
+	runReplayTest(t, cs, walDir, newBlockCh, thisCase, lineNum)
 }

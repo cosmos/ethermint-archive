@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/codegangsta/cli"
+	"gopkg.in/urfave/cli.v1"
 )
 
 func TestCommandYamlFileTest(t *testing.T) {

@@ -155,9 +155,8 @@ For a list of available options, run: `$ btcctl --help`
 
 <a name="Mining" />
 **2.4 Mining**<br />
-btcd supports both the `getwork` and `getblocktemplate` RPCs although the
-`getwork` RPC is deprecated and will likely be removed in a future release.
-The limited user cannot access these RPCs.<br />
+btcd supports the `getblocktemplate` RPC.
+The limited user cannot access this RPC.<br />
 
 **1. Add the payment addresses with the `miningaddr` option.**<br />
 
@@ -256,6 +255,9 @@ information.
       Bitcoin scripts
     * [database](https://github.com/btcsuite/btcd/tree/master/database) -
       Provides a database interface for the Bitcoin block chain
+    * [mempool](https://github.com/btcsuite/btcd/tree/master/mempool) -
+      Package mempool provides a policy-enforced pool of unmined bitcoin
+      transactions.
     * [btcutil](https://github.com/btcsuite/btcutil) - Provides Bitcoin-specific
       convenience functions and types
     * [chainhash](https://github.com/btcsuite/btcd/tree/master/chaincfg/chainhash) -

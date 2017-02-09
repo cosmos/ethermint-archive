@@ -1,4 +1,5 @@
 #! /bin/bash
+set -e
 
 # set glide.lock path
 if [[ "$GLIDE" == "" ]]; then
@@ -12,7 +13,7 @@ fi
 ####################
 
 LIBS_GO_TEST=(go-clist go-common go-config go-crypto go-db go-events go-merkle go-p2p)
-LIBS_MAKE_TEST=(go-rpc go-wire tmsp)
+LIBS_MAKE_TEST=(go-rpc go-wire abci)
 
 for lib in "${LIBS_GO_TEST[@]}"; do
 
@@ -27,8 +28,11 @@ for lib in "${LIBS_GO_TEST[@]}"; do
 	fi
 done
 
+DIR=`pwd`
 for lib in "${LIBS_MAKE_TEST[@]}"; do
-	getDep $lib
+
+	# checkout vendored version of lib
+	bash scripts/glide/checkout.sh $GLIDE $lib
 
 	echo "Testing $lib ..."
 	cd $GOPATH/src/github.com/tendermint/$lib
@@ -37,6 +41,7 @@ for lib in "${LIBS_MAKE_TEST[@]}"; do
 		echo "FAIL"
 		exit 1
 	fi
+	cd $DIR
 done
 
 echo ""

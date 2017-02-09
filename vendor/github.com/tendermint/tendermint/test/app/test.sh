@@ -13,7 +13,7 @@ export TMROOT=$HOME/.tendermint_app
 function dummy_over_socket(){
 	rm -rf $TMROOT
 	tendermint init
-	echo "Starting dummy and tendermint"
+	echo "Starting dummy_over_socket"
 	dummy > /dev/null &
 	pid_dummy=$!
 	tendermint node > tendermint.log &
@@ -30,7 +30,7 @@ function dummy_over_socket(){
 function dummy_over_socket_reorder(){
 	rm -rf $TMROOT
 	tendermint init
-	echo "Starting tendermint and dummy"
+	echo "Starting dummy_over_socket_reorder (ie. start tendermint first)"
 	tendermint node > tendermint.log &
 	pid_tendermint=$!
 	sleep 2
@@ -48,7 +48,7 @@ function dummy_over_socket_reorder(){
 function counter_over_socket() {
 	rm -rf $TMROOT
 	tendermint init
-	echo "Starting counter and tendermint"
+	echo "Starting counter_over_socket"
 	counter --serial > /dev/null &
 	pid_counter=$!
 	tendermint node > tendermint.log &
@@ -64,10 +64,10 @@ function counter_over_socket() {
 function counter_over_grpc() {
 	rm -rf $TMROOT
 	tendermint init
-	echo "Starting counter and tendermint"
-	counter --serial --tmsp grpc > /dev/null &
+	echo "Starting counter_over_grpc"
+	counter --serial --abci grpc > /dev/null &
 	pid_counter=$!
-	tendermint node --tmsp grpc > tendermint.log &
+	tendermint node --abci grpc > tendermint.log &
 	pid_tendermint=$!
 	sleep 5
 
@@ -80,12 +80,12 @@ function counter_over_grpc() {
 function counter_over_grpc_grpc() {
 	rm -rf $TMROOT
 	tendermint init
-	echo "Starting counter and tendermint"
-	counter --serial --tmsp grpc > /dev/null &
+	echo "Starting counter_over_grpc_grpc (ie. with grpc broadcast_tx)"
+	counter --serial --abci grpc > /dev/null &
 	pid_counter=$!
 	sleep 1
 	GRPC_PORT=36656
-	tendermint node --tmsp grpc --grpc_laddr tcp://localhost:$GRPC_PORT > tendermint.log &
+	tendermint node --abci grpc --grpc_laddr tcp://localhost:$GRPC_PORT > tendermint.log &
 	pid_tendermint=$!
 	sleep 5
 

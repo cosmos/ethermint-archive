@@ -39,7 +39,7 @@ type mockConn struct {
 	lnet, laddr string
 
 	// remote network, address for the connection.
-	rnet, raddr string
+	rAddr net.Addr
 }
 
 // LocalAddr returns the local address for the connection.
@@ -49,7 +49,7 @@ func (c mockConn) LocalAddr() net.Addr {
 
 // RemoteAddr returns the remote address for the connection.
 func (c mockConn) RemoteAddr() net.Addr {
-	return &mockAddr{c.rnet, c.raddr}
+	return &mockAddr{c.rAddr.Network(), c.rAddr.String()}
 }
 
 // Close handles closing the connection.
@@ -63,9 +63,9 @@ func (c mockConn) SetWriteDeadline(t time.Time) error { return nil }
 
 // mockDialer mocks the net.Dial interface by returning a mock connection to
 // the given address.
-func mockDialer(network, address string) (net.Conn, error) {
+func mockDialer(addr net.Addr) (net.Conn, error) {
 	r, w := io.Pipe()
-	c := &mockConn{raddr: address}
+	c := &mockConn{rAddr: addr}
 	c.Reader = r
 	c.Writer = w
 	return c, nil
@@ -100,9 +100,14 @@ func TestStartStop(t *testing.T) {
 	connected := make(chan *ConnReq)
 	disconnected := make(chan *ConnReq)
 	cmgr, err := New(&Config{
-		MaxOutbound:   1,
-		GetNewAddress: func() (string, error) { return "127.0.0.1:18555", nil },
-		Dial:          mockDialer,
+		TargetOutbound: 1,
+		GetNewAddress: func() (net.Addr, error) {
+			return &net.TCPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: 18555,
+			}, nil
+		},
+		Dial: mockDialer,
 		OnConnection: func(c *ConnReq, conn net.Conn) {
 			connected <- c
 		},
@@ -119,7 +124,13 @@ func TestStartStop(t *testing.T) {
 	// already stopped
 	cmgr.Stop()
 	// ignored
-	cr := &ConnReq{Addr: "127.0.0.1:18555", Permanent: true}
+	cr := &ConnReq{
+		Addr: &net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 18555,
+		},
+		Permanent: true,
+	}
 	cmgr.Connect(cr)
 	if cr.ID() != 0 {
 		t.Fatalf("start/stop: got id: %v, want: 0", cr.ID())
@@ -141,8 +152,8 @@ func TestStartStop(t *testing.T) {
 func TestConnectMode(t *testing.T) {
 	connected := make(chan *ConnReq)
 	cmgr, err := New(&Config{
-		MaxOutbound: 2,
-		Dial:        mockDialer,
+		TargetOutbound: 2,
+		Dial:           mockDialer,
 		OnConnection: func(c *ConnReq, conn net.Conn) {
 			connected <- c
 		},
@@ -150,7 +161,13 @@ func TestConnectMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}
-	cr := &ConnReq{Addr: "127.0.0.1:18555", Permanent: true}
+	cr := &ConnReq{
+		Addr: &net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 18555,
+		},
+		Permanent: true,
+	}
 	cmgr.Start()
 	cmgr.Connect(cr)
 	gotConnReq := <-connected
@@ -173,17 +190,22 @@ func TestConnectMode(t *testing.T) {
 	cmgr.Stop()
 }
 
-// TestMaxOutbound tests the maximum number of outbound connections.
+// TestTargetOutbound tests the target number of outbound connections.
 //
 // We wait until all connections are established, then test they there are the
 // only connections made.
-func TestMaxOutbound(t *testing.T) {
-	maxOutbound := uint32(10)
+func TestTargetOutbound(t *testing.T) {
+	targetOutbound := uint32(10)
 	connected := make(chan *ConnReq)
 	cmgr, err := New(&Config{
-		MaxOutbound:   maxOutbound,
-		Dial:          mockDialer,
-		GetNewAddress: func() (string, error) { return "127.0.0.1:18555", nil },
+		TargetOutbound: targetOutbound,
+		Dial:           mockDialer,
+		GetNewAddress: func() (net.Addr, error) {
+			return &net.TCPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: 18555,
+			}, nil
+		},
 		OnConnection: func(c *ConnReq, conn net.Conn) {
 			connected <- c
 		},
@@ -192,13 +214,13 @@ func TestMaxOutbound(t *testing.T) {
 		t.Fatalf("New error: %v", err)
 	}
 	cmgr.Start()
-	for i := uint32(0); i < maxOutbound; i++ {
+	for i := uint32(0); i < targetOutbound; i++ {
 		<-connected
 	}
 
 	select {
 	case c := <-connected:
-		t.Fatalf("max outbound: got unexpected connection - %v", c.Addr)
+		t.Fatalf("target outbound: got unexpected connection - %v", c.Addr)
 	case <-time.After(time.Millisecond):
 		break
 	}
@@ -213,9 +235,9 @@ func TestRetryPermanent(t *testing.T) {
 	connected := make(chan *ConnReq)
 	disconnected := make(chan *ConnReq)
 	cmgr, err := New(&Config{
-		RetryDuration: time.Millisecond,
-		MaxOutbound:   1,
-		Dial:          mockDialer,
+		RetryDuration:  time.Millisecond,
+		TargetOutbound: 1,
+		Dial:           mockDialer,
 		OnConnection: func(c *ConnReq, conn net.Conn) {
 			connected <- c
 		},
@@ -227,7 +249,13 @@ func TestRetryPermanent(t *testing.T) {
 		t.Fatalf("New error: %v", err)
 	}
 
-	cr := &ConnReq{Addr: "127.0.0.1:18555", Permanent: true}
+	cr := &ConnReq{
+		Addr: &net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 18555,
+		},
+		Permanent: true,
+	}
 	go cmgr.Connect(cr)
 	cmgr.Start()
 	gotConnReq := <-connected
@@ -291,10 +319,10 @@ func TestMaxRetryDuration(t *testing.T) {
 	time.AfterFunc(5*time.Millisecond, func() {
 		close(networkUp)
 	})
-	timedDialer := func(network, address string) (net.Conn, error) {
+	timedDialer := func(addr net.Addr) (net.Conn, error) {
 		select {
 		case <-networkUp:
-			return mockDialer(network, address)
+			return mockDialer(addr)
 		default:
 			return nil, errors.New("network down")
 		}
@@ -302,9 +330,9 @@ func TestMaxRetryDuration(t *testing.T) {
 
 	connected := make(chan *ConnReq)
 	cmgr, err := New(&Config{
-		RetryDuration: time.Millisecond,
-		MaxOutbound:   1,
-		Dial:          timedDialer,
+		RetryDuration:  time.Millisecond,
+		TargetOutbound: 1,
+		Dial:           timedDialer,
 		OnConnection: func(c *ConnReq, conn net.Conn) {
 			connected <- c
 		},
@@ -313,7 +341,13 @@ func TestMaxRetryDuration(t *testing.T) {
 		t.Fatalf("New error: %v", err)
 	}
 
-	cr := &ConnReq{Addr: "127.0.0.1:18555", Permanent: true}
+	cr := &ConnReq{
+		Addr: &net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 18555,
+		},
+		Permanent: true,
+	}
 	go cmgr.Connect(cr)
 	cmgr.Start()
 	// retry in 1ms
@@ -330,15 +364,20 @@ func TestMaxRetryDuration(t *testing.T) {
 // failure gracefully.
 func TestNetworkFailure(t *testing.T) {
 	var dials uint32
-	errDialer := func(network, address string) (net.Conn, error) {
+	errDialer := func(net net.Addr) (net.Conn, error) {
 		atomic.AddUint32(&dials, 1)
 		return nil, errors.New("network down")
 	}
 	cmgr, err := New(&Config{
-		MaxOutbound:   5,
-		RetryDuration: 5 * time.Millisecond,
-		Dial:          errDialer,
-		GetNewAddress: func() (string, error) { return "127.0.0.1:18555", nil },
+		TargetOutbound: 5,
+		RetryDuration:  5 * time.Millisecond,
+		Dial:           errDialer,
+		GetNewAddress: func() (net.Addr, error) {
+			return &net.TCPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: 18555,
+			}, nil
+		},
 		OnConnection: func(c *ConnReq, conn net.Conn) {
 			t.Fatalf("network failure: got unexpected connection - %v", c.Addr)
 		},
@@ -364,7 +403,7 @@ func TestNetworkFailure(t *testing.T) {
 // the failure.
 func TestStopFailed(t *testing.T) {
 	done := make(chan struct{}, 1)
-	waitDialer := func(network, address string) (net.Conn, error) {
+	waitDialer := func(addr net.Addr) (net.Conn, error) {
 		done <- struct{}{}
 		time.Sleep(time.Millisecond)
 		return nil, errors.New("network down")
@@ -383,7 +422,126 @@ func TestStopFailed(t *testing.T) {
 		atomic.StoreInt32(&cmgr.stop, 0)
 		cmgr.Stop()
 	}()
-	cr := &ConnReq{Addr: "127.0.0.1:18555", Permanent: true}
+	cr := &ConnReq{
+		Addr: &net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 18555,
+		},
+		Permanent: true,
+	}
 	go cmgr.Connect(cr)
+	cmgr.Wait()
+}
+
+// mockListener implements the net.Listener interface and is used to test
+// code that deals with net.Listeners without having to actually make any real
+// connections.
+type mockListener struct {
+	localAddr   string
+	provideConn chan net.Conn
+}
+
+// Accept returns a mock connection when it receives a signal via the Connect
+// function.
+//
+// This is part of the net.Listener interface.
+func (m *mockListener) Accept() (net.Conn, error) {
+	for conn := range m.provideConn {
+		return conn, nil
+	}
+	return nil, errors.New("network connection closed")
+}
+
+// Close closes the mock listener which will cause any blocked Accept
+// operations to be unblocked and return errors.
+//
+// This is part of the net.Listener interface.
+func (m *mockListener) Close() error {
+	close(m.provideConn)
+	return nil
+}
+
+// Addr returns the address the mock listener was configured with.
+//
+// This is part of the net.Listener interface.
+func (m *mockListener) Addr() net.Addr {
+	return &mockAddr{"tcp", m.localAddr}
+}
+
+// Connect fakes a connection to the mock listener from the provided remote
+// address.  It will cause the Accept function to return a mock connection
+// configured with the provided remote address and the local address for the
+// mock listener.
+func (m *mockListener) Connect(ip string, port int) {
+	m.provideConn <- &mockConn{
+		laddr: m.localAddr,
+		lnet:  "tcp",
+		rAddr: &net.TCPAddr{
+			IP:   net.ParseIP(ip),
+			Port: port,
+		},
+	}
+}
+
+// newMockListener returns a new mock listener for the provided local address
+// and port.  No ports are actually opened.
+func newMockListener(localAddr string) *mockListener {
+	return &mockListener{
+		localAddr:   localAddr,
+		provideConn: make(chan net.Conn),
+	}
+}
+
+// TestListeners ensures providing listeners to the connection manager along
+// with an accept callback works properly.
+func TestListeners(t *testing.T) {
+	// Setup a connection manager with a couple of mock listeners that
+	// notify a channel when they receive mock connections.
+	receivedConns := make(chan net.Conn)
+	listener1 := newMockListener("127.0.0.1:8333")
+	listener2 := newMockListener("127.0.0.1:9333")
+	listeners := []net.Listener{listener1, listener2}
+	cmgr, err := New(&Config{
+		Listeners: listeners,
+		OnAccept: func(conn net.Conn) {
+			receivedConns <- conn
+		},
+		Dial: mockDialer,
+	})
+	if err != nil {
+		t.Fatalf("New error: %v", err)
+	}
+	cmgr.Start()
+
+	// Fake a couple of mock connections to each of the listeners.
+	go func() {
+		for i, listener := range listeners {
+			l := listener.(*mockListener)
+			l.Connect("127.0.0.1", 10000+i*2)
+			l.Connect("127.0.0.1", 10000+i*2+1)
+		}
+	}()
+
+	// Tally the receive connections to ensure the expected number are
+	// received.  Also, fail the test after a timeout so it will not hang
+	// forever should the test not work.
+	expectedNumConns := len(listeners) * 2
+	var numConns int
+out:
+	for {
+		select {
+		case <-receivedConns:
+			numConns++
+			if numConns == expectedNumConns {
+				break out
+			}
+
+		case <-time.After(time.Millisecond * 50):
+			t.Fatalf("Timeout waiting for %d expected connections",
+				expectedNumConns)
+		}
+	}
+
+	cmgr.Stop()
 	cmgr.Wait()
 }

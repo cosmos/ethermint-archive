@@ -79,7 +79,6 @@ func (wal *WAL) Save(wmsg WALMessage) {
 	if wal.light {
 		// in light mode we only write new steps, timeouts, and our own votes (no proposals, block parts)
 		if mi, ok := wmsg.(msgInfo); ok {
-			_ = mi
 			if mi.PeerKey != "" {
 				return
 			}
@@ -97,8 +96,17 @@ func (wal *WAL) Save(wmsg WALMessage) {
 	if err != nil {
 		PanicQ(Fmt("Error writing msg to consensus wal. Error: %v \n\nMessage: %v", err, wmsg))
 	}
+	// TODO: only flush when necessary
+	if err := wal.group.Flush(); err != nil {
+		PanicQ(Fmt("Error flushing consensus wal buf to file. Error: %v \n", err))
+	}
 }
 
 func (wal *WAL) writeHeight(height int) {
 	wal.group.WriteLine(Fmt("#HEIGHT: %v", height))
+
+	// TODO: only flush when necessary
+	if err := wal.group.Flush(); err != nil {
+		PanicQ(Fmt("Error flushing consensus wal buf to file. Error: %v \n", err))
+	}
 }

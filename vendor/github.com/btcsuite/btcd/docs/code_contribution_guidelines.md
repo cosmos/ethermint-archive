@@ -196,7 +196,7 @@ but it was left as a magic number to show how much of a difference a good
 comment can make.
 
 <a name="ModelGitCommitMessages" />
-### 4.4 Code Documentation and Commenting
+### 4.4 Model Git Commit Messages
 
 This project prefers to keep a clean commit history with well-formed commit
 messages.  This section illustrates a model commit message and provides a bit
@@ -227,6 +227,12 @@ Further paragraphs come after blank lines.
   single space, with blank lines in between, but conventions vary here
 - Use a hanging indent
 ```
+
+Prefix the summary with the subsystem/package when possible. Many other
+projects make use of the code and this makes it easier for them to tell when
+something they're using has changed. Have a look at [past
+commits](https://github.com/btcsuite/btcd/commits/master) for examples of
+commit messages.
 
 Here are some of the reasons why wrapping your commit messages to 72 columns is
 a good thing.

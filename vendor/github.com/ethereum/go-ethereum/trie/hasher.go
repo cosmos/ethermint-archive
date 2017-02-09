@@ -52,14 +52,15 @@ func returnHasherToPool(h *hasher) {
 // hash collapses a node down into a hash node, also returning a copy of the
 // original node initialzied with the computed hash to replace the original one.
 func (h *hasher) hash(n node, db DatabaseWriter, force bool) (node, node, error) {
-	// If we're not storing the node, just hashing, use avaialble cached data
+	// If we're not storing the node, just hashing, use available cached data
 	if hash, dirty := n.cache(); hash != nil {
 		if db == nil {
 			return hash, n, nil
 		}
 		if n.canUnload(h.cachegen, h.cachelimit) {
-			// Evict the node from cache. All of its subnodes will have a lower or equal
+			// Unload the node from cache. All of its subnodes will have a lower or equal
 			// cache generation number.
+			cacheUnloadCounter.Inc(1)
 			return hash, hash, nil
 		}
 		if !dirty {
@@ -75,23 +76,20 @@ func (h *hasher) hash(n node, db DatabaseWriter, force bool) (node, node, error)
 	if err != nil {
 		return hashNode{}, n, err
 	}
-	// Cache the hash of the ndoe for later reuse.
-	if hash, ok := hashed.(hashNode); ok && !force {
-		switch cached := cached.(type) {
-		case *shortNode:
-			cached = cached.copy()
-			cached.flags.hash = hash
-			if db != nil {
-				cached.flags.dirty = false
-			}
-			return hashed, cached, nil
-		case *fullNode:
-			cached = cached.copy()
-			cached.flags.hash = hash
-			if db != nil {
-				cached.flags.dirty = false
-			}
-			return hashed, cached, nil
+	// Cache the hash of the ndoe for later reuse and remove
+	// the dirty flag in commit mode. It's fine to assign these values directly
+	// without copying the node first because hashChildren copies it.
+	cachedHash, _ := hashed.(hashNode)
+	switch cn := cached.(type) {
+	case *shortNode:
+		cn.flags.hash = cachedHash
+		if db != nil {
+			cn.flags.dirty = false
+		}
+	case *fullNode:
+		cn.flags.hash = cachedHash
+		if db != nil {
+			cn.flags.dirty = false
 		}
 	}
 	return hashed, cached, nil

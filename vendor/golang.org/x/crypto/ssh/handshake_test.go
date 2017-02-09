@@ -9,7 +9,9 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -57,14 +59,46 @@ func netPipe() (net.Conn, net.Conn, error) {
 	return c1, c2, nil
 }
 
-func handshakePair(clientConf *ClientConfig, addr string) (client *handshakeTransport, server *handshakeTransport, err error) {
+// noiseTransport inserts ignore messages to check that the read loop
+// and the key exchange filters out these messages.
+type noiseTransport struct {
+	keyingTransport
+}
+
+func (t *noiseTransport) writePacket(p []byte) error {
+	ignore := []byte{msgIgnore}
+	if err := t.keyingTransport.writePacket(ignore); err != nil {
+		return err
+	}
+	debug := []byte{msgDebug, 1, 2, 3}
+	if err := t.keyingTransport.writePacket(debug); err != nil {
+		return err
+	}
+
+	return t.keyingTransport.writePacket(p)
+}
+
+func addNoiseTransport(t keyingTransport) keyingTransport {
+	return &noiseTransport{t}
+}
+
+// handshakePair creates two handshakeTransports connected with each
+// other. If the noise argument is true, both transports will try to
+// confuse the other side by sending ignore and debug messages.
+func handshakePair(clientConf *ClientConfig, addr string, noise bool) (client *handshakeTransport, server *handshakeTransport, err error) {
 	a, b, err := netPipe()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	trC := newTransport(a, rand.Reader, true)
-	trS := newTransport(b, rand.Reader, false)
+	var trC, trS keyingTransport
+
+	trC = newTransport(a, rand.Reader, true)
+	trS = newTransport(b, rand.Reader, false)
+	if noise {
+		trC = addNoiseTransport(trC)
+		trS = addNoiseTransport(trS)
+	}
 	clientConf.SetDefaults()
 
 	v := []byte("version")
@@ -84,7 +118,7 @@ func TestHandshakeBasic(t *testing.T) {
 		t.Skip("see golang.org/issue/7237")
 	}
 	checker := &testChecker{}
-	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "addr")
+	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "addr", true)
 	if err != nil {
 		t.Fatalf("handshakePair: %v", err)
 	}
@@ -92,7 +126,9 @@ func TestHandshakeBasic(t *testing.T) {
 	defer trC.Close()
 	defer trS.Close()
 
+	clientDone := make(chan int, 0)
 	go func() {
+		defer close(clientDone)
 		// Client writes a bunch of stuff, and does a key
 		// change in the middle. This should not confuse the
 		// handshake in progress
@@ -103,7 +139,7 @@ func TestHandshakeBasic(t *testing.T) {
 			}
 			if i == 5 {
 				// halfway through, we request a key change.
-				_, _, err := trC.sendKexInit()
+				err := trC.sendKexInit(subsequentKeyExchange)
 				if err != nil {
 					t.Fatalf("sendKexInit: %v", err)
 				}
@@ -114,8 +150,10 @@ func TestHandshakeBasic(t *testing.T) {
 
 	// Server checks that client messages come in cleanly
 	i := 0
+	err = nil
 	for {
-		p, err := trS.readPacket()
+		var p []byte
+		p, err = trS.readPacket()
 		if err != nil {
 			break
 		}
@@ -127,6 +165,10 @@ func TestHandshakeBasic(t *testing.T) {
 			t.Errorf("message %d: got %q, want %q", i, p, want)
 		}
 		i++
+	}
+	<-clientDone
+	if err != nil && err != io.EOF {
+		t.Fatalf("server error: %v", err)
 	}
 	if i != 10 {
 		t.Errorf("received %d messages, want 10.", i)
@@ -142,11 +184,12 @@ func TestHandshakeBasic(t *testing.T) {
 	if want != checker.calls[0] {
 		t.Errorf("got %q want %q for host key check", checker.calls[0], want)
 	}
+
 }
 
 func TestHandshakeError(t *testing.T) {
 	checker := &testChecker{}
-	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "bad")
+	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "bad", false)
 	if err != nil {
 		t.Fatalf("handshakePair: %v", err)
 	}
@@ -160,7 +203,7 @@ func TestHandshakeError(t *testing.T) {
 	}
 
 	// Now request a key change.
-	_, _, err = trC.sendKexInit()
+	err = trC.sendKexInit(subsequentKeyExchange)
 	if err != nil {
 		t.Errorf("sendKexInit: %v", err)
 	}
@@ -183,9 +226,9 @@ func TestHandshakeError(t *testing.T) {
 	}
 }
 
-func TestHandshakeTwice(t *testing.T) {
+func TestForceFirstKex(t *testing.T) {
 	checker := &testChecker{}
-	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "addr")
+	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "addr", false)
 	if err != nil {
 		t.Fatalf("handshakePair: %v", err)
 	}
@@ -193,18 +236,47 @@ func TestHandshakeTwice(t *testing.T) {
 	defer trC.Close()
 	defer trS.Close()
 
+	trC.writePacket(Marshal(&serviceRequestMsg{serviceUserAuth}))
+
+	// We setup the initial key exchange, but the remote side
+	// tries to send serviceRequestMsg in cleartext, which is
+	// disallowed.
+
+	err = trS.sendKexInit(firstKeyExchange)
+	if err == nil {
+		t.Errorf("server first kex init should reject unexpected packet")
+	}
+}
+
+func TestHandshakeTwice(t *testing.T) {
+	checker := &testChecker{}
+	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "addr", false)
+	if err != nil {
+		t.Fatalf("handshakePair: %v", err)
+	}
+
+	defer trC.Close()
+	defer trS.Close()
+
+	// Both sides should ask for the first key exchange first.
+	err = trS.sendKexInit(firstKeyExchange)
+	if err != nil {
+		t.Errorf("server sendKexInit: %v", err)
+	}
+
+	err = trC.sendKexInit(firstKeyExchange)
+	if err != nil {
+		t.Errorf("client sendKexInit: %v", err)
+	}
+
+	sent := 0
 	// send a packet
 	packet := make([]byte, 5)
 	packet[0] = msgRequestSuccess
 	if err := trC.writePacket(packet); err != nil {
 		t.Errorf("writePacket: %v", err)
 	}
-
-	// Now request a key change.
-	_, _, err = trC.sendKexInit()
-	if err != nil {
-		t.Errorf("sendKexInit: %v", err)
-	}
+	sent++
 
 	// Send another packet. Use a fresh one, since writePacket destroys.
 	packet = make([]byte, 5)
@@ -212,9 +284,10 @@ func TestHandshakeTwice(t *testing.T) {
 	if err := trC.writePacket(packet); err != nil {
 		t.Errorf("writePacket: %v", err)
 	}
+	sent++
 
 	// 2nd key change.
-	_, _, err = trC.sendKexInit()
+	err = trC.sendKexInit(subsequentKeyExchange)
 	if err != nil {
 		t.Errorf("sendKexInit: %v", err)
 	}
@@ -224,16 +297,14 @@ func TestHandshakeTwice(t *testing.T) {
 	if err := trC.writePacket(packet); err != nil {
 		t.Errorf("writePacket: %v", err)
 	}
+	sent++
 
 	packet = make([]byte, 5)
 	packet[0] = msgRequestSuccess
-	for i := 0; i < 5; i++ {
+	for i := 0; i < sent; i++ {
 		msg, err := trS.readPacket()
 		if err != nil {
 			t.Fatalf("server closed too soon: %v", err)
-		}
-		if msg[0] == msgNewKeys {
-			continue
 		}
 
 		if bytes.Compare(msg, packet) != 0 {
@@ -249,7 +320,7 @@ func TestHandshakeAutoRekeyWrite(t *testing.T) {
 	checker := &testChecker{}
 	clientConf := &ClientConfig{HostKeyCallback: checker.Check}
 	clientConf.RekeyThreshold = 500
-	trC, trS, err := handshakePair(clientConf, "addr")
+	trC, trS, err := handshakePair(clientConf, "addr", false)
 	if err != nil {
 		t.Fatalf("handshakePair: %v", err)
 	}
@@ -297,7 +368,7 @@ func TestHandshakeAutoRekeyRead(t *testing.T) {
 	}
 	clientConf.RekeyThreshold = 500
 
-	trC, trS, err := handshakePair(clientConf, "addr")
+	trC, trS, err := handshakePair(clientConf, "addr", false)
 	if err != nil {
 		t.Fatalf("handshakePair: %v", err)
 	}
@@ -412,4 +483,46 @@ func testHandshakeErrorHandlingN(t *testing.T, readLimit, writeLimit int) {
 	}
 
 	wg.Wait()
+}
+
+func TestDisconnect(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("see golang.org/issue/7237")
+	}
+	checker := &testChecker{}
+	trC, trS, err := handshakePair(&ClientConfig{HostKeyCallback: checker.Check}, "addr", false)
+	if err != nil {
+		t.Fatalf("handshakePair: %v", err)
+	}
+
+	defer trC.Close()
+	defer trS.Close()
+
+	trC.writePacket([]byte{msgRequestSuccess, 0, 0})
+	errMsg := &disconnectMsg{
+		Reason:  42,
+		Message: "such is life",
+	}
+	trC.writePacket(Marshal(errMsg))
+	trC.writePacket([]byte{msgRequestSuccess, 0, 0})
+
+	packet, err := trS.readPacket()
+	if err != nil {
+		t.Fatalf("readPacket 1: %v", err)
+	}
+	if packet[0] != msgRequestSuccess {
+		t.Errorf("got packet %v, want packet type %d", packet, msgRequestSuccess)
+	}
+
+	_, err = trS.readPacket()
+	if err == nil {
+		t.Errorf("readPacket 2 succeeded")
+	} else if !reflect.DeepEqual(err, errMsg) {
+		t.Errorf("got error %#v, want %#v", err, errMsg)
+	}
+
+	_, err = trS.readPacket()
+	if err == nil {
+		t.Errorf("readPacket 3 succeeded")
+	}
 }

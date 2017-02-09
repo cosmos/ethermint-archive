@@ -170,15 +170,14 @@ the method name for further details such as parameter and return information.
 |20|[getpeerinfo](#getpeerinfo)|N|Returns information about each connected network peer as an array of json objects.|
 |21|[getrawmempool](#getrawmempool)|Y|Returns an array of hashes for all of the transactions currently in the memory pool.|
 |22|[getrawtransaction](#getrawtransaction)|Y|Returns information about a transaction given its hash.|
-|23|[getwork](#getwork)|N|Returns formatted hash data to work on or checks and submits solved data.<br /><font color="orange">NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.</font>|
-|24|[help](#help)|Y|Returns a list of all commands or help for a specified command.|
-|25|[ping](#ping)|N|Queues a ping to be sent to each connected peer.|
-|26|[sendrawtransaction](#sendrawtransaction)|Y|Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.<br /><font color="orange">btcd does not yet implement the `allowhighfees` parameter, so it has no effect</font>|
-|27|[setgenerate](#setgenerate) |N|Set the server to generate coins (mine) or not.<br/>NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.|
-|28|[stop](#stop)|N|Shutdown btcd.|
-|29|[submitblock](#submitblock)|Y|Attempts to submit a new serialized, hex-encoded block to the network.|
-|30|[validateaddress](#validateaddress)|Y|Verifies the given address is valid.  NOTE: Since btcd does not have a wallet integrated, btcd will only return whether the address is valid or not.|
-|31|[verifychain](#verifychain)|N|Verifies the block chain database.|
+|23|[help](#help)|Y|Returns a list of all commands or help for a specified command.|
+|24|[ping](#ping)|N|Queues a ping to be sent to each connected peer.|
+|25|[sendrawtransaction](#sendrawtransaction)|Y|Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.<br /><font color="orange">btcd does not yet implement the `allowhighfees` parameter, so it has no effect</font>|
+|26|[setgenerate](#setgenerate) |N|Set the server to generate coins (mine) or not.<br/>NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.|
+|27|[stop](#stop)|N|Shutdown btcd.|
+|28|[submitblock](#submitblock)|Y|Attempts to submit a new serialized, hex-encoded block to the network.|
+|29|[validateaddress](#validateaddress)|Y|Verifies the given address is valid.  NOTE: Since btcd does not have a wallet integrated, btcd will only return whether the address is valid or not.|
+|30|[verifychain](#verifychain)|N|Verifies the block chain database.|
 
 <a name="MethodDetails" />
 **5.2 Method Details**<br />
@@ -443,21 +442,6 @@ Example Return|`{`<br />&nbsp;&nbsp;`"bytes": 310768,`<br />&nbsp;&nbsp;`"size":
 [Return to Overview](#MethodOverview)<br />
 
 ***
-<a name="getwork"/>
-
-|   |   |
-|---|---|
-|Method|getwork|
-|Parameters|1. data (string, optional) - The hex|
-|Description|Returns information about a transaction given its hash.|
-|Notes|<font color="orange">NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.</font>
-|Returns (data not specified)|`{ (json object)`<br />&nbsp;&nbsp;`"data": "hex",  (string) hex-encoded block data`<br />&nbsp;&nbsp;`"hash1": "hex",  (string)  (DEPRECATED) hex-encoded formatted hash buffer`<br />&nbsp;&nbsp;`"midstate": "hex",  (string) (DEPRECATED) hex-encoded precomputed hash state after hashing first half of the data`<br />&nbsp;&nbsp;`"target": "hex",  (string) the hex-encoded little-endian hash target`<br />`}`|
-|Returns (data specified)|`true` or `false` (boolean)|
-|Example Return (data not specified)|`{`<br />&nbsp;&nbsp;`"data": "00000002c39b5d2b7a1e8f7356a1efce26b24bd15d7d906e85341ef9cec99b6a000000006474f...",`<br />&nbsp;&nbsp;`"hash1": "00000000000000000000000000000000000000000000000000000000000000000000008000000...",`<br />&nbsp;&nbsp;`"midstate": "ae4a80fc51476e452de855b4e20d5f33418c50fc7cae3b1ecd5badb819b8a584",`<br />&nbsp;&nbsp;`"target": "0000000000000000000000000000000000000000000000008c96010000000000",`<br />`}`|
-|Example Return (data specified)|`true`|
-[Return to Overview](#MethodOverview)<br />
-
-***
 <a name="help"/>
 
 |   |   |
@@ -583,6 +567,8 @@ The following is an overview of the RPC methods which are implemented by btcd, b
 |4|[searchrawtransactions](#searchrawtransactions)|Y|Query for transactions related to a particular address.|None|
 |5|[node](#node)|N|Attempts to add or remove a peer. |None|
 |6|[generate](#generate)|N|When in simnet or regtest mode, generate a set number of blocks. |None|
+|7|[version](#version)|Y|Returns the JSON-RPC API version.|
+|8|[getheaders](#getheaders)|Y|Returns block headers starting with the first known block hash from the request.|
 
 
 <a name="ExtMethodDetails" />
@@ -660,6 +646,32 @@ The following is an overview of the RPC methods which are implemented by btcd, b
 |Parameters|1. numblocks (int, required) - The number of blocks to generate |
 |Description|When in simnet or regtest mode, generates `numblocks` blocks. If blocks arrive from elsewhere, they are built upon but don't count toward the number of blocks to generate. Only generated blocks are returned. This RPC call will exit with an error if the server is already CPU mining, and will prevent the server from CPU mining for another command while it runs. |
 |Returns|`[ (json array of strings)` <br/>&nbsp;&nbsp; `"blockhash", ... hash of the generated block` <br/>`]` |
+[Return to Overview](#MethodOverview)<br />
+
+***
+
+<a name="version"/>
+
+|   |   |
+|---|---|
+|Method|version|
+|Parameters|None|
+|Description|Returns the version of the JSON-RPC API built into this release of btcd.|
+|Returns|`{ (json object)`<br />&nbsp;&nbsp;`"btcdjsonrpcapi": {`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"versionstring": "x.y.z",  (string) the version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"major": x,  (numeric) the major version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"minor": y,  (numeric) the minor version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"patch": z,  (numeric) the patch version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"prerelease": "",  (string) prerelease info for the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"buildmetadata": ""  (string) metadata about the server build`<br />&nbsp;&nbsp;`}`<br />`}`|
+|Example Return|`{`<br />&nbsp;&nbsp;`"btcdjsonrpcapi": {`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"versionstring": "1.0.0",`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"major": 1,  `<br />&nbsp;&nbsp;&nbsp;&nbsp;`"minor": 0,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"patch": 0,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"prerelease": "",`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"buildmetadata": ""`<br />&nbsp;&nbsp;`}`<br />`}`|
+[Return to Overview](#MethodOverview)<br />
+
+***
+
+<a name="getheaders"/>
+
+|   |   |
+|---|---|
+|Method|getheaders|
+|Parameters|1. Block Locators (JSON array, required)<br />&nbsp;`[ (json array of strings)`<br />&nbsp;&nbsp;`"blocklocator", (string) the known block hash`<br />&nbsp;&nbsp;`...`<br />&nbsp;`]`<br />2. hashstop (string) - last desired block's hash|
+|Description|Returns block headers starting with the first known block hash from the request.|
+|Returns|`[ (json array of strings)`<br />&nbsp;&nbsp;`"blockheader",`<br />&nbsp;&nbsp;`...`<br />`]`|
+|Example Return|`[`<br />&nbsp;&nbsp;`"0000002099417930b2ae09feda10e38b58c0f6bb44b4d60fa33f0e000000000000000000d53...",`<br />&nbsp;&nbsp;`"000000203ba25a173bfd24d09e0c76002a910b685ca297bd09a17b020000000000000000702..."`<br />`]`|
 [Return to Overview](#MethodOverview)<br />
 
 ***

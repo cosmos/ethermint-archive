@@ -968,12 +968,8 @@ func writeReflectJSON(rv reflect.Value, rt reflect.Type, opts Options, w io.Writ
 				for _, fieldInfo := range typeInfo.Fields {
 					fieldIdx, fieldType, opts := fieldInfo.unpack()
 					fieldRv := rv.Field(fieldIdx)
-					if opts.JSONOmitEmpty { // Skip zero value if omitempty
-						if !fieldType.Comparable() && fieldRv.Len() == 0 {
-							continue
-						} else if fieldRv.Interface() == opts.ZeroValue {
-							continue
-						}
+					if opts.JSONOmitEmpty && isEmpty(fieldType, fieldRv, opts) { // Skip zero value if omitempty
+						continue
 					}
 					if wroteField {
 						WriteTo([]byte(","), w, n, err)
@@ -1017,4 +1013,37 @@ func writeReflectJSON(rv reflect.Value, rt reflect.Type, opts Options, w io.Writ
 		PanicSanity(Fmt("Unknown field type %v", rt.Kind()))
 	}
 
+}
+
+func isEmpty(rt reflect.Type, rv reflect.Value, opts Options) bool {
+	if rt.Comparable() {
+		// if its comparable we can check directly
+		if rv.Interface() == opts.ZeroValue {
+			return true
+		}
+		return false
+	} else {
+		// TODO: A faster alternative might be to call writeReflectJSON
+		// onto a buffer and check if its "{}" or not.
+		switch rt.Kind() {
+		case reflect.Struct:
+			// check fields
+			typeInfo := GetTypeInfo(rt)
+			for _, fieldInfo := range typeInfo.Fields {
+				fieldIdx, fieldType, opts := fieldInfo.unpack()
+				fieldRv := rv.Field(fieldIdx)
+				if !isEmpty(fieldType, fieldRv, opts) { // Skip zero value if omitempty
+					return false
+				}
+			}
+			return true
+
+		default:
+			if rv.Len() == 0 {
+				return true
+			}
+			return false
+		}
+	}
+	return false
 }

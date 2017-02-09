@@ -412,7 +412,7 @@ func unmarshalXmlFile(file *zip.File, data interface{}) error {
 		return err
 	}
 	decoder := xml.NewDecoder(r)
-	r.Close()
+	defer r.Close()
 	return decoder.Decode(data)
 }
 

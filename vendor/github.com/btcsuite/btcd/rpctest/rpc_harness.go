@@ -30,6 +30,10 @@ const (
 	maxPeerPort = 35000
 	minRPCPort  = maxPeerPort
 	maxRPCPort  = 60000
+
+	// BlockVersion is the default block version used when generating
+	// blocks.
+	BlockVersion = 4
 )
 
 var (
@@ -115,7 +119,7 @@ func New(activeNet *chaincfg.Params, handlers *btcrpcclient.NotificationHandlers
 			"of the supported chain networks")
 	}
 
-	harnessID := strconv.Itoa(int(numTestInstances))
+	harnessID := strconv.Itoa(numTestInstances)
 	nodeTestData, err := ioutil.TempDir("", "rpctest-"+harnessID)
 	if err != nil {
 		return nil, err
@@ -240,26 +244,22 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 		return err
 	}
 	ticker := time.NewTicker(time.Millisecond * 100)
-out:
-	for {
-		select {
-		case <-ticker.C:
-			walletHeight := h.wallet.SyncedHeight()
-			if walletHeight == height {
-				break out
-			}
+	for range ticker.C {
+		walletHeight := h.wallet.SyncedHeight()
+		if walletHeight == height {
+			break
 		}
 	}
+	ticker.Stop()
 
 	return nil
 }
 
-// TearDown stops the running rpc test instance. All created processes are
+// tearDown stops the running rpc test instance.  All created processes are
 // killed, and temporary directories removed.
 //
-// NOTE: This method and SetUp should always be called from the same goroutine
-// as they are not concurrent safe.
-func (h *Harness) TearDown() error {
+// This function MUST be called with the harness state mutex held (for writes).
+func (h *Harness) tearDown() error {
 	if h.Node != nil {
 		h.Node.Shutdown()
 	}
@@ -275,6 +275,18 @@ func (h *Harness) TearDown() error {
 	delete(testInstances, h.testNodeDir)
 
 	return nil
+}
+
+// TearDown stops the running rpc test instance. All created processes are
+// killed, and temporary directories removed.
+//
+// NOTE: This method and SetUp should always be called from the same goroutine
+// as they are not concurrent safe.
+func (h *Harness) TearDown() error {
+	harnessStateMtx.Lock()
+	defer harnessStateMtx.Unlock()
+
+	return h.tearDown()
 }
 
 // connectRPCClient attempts to establish an RPC connection to the created btcd
@@ -380,7 +392,7 @@ func (h *Harness) GenerateAndSubmitBlock(txns []*btcutil.Tx, blockVersion int32,
 	defer h.Unlock()
 
 	if blockVersion == -1 {
-		blockVersion = wire.BlockVersion
+		blockVersion = BlockVersion
 	}
 
 	prevBlockHash, prevBlockHeight, err := h.Node.GetBestBlock()

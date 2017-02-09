@@ -13,14 +13,14 @@ import (
 	dbm "github.com/tendermint/go-db"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tmsp/example/dummy"
+	"github.com/tendermint/abci/example/dummy"
 )
 
 var (
 	privKey      = crypto.GenPrivKeyEd25519FromSecret([]byte("handshake_test"))
 	chainID      = "handshake_chain"
 	nBlocks      = 5
-	mempool      = mockMempool{}
+	mempool      = MockMempool{}
 	testPartSize = 65536
 )
 
@@ -95,14 +95,14 @@ func testHandshakeReplay(t *testing.T, n int) {
 	}
 
 	// get the latest app hash from the app
-	r, _, blockInfo, _ := proxyApp.Query().InfoSync()
-	if r.IsErr() {
-		t.Fatal(r)
+	res, err := proxyApp.Query().InfoSync()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// the app hash should be synced up
-	if !bytes.Equal(latestAppHash, blockInfo.AppHash) {
-		t.Fatalf("Expected app hashes to match after handshake/replay. got %X, expected %X", blockInfo.AppHash, latestAppHash)
+	if !bytes.Equal(latestAppHash, res.LastBlockAppHash) {
+		t.Fatalf("Expected app hashes to match after handshake/replay. got %X, expected %X", res.LastBlockAppHash, latestAppHash)
 	}
 
 	if handshaker.nBlocks != nBlocks-n {
@@ -134,7 +134,7 @@ func signCommit(height, round int, hash []byte, header types.PartSetHeader) *typ
 	}
 
 	sig := privKey.Sign(types.SignBytes(chainID, vote))
-	vote.Signature = sig.(crypto.SignatureEd25519)
+	vote.Signature = sig
 	return vote
 }
 

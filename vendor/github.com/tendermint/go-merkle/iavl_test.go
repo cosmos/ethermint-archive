@@ -3,7 +3,11 @@ package merkle
 import (
 	"bytes"
 	"fmt"
+	mrand "math/rand"
+	"sort"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	. "github.com/tendermint/go-common"
 	. "github.com/tendermint/go-common/test"
 	"github.com/tendermint/go-db"
@@ -56,7 +60,9 @@ func N(l, r interface{}) *IAVLNode {
 
 // Setup a deep node
 func T(n *IAVLNode) *IAVLTree {
-	t := NewIAVLTree(0, nil)
+	d := db.NewDB("test", db.MemDBBackendStr, "")
+	t := NewIAVLTree(0, d)
+
 	n.hashWithCount(t)
 	t.root = n
 	return t
@@ -157,7 +163,7 @@ func TestUnit(t *testing.T) {
 			t.Fatalf("Expected %v new hashes, got %v", hashCount, count)
 		}
 		// nuke hashes and reconstruct hash, ensure it's the same.
-		tree.root.traverse(tree, func(node *IAVLNode) bool {
+		tree.root.traverse(tree, true, func(node *IAVLNode) bool {
 			node.hash = nil
 			return false
 		})
@@ -231,6 +237,43 @@ func TestUnit(t *testing.T) {
 
 }
 
+func randBytes(length int) []byte {
+	key := make([]byte, length)
+	// math.rand.Read always returns err=nil
+	mrand.Read(key)
+	return key
+}
+
+func TestRemove(t *testing.T) {
+	size := 10000
+	keyLen, dataLen := 16, 40
+
+	d := db.NewDB("test", "memdb", "")
+	defer d.Close()
+	t1 := NewIAVLTree(size, d)
+
+	// insert a bunch of random nodes
+	keys := make([][]byte, size)
+	l := int32(len(keys))
+	for i := 0; i < size; i++ {
+		key := randBytes(keyLen)
+		t1.Set(key, randBytes(dataLen))
+		keys[i] = key
+	}
+
+	for i := 0; i < 10; i++ {
+		step := 50 * i
+		// remove a bunch of existing keys (may have been deleted twice)
+		for j := 0; j < step; j++ {
+			key := keys[mrand.Int31n(l)]
+			t1.Remove(key)
+		}
+		// FIXME: this Save() causes a panic!
+		t1.Save()
+	}
+
+}
+
 func TestIntegration(t *testing.T) {
 
 	type record struct {
@@ -299,6 +342,110 @@ func TestIntegration(t *testing.T) {
 	}
 }
 
+func TestIterateRange(t *testing.T) {
+	type record struct {
+		key   string
+		value string
+	}
+
+	records := []record{
+		{"abc", "123"},
+		{"low", "high"},
+		{"fan", "456"},
+		{"foo", "a"},
+		{"foobaz", "c"},
+		{"good", "bye"},
+		{"foobang", "d"},
+		{"foobar", "b"},
+		{"food", "e"},
+		{"foml", "f"},
+	}
+	keys := make([]string, len(records))
+	for i, r := range records {
+		keys[i] = r.key
+	}
+	sort.Strings(keys)
+
+	var tree *IAVLTree = NewIAVLTree(0, nil)
+
+	// insert all the data
+	for _, r := range records {
+		updated := tree.Set([]byte(r.key), []byte(r.value))
+		if updated {
+			t.Error("should have not been updated")
+		}
+	}
+
+	// test traversing the whole node works... in order
+	viewed := []string{}
+	tree.Iterate(func(key []byte, value []byte) bool {
+		viewed = append(viewed, string(key))
+		return false
+	})
+	if len(viewed) != len(keys) {
+		t.Error("not the same number of keys as expected")
+	}
+	for i, v := range viewed {
+		if v != keys[i] {
+			t.Error("Keys out of order", v, keys[i])
+		}
+	}
+
+	trav := traverser{}
+	tree.IterateRange([]byte("foo"), []byte("goo"), true, trav.view)
+	expectTraverse(t, trav, "foo", "food", 5)
+
+	trav = traverser{}
+	tree.IterateRange(nil, []byte("flap"), true, trav.view)
+	expectTraverse(t, trav, "abc", "fan", 2)
+
+	trav = traverser{}
+	tree.IterateRange([]byte("foob"), nil, true, trav.view)
+	expectTraverse(t, trav, "foobang", "low", 6)
+
+	trav = traverser{}
+	tree.IterateRange([]byte("very"), nil, true, trav.view)
+	expectTraverse(t, trav, "", "", 0)
+
+	// make sure backwards also works...
+	trav = traverser{}
+	tree.IterateRange([]byte("fooba"), []byte("food"), false, trav.view)
+	expectTraverse(t, trav, "food", "foobang", 4)
+
+	// make sure backwards also works...
+	trav = traverser{}
+	tree.IterateRange([]byte("g"), nil, false, trav.view)
+	expectTraverse(t, trav, "low", "good", 2)
+
+}
+
+type traverser struct {
+	first string
+	last  string
+	count int
+}
+
+func (t *traverser) view(key, value []byte) bool {
+	if t.first == "" {
+		t.first = string(key)
+	}
+	t.last = string(key)
+	t.count += 1
+	return false
+}
+
+func expectTraverse(t *testing.T, trav traverser, start, end string, count int) {
+	if trav.first != start {
+		t.Error("Bad start", start, trav.first)
+	}
+	if trav.last != end {
+		t.Error("Bad end", end, trav.last)
+	}
+	if trav.count != count {
+		t.Error("Bad count", count, trav.count)
+	}
+}
+
 func TestPersistence(t *testing.T) {
 	db := db.NewMemDB()
 
@@ -328,41 +475,36 @@ func TestPersistence(t *testing.T) {
 	}
 }
 
-func testProof(t *testing.T, proof *IAVLProof, keyBytes, valueBytes, rootHash []byte) {
+func testProof(t *testing.T, proof *IAVLProof, keyBytes, valueBytes, rootHashBytes []byte) {
 	// Proof must verify.
-	if !proof.Verify(keyBytes, valueBytes, rootHash) {
-		t.Errorf("Invalid proof. Verification failed.")
-		return
-	}
+	require.True(t, proof.Verify(keyBytes, valueBytes, rootHashBytes))
+
 	// Write/Read then verify.
 	proofBytes := wire.BinaryBytes(proof)
-	n, err := int(0), error(nil)
-	proof2 := wire.ReadBinary(&IAVLProof{}, bytes.NewBuffer(proofBytes), 0, &n, &err).(*IAVLProof)
-	if err != nil {
-		t.Errorf("Failed to read IAVLProof from bytes: %v", err)
-		return
-	}
-	if !proof2.Verify(keyBytes, valueBytes, rootHash) {
-		// t.Log(Fmt("%X\n%X\n", proofBytes, wire.BinaryBytes(proof2)))
-		t.Errorf("Invalid proof after write/read. Verification failed.")
-		return
-	}
+	proof2, err := ReadProof(proofBytes)
+	require.Nil(t, err, "Failed to read IAVLProof from bytes: %v", err)
+	require.True(t, proof2.Verify(keyBytes, valueBytes, proof.RootHash))
+
 	// Random mutations must not verify
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		badProofBytes := MutateByteSlice(proofBytes)
-		n, err := int(0), error(nil)
-		badProof := wire.ReadBinary(&IAVLProof{}, bytes.NewBuffer(badProofBytes), testReadLimit, &n, &err).(*IAVLProof)
-		if err != nil {
-			continue // This is fine.
-		}
-		if badProof.Verify(keyBytes, valueBytes, rootHash) {
-			t.Errorf("Proof was still valid after a random mutation:\n%X\n%X", proofBytes, badProofBytes)
+		badProof, err := ReadProof(badProofBytes)
+		// may be invalid... errors are okay
+		if err == nil {
+			assert.False(t, badProof.Verify(keyBytes, valueBytes, rootHashBytes),
+				"Proof was still valid after a random mutation:\n%X\n%X",
+				proofBytes, badProofBytes)
 		}
 	}
+
+	// targetted changes fails...
+	proof.RootHash = MutateByteSlice(proof.RootHash)
+	assert.False(t, proof.Verify(keyBytes, valueBytes, rootHashBytes))
+	proof2.LeafHash = MutateByteSlice(proof2.LeafHash)
+	assert.False(t, proof2.Verify(keyBytes, valueBytes, rootHashBytes))
 }
 
 func TestIAVLProof(t *testing.T) {
-
 	// Construct some random tree
 	db := db.NewMemDB()
 	var tree *IAVLTree = NewIAVLTree(100, db)
@@ -382,20 +524,51 @@ func TestIAVLProof(t *testing.T) {
 
 	// Now for each item, construct a proof and verify
 	tree.Iterate(func(key []byte, value []byte) bool {
-		proof := tree.ConstructProof(key)
-		if !bytes.Equal(proof.RootHash, tree.Hash()) {
-			t.Errorf("Invalid proof. Expected root %X, got %X", tree.Hash(), proof.RootHash)
+		value2, proof := tree.ConstructProof(key)
+		assert.Equal(t, value, value2)
+		if assert.NotNil(t, proof) {
+			testProof(t, proof, key, value, tree.Hash())
 		}
-		testProof(t, proof, key, value, tree.Hash())
 		return false
 	})
-
 }
 
-func BenchmarkImmutableAvlTreeLevelDB2(b *testing.B) {
+func TestIAVLTreeProof(t *testing.T) {
+	db := db.NewMemDB()
+	var tree *IAVLTree = NewIAVLTree(100, db)
+
+	// should get false for proof with nil root
+	_, _, exists := tree.Proof([]byte("foo"))
+	assert.False(t, exists)
+
+	// insert lots of info and store the bytes
+	keys := make([][]byte, 200)
+	for i := 0; i < 200; i++ {
+		key, value := randstr(20), randstr(200)
+		tree.Set([]byte(key), []byte(value))
+		keys[i] = []byte(key)
+	}
+
+	// query random key fails
+	_, _, exists = tree.Proof([]byte("foo"))
+	assert.False(t, exists)
+
+	// valid proof for real keys
+	root := tree.Hash()
+	for _, key := range keys {
+		value, proofBytes, exists := tree.Proof(key)
+		if assert.True(t, exists) {
+			proof, err := ReadProof(proofBytes)
+			require.Nil(t, err, "Failed to read IAVLProof from bytes: %v", err)
+			assert.True(t, proof.Verify(key, value, root))
+		}
+	}
+}
+
+func BenchmarkImmutableAvlTreeCLevelDB(b *testing.B) {
 	b.StopTimer()
 
-	db := db.NewDB("test", "leveldb2", "./")
+	db := db.NewDB("test", db.CLevelDBBackendStr, "./")
 	t := NewIAVLTree(100000, db)
 	// for i := 0; i < 10000000; i++ {
 	for i := 0; i < 1000000; i++ {
@@ -427,7 +600,7 @@ func BenchmarkImmutableAvlTreeLevelDB2(b *testing.B) {
 func BenchmarkImmutableAvlTreeMemDB(b *testing.B) {
 	b.StopTimer()
 
-	db := db.NewDB("test", "memdb", "")
+	db := db.NewDB("test", db.MemDBBackendStr, "")
 	t := NewIAVLTree(100000, db)
 	// for i := 0; i < 10000000; i++ {
 	for i := 0; i < 1000000; i++ {

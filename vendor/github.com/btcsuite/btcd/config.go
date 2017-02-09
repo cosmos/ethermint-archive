@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2016 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -26,8 +26,8 @@ import (
 	"github.com/btcsuite/btcd/mempool"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	flags "github.com/btcsuite/go-flags"
 	"github.com/btcsuite/go-socks/socks"
+	flags "github.com/jessevdk/go-flags"
 )
 
 const (
@@ -39,10 +39,10 @@ const (
 	defaultMaxPeers              = 125
 	defaultBanDuration           = time.Hour * 24
 	defaultBanThreshold          = 100
+	defaultConnectTimeout        = time.Second * 30
 	defaultMaxRPCClients         = 10
 	defaultMaxRPCWebsockets      = 25
 	defaultMaxRPCConcurrentReqs  = 20
-	defaultVerifyEnabled         = false
 	defaultDbType                = "ffldb"
 	defaultFreeTxRelayLimit      = 15.0
 	defaultBlockMinSize          = 0
@@ -50,8 +50,8 @@ const (
 	blockMaxSizeMin              = 1000
 	blockMaxSizeMax              = wire.MaxBlockPayload - 1000
 	defaultGenerate              = false
-	defaultMaxOrphanTransactions = 1000
-	defaultMaxOrphanTxSize       = 5000
+	defaultMaxOrphanTransactions = 100
+	defaultMaxOrphanTxSize       = mempool.MaxStandardTxSize
 	defaultSigCacheMaxSize       = 100000
 	sampleConfigFilename         = "sample-btcd.conf"
 	defaultTxIndex               = false
@@ -107,6 +107,7 @@ type config struct {
 	RPCMaxClients        int           `long:"rpcmaxclients" description:"Max number of RPC clients for standard connections"`
 	RPCMaxWebsockets     int           `long:"rpcmaxwebsockets" description:"Max number of RPC websocket connections"`
 	RPCMaxConcurrentReqs int           `long:"rpcmaxconcurrentreqs" description:"Max number of concurrent RPC requests that may be processed concurrently"`
+	RPCQuirks            bool          `long:"rpcquirks" description:"Mirror some JSON-RPC quirks of Bitcoin Core -- NOTE: Discouraged unless interoperability issues need to be worked around"`
 	DisableRPC           bool          `long:"norpc" description:"Disable built-in RPC server -- NOTE: The RPC server is disabled by default if no rpcuser/rpcpass or rpclimituser/rpclimitpass is specified"`
 	DisableTLS           bool          `long:"notls" description:"Disable TLS for the RPC server -- NOTE: This is only allowed if the RPC server is bound to localhost"`
 	DisableDNSSeed       bool          `long:"nodnsseed" description:"Disable DNS seeding for peers"`
@@ -137,7 +138,6 @@ type config struct {
 	BlockMinSize         uint32        `long:"blockminsize" description:"Mininum block size in bytes to be used when creating a block"`
 	BlockMaxSize         uint32        `long:"blockmaxsize" description:"Maximum block size in bytes to be used when creating a block"`
 	BlockPrioritySize    uint32        `long:"blockprioritysize" description:"Size in bytes for high-priority/low-fee transactions when creating a block"`
-	GetWorkKeys          []string      `long:"getworkkey" description:"DEPRECATED -- Use the --miningaddr option instead"`
 	NoPeerBloomFilters   bool          `long:"nopeerbloomfilters" description:"Disable bloom filtering support"`
 	SigCacheMaxSize      uint          `long:"sigcachemaxsize" description:"The maximum number of entries in the signature verification cache"`
 	BlocksOnly           bool          `long:"blocksonly" description:"Do not accept transactions from remote peers."`
@@ -149,8 +149,8 @@ type config struct {
 	RejectNonStd         bool          `long:"rejectnonstd" description:"Reject non-standard transactions regardless of the default settings for the active network."`
 	onionlookup          func(string) ([]net.IP, error)
 	lookup               func(string) ([]net.IP, error)
-	oniondial            func(string, string) (net.Conn, error)
-	dial                 func(string, string) (net.Conn, error)
+	oniondial            func(string, string, time.Duration) (net.Conn, error)
+	dial                 func(string, string, time.Duration) (net.Conn, error)
 	miningAddrs          []btcutil.Address
 	minRelayTxFee        btcutil.Amount
 }
@@ -562,7 +562,7 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Don't allow ban durations that are too short.
-	if cfg.BanDuration < time.Duration(time.Second) {
+	if cfg.BanDuration < time.Second {
 		str := "%s: The banduration option may not be less than 1s -- parsed [%v]"
 		err := fmt.Errorf(str, funcName, cfg.BanDuration)
 		fmt.Fprintln(os.Stderr, err)
@@ -717,30 +717,8 @@ func loadConfig() (*config, []string, error) {
 		return nil, nil, err
 	}
 
-	// Check getwork keys are valid and saved parsed versions.
-	cfg.miningAddrs = make([]btcutil.Address, 0, len(cfg.GetWorkKeys)+
-		len(cfg.MiningAddrs))
-	for _, strAddr := range cfg.GetWorkKeys {
-		addr, err := btcutil.DecodeAddress(strAddr,
-			activeNetParams.Params)
-		if err != nil {
-			str := "%s: getworkkey '%s' failed to decode: %v"
-			err := fmt.Errorf(str, funcName, strAddr, err)
-			fmt.Fprintln(os.Stderr, err)
-			fmt.Fprintln(os.Stderr, usageMessage)
-			return nil, nil, err
-		}
-		if !addr.IsForNet(activeNetParams.Params) {
-			str := "%s: getworkkey '%s' is on the wrong network"
-			err := fmt.Errorf(str, funcName, strAddr)
-			fmt.Fprintln(os.Stderr, err)
-			fmt.Fprintln(os.Stderr, usageMessage)
-			return nil, nil, err
-		}
-		cfg.miningAddrs = append(cfg.miningAddrs, addr)
-	}
-
 	// Check mining addresses are valid and saved parsed versions.
+	cfg.miningAddrs = make([]btcutil.Address, 0, len(cfg.MiningAddrs))
 	for _, strAddr := range cfg.MiningAddrs {
 		addr, err := btcutil.DecodeAddress(strAddr, activeNetParams.Params)
 		if err != nil {
@@ -829,12 +807,12 @@ func loadConfig() (*config, []string, error) {
 	}
 
 	// Setup dial and DNS resolution (lookup) functions depending on the
-	// specified options.  The default is to use the standard net.Dial
-	// function as well as the system DNS resolver.  When a proxy is
-	// specified, the dial function is set to the proxy specific dial
-	// function and the lookup is set to use tor (unless --noonion is
+	// specified options.  The default is to use the standard
+	// net.DialTimeout function as well as the system DNS resolver.  When a
+	// proxy is specified, the dial function is set to the proxy specific
+	// dial function and the lookup is set to use tor (unless --noonion is
 	// specified in which case the system DNS resolver is used).
-	cfg.dial = net.Dial
+	cfg.dial = net.DialTimeout
 	cfg.lookup = net.LookupIP
 	if cfg.Proxy != "" {
 		_, _, err := net.SplitHostPort(cfg.Proxy)
@@ -858,7 +836,7 @@ func loadConfig() (*config, []string, error) {
 			Password:     cfg.ProxyPass,
 			TorIsolation: cfg.TorIsolation,
 		}
-		cfg.dial = proxy.Dial
+		cfg.dial = proxy.DialTimeout
 		if !cfg.NoOnion {
 			cfg.lookup = func(host string) ([]net.IP, error) {
 				return connmgr.TorLookupIP(host, cfg.Proxy)
@@ -891,14 +869,14 @@ func loadConfig() (*config, []string, error) {
 				"credentials ")
 		}
 
-		cfg.oniondial = func(a, b string) (net.Conn, error) {
+		cfg.oniondial = func(a, b string, t time.Duration) (net.Conn, error) {
 			proxy := &socks.Proxy{
 				Addr:         cfg.OnionProxy,
 				Username:     cfg.OnionProxyUser,
 				Password:     cfg.OnionProxyPass,
 				TorIsolation: cfg.TorIsolation,
 			}
-			return proxy.Dial(a, b)
+			return proxy.DialTimeout(a, b, t)
 		}
 		cfg.onionlookup = func(host string) ([]net.IP, error) {
 			return connmgr.TorLookupIP(host, cfg.OnionProxy)
@@ -911,7 +889,7 @@ func loadConfig() (*config, []string, error) {
 	// Specifying --noonion means the onion address dial and DNS resolution
 	// (lookup) functions result in an error.
 	if cfg.NoOnion {
-		cfg.oniondial = func(a, b string) (net.Conn, error) {
+		cfg.oniondial = func(a, b string, t time.Duration) (net.Conn, error) {
 			return nil, errors.New("tor has been disabled")
 		}
 		cfg.onionlookup = func(a string) ([]net.IP, error) {
@@ -983,9 +961,9 @@ func createDefaultConfigFile(destinationPath string) error {
 		}
 
 		if strings.Contains(line, "rpcuser=") {
-			line = "rpcuser=" + string(generatedRPCUser) + "\n"
+			line = "rpcuser=" + generatedRPCUser + "\n"
 		} else if strings.Contains(line, "rpcpass=") {
-			line = "rpcpass=" + string(generatedRPCPass) + "\n"
+			line = "rpcpass=" + generatedRPCPass + "\n"
 		}
 
 		if _, err := dest.WriteString(line); err != nil {
@@ -1001,11 +979,12 @@ func createDefaultConfigFile(destinationPath string) error {
 // example, .onion addresses will be dialed using the onion specific proxy if
 // one was specified, but will otherwise use the normal dial function (which
 // could itself use a proxy or not).
-func btcdDial(network, address string) (net.Conn, error) {
-	if strings.Contains(address, ".onion:") {
-		return cfg.oniondial(network, address)
+func btcdDial(addr net.Addr) (net.Conn, error) {
+	if strings.Contains(addr.String(), ".onion:") {
+		return cfg.oniondial(addr.Network(), addr.String(),
+			defaultConnectTimeout)
 	}
-	return cfg.dial(network, address)
+	return cfg.dial(addr.Network(), addr.String(), defaultConnectTimeout)
 }
 
 // btcdLookup returns the correct DNS lookup function to use depending on the

@@ -7,6 +7,7 @@ import (
 
 	. "github.com/tendermint/go-common"
 	dbm "github.com/tendermint/go-db"
+	wire "github.com/tendermint/go-wire"
 )
 
 /*
@@ -82,6 +83,15 @@ func (t *IAVLTree) Has(key []byte) bool {
 	return t.root.has(t, key)
 }
 
+func (t *IAVLTree) Proof(key []byte) (value []byte, proofBytes []byte, exists bool) {
+	value, proof := t.ConstructProof(key)
+	if proof == nil {
+		return nil, nil, false
+	}
+	proofBytes = wire.BinaryBytes(proof)
+	return value, proofBytes, true
+}
+
 func (t *IAVLTree) Set(key []byte, value []byte) (updated bool) {
 	if t.root == nil {
 		t.root = NewIAVLNode(key, value)
@@ -110,8 +120,10 @@ func (t *IAVLTree) Save() []byte {
 	if t.root == nil {
 		return nil
 	}
-	t.root.save(t)
-	t.ndb.Commit()
+	if t.ndb != nil {
+		t.root.save(t)
+		t.ndb.Commit()
+	}
 	return t.root.hash
 }
 
@@ -159,7 +171,22 @@ func (t *IAVLTree) Iterate(fn func(key []byte, value []byte) bool) (stopped bool
 	if t.root == nil {
 		return false
 	}
-	return t.root.traverse(t, func(node *IAVLNode) bool {
+	return t.root.traverse(t, true, func(node *IAVLNode) bool {
+		if node.height == 0 {
+			return fn(node.key, node.value)
+		} else {
+			return false
+		}
+	})
+}
+
+// IterateRange makes a callback for all nodes with key between start and end inclusive
+// If either are nil, then it is open on that side (nil, nil is the same as Iterate)
+func (t *IAVLTree) IterateRange(start, end []byte, ascending bool, fn func(key []byte, value []byte) bool) (stopped bool) {
+	if t.root == nil {
+		return false
+	}
+	return t.root.traverseInRange(t, start, end, ascending, func(node *IAVLNode) bool {
 		if node.height == 0 {
 			return fn(node.key, node.value)
 		} else {
@@ -171,21 +198,25 @@ func (t *IAVLTree) Iterate(fn func(key []byte, value []byte) bool) (stopped bool
 //-----------------------------------------------------------------------------
 
 type nodeDB struct {
-	mtx        sync.Mutex
-	cache      map[string]*list.Element
-	cacheSize  int
-	cacheQueue *list.List
-	db         dbm.DB
-	batch      dbm.Batch
+	mtx         sync.Mutex
+	cache       map[string]*list.Element
+	cacheSize   int
+	cacheQueue  *list.List
+	db          dbm.DB
+	batch       dbm.Batch
+	orphans     map[string]struct{}
+	orphansPrev map[string]struct{}
 }
 
 func newNodeDB(cacheSize int, db dbm.DB) *nodeDB {
 	ndb := &nodeDB{
-		cache:      make(map[string]*list.Element),
-		cacheSize:  cacheSize,
-		cacheQueue: list.New(),
-		db:         db,
-		batch:      db.NewBatch(),
+		cache:       make(map[string]*list.Element),
+		cacheSize:   cacheSize,
+		cacheQueue:  list.New(),
+		db:          db,
+		batch:       db.NewBatch(),
+		orphans:     make(map[string]struct{}),
+		orphansPrev: make(map[string]struct{}),
 	}
 	return ndb
 }
@@ -203,7 +234,7 @@ func (ndb *nodeDB) GetNode(t *IAVLTree, hash []byte) *IAVLNode {
 		// Doesn't exist, load.
 		buf := ndb.db.Get(hash)
 		if len(buf) == 0 {
-			ndb.db.Print()
+			// ndb.db.Print()
 			PanicSanity(Fmt("Value missing for key %X", hash))
 		}
 		node, err := MakeIAVLNode(buf, t)
@@ -238,6 +269,10 @@ func (ndb *nodeDB) SaveNode(t *IAVLTree, node *IAVLNode) {
 	ndb.batch.Set(node.hash, buf.Bytes())
 	node.persisted = true
 	ndb.cacheNode(node)
+	// Re-creating the orphan,
+	// Do not garbage collect.
+	delete(ndb.orphans, string(node.hash))
+	delete(ndb.orphansPrev, string(node.hash))
 }
 
 func (ndb *nodeDB) RemoveNode(t *IAVLTree, node *IAVLNode) {
@@ -249,12 +284,12 @@ func (ndb *nodeDB) RemoveNode(t *IAVLTree, node *IAVLNode) {
 	if !node.persisted {
 		PanicSanity("Shouldn't be calling remove on a non-persisted node.")
 	}
-	ndb.batch.Delete(node.hash)
 	elem, ok := ndb.cache[string(node.hash)]
 	if ok {
 		ndb.cacheQueue.Remove(elem)
 		delete(ndb.cache, string(node.hash))
 	}
+	ndb.orphans[string(node.hash)] = struct{}{}
 }
 
 func (ndb *nodeDB) cacheNode(node *IAVLNode) {
@@ -269,7 +304,17 @@ func (ndb *nodeDB) cacheNode(node *IAVLNode) {
 }
 
 func (ndb *nodeDB) Commit() {
+	ndb.mtx.Lock()
+	defer ndb.mtx.Unlock()
+	// Delete orphans from previous block
+	for orphanHashStr, _ := range ndb.orphansPrev {
+		ndb.batch.Delete([]byte(orphanHashStr))
+	}
+	// Write saves & orphan deletes
 	ndb.batch.Write()
 	ndb.db.SetSync(nil, nil)
 	ndb.batch = ndb.db.NewBatch()
+	// Shift orphans
+	ndb.orphansPrev = ndb.orphans
+	ndb.orphans = make(map[string]struct{})
 }

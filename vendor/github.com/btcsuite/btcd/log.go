@@ -14,16 +14,12 @@ import (
 	"github.com/btcsuite/btcd/connmgr"
 	"github.com/btcsuite/btcd/database"
 	"github.com/btcsuite/btcd/mempool"
+	"github.com/btcsuite/btcd/mining"
+	"github.com/btcsuite/btcd/mining/cpuminer"
 	"github.com/btcsuite/btcd/peer"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btclog"
 	"github.com/btcsuite/seelog"
-)
-
-const (
-	// maxRejectReasonLen is the maximum length of a sanitized reject reason
-	// that will be logged.
-	maxRejectReasonLen = 250
 )
 
 // Loggers per subsystem.  Note that backendLog is a seelog logger that all of
@@ -66,22 +62,6 @@ var subsystemLoggers = map[string]btclog.Logger{
 	"SCRP": scrpLog,
 	"SRVR": srvrLog,
 	"TXMP": txmpLog,
-}
-
-// logClosure is used to provide a closure over expensive logging operations
-// so don't have to be performed when the logging level doesn't warrant it.
-type logClosure func() string
-
-// String invokes the underlying function and returns the result.
-func (c logClosure) String() string {
-	return c()
-}
-
-// newLogClosure returns a new closure over a function that returns a string
-// which itself provides a Stringer interface so that it can be used with the
-// logging system.
-func newLogClosure(c func() string) logClosure {
-	return logClosure(c)
 }
 
 // useLogger updates the logger references for subsystemID to logger.  Invalid
@@ -127,6 +107,8 @@ func useLogger(subsystemID string, logger btclog.Logger) {
 
 	case "MINR":
 		minrLog = logger
+		mining.UseLogger(logger)
+		cpuminer.UseLogger(logger)
 
 	case "PEER":
 		peerLog = logger
@@ -215,4 +197,13 @@ func directionString(inbound bool) string {
 		return "inbound"
 	}
 	return "outbound"
+}
+
+// pickNoun returns the singular or plural form of a noun depending
+// on the count n.
+func pickNoun(n uint64, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
 }

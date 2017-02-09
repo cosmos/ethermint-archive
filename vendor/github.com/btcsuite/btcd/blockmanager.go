@@ -23,8 +23,6 @@ import (
 )
 
 const (
-	chanBufferSize = 50
-
 	// minInFlightBlocks is the minimum number of blocks that should be
 	// in the request queue for headers-first mode before requesting
 	// more.
@@ -135,50 +133,21 @@ type headerNode struct {
 	hash   *chainhash.Hash
 }
 
-// chainState tracks the state of the best chain as blocks are inserted.  This
-// is done because btcchain is currently not safe for concurrent access and the
-// block manager is typically quite busy processing block and inventory.
-// Therefore, requesting this information from chain through the block manager
-// would not be anywhere near as efficient as simply updating it as each block
-// is inserted and protecting it with a mutex.
-type chainState struct {
-	sync.Mutex
-	newestHash        *chainhash.Hash
-	newestHeight      int32
-	pastMedianTime    time.Time
-	pastMedianTimeErr error
-}
-
-// Best returns the block hash and height known for the tip of the best known
-// chain.
-//
-// This function is safe for concurrent access.
-func (c *chainState) Best() (*chainhash.Hash, int32) {
-	c.Lock()
-	defer c.Unlock()
-
-	return c.newestHash, c.newestHeight
-}
-
 // blockManager provides a concurrency safe block manager for handling all
 // incoming blocks.
 type blockManager struct {
-	server            *server
-	started           int32
-	shutdown          int32
-	chain             *blockchain.BlockChain
-	rejectedTxns      map[chainhash.Hash]struct{}
-	requestedTxns     map[chainhash.Hash]struct{}
-	requestedBlocks   map[chainhash.Hash]struct{}
-	progressLogger    *blockProgressLogger
-	receivedLogBlocks int64
-	receivedLogTx     int64
-	processingReqs    bool
-	syncPeer          *serverPeer
-	msgChan           chan interface{}
-	chainState        chainState
-	wg                sync.WaitGroup
-	quit              chan struct{}
+	server          *server
+	started         int32
+	shutdown        int32
+	chain           *blockchain.BlockChain
+	rejectedTxns    map[chainhash.Hash]struct{}
+	requestedTxns   map[chainhash.Hash]struct{}
+	requestedBlocks map[chainhash.Hash]struct{}
+	progressLogger  *blockProgressLogger
+	syncPeer        *serverPeer
+	msgChan         chan interface{}
+	wg              sync.WaitGroup
+	quit            chan struct{}
 
 	// The following fields are used for headers-first mode.
 	headersFirstMode bool
@@ -201,20 +170,6 @@ func (b *blockManager) resetHeaderState(newestHash *chainhash.Hash, newestHeight
 		node := headerNode{height: newestHeight, hash: newestHash}
 		b.headerList.PushBack(&node)
 	}
-}
-
-// updateChainState updates the chain state associated with the block manager.
-// This allows fast access to chain information since btcchain is currently not
-// safe for concurrent access and the block manager is typically quite busy
-// processing block and inventory.
-func (b *blockManager) updateChainState(newestHash *chainhash.Hash, newestHeight int32) {
-	b.chainState.Lock()
-	defer b.chainState.Unlock()
-
-	b.chainState.newestHash = newestHash
-	b.chainState.newestHeight = newestHeight
-	b.chainState.pastMedianTime = b.chain.BestSnapshot().MedianTime
-	b.chainState.pastMedianTimeErr = nil
 }
 
 // findNextHeaderCheckpoint returns the next checkpoint after the passed height.
@@ -409,7 +364,7 @@ func (b *blockManager) handleDonePeerMsg(peers *list.List, sp *serverPeer) {
 
 	// Remove requested blocks from the global map so that they will be
 	// fetched from elsewhere next time we get an inv.
-	// TODO(oga) we could possibly here check which peers have these blocks
+	// TODO: we could possibly here check which peers have these blocks
 	// and request them now to speed things up a little.
 	for k := range sp.requestedBlocks {
 		delete(b.requestedBlocks, k)
@@ -453,7 +408,7 @@ func (b *blockManager) handleTxMsg(tmsg *txMsg) {
 	// memory pool, orphan handling, etc.
 	allowOrphans := cfg.MaxOrphanTxs > 0
 	acceptedTxs, err := b.server.txMemPool.ProcessTransaction(tmsg.tx,
-		allowOrphans, true)
+		allowOrphans, true, mempool.Tag(tmsg.peer.ID()))
 
 	// Remove transaction from request maps. Either the mempool/chain
 	// already knows about it and as such we shouldn't have any more
@@ -617,7 +572,7 @@ func (b *blockManager) handleBlockMsg(bmsg *blockMsg) {
 			} else {
 				bmgrLog.Debugf("Extracted height of %v from "+
 					"orphan block", cbHeight)
-				heightUpdate = int32(cbHeight)
+				heightUpdate = cbHeight
 				blkHashUpdate = blockHash
 			}
 		}
@@ -635,14 +590,9 @@ func (b *blockManager) handleBlockMsg(bmsg *blockMsg) {
 		// update the chain state.
 		b.progressLogger.LogBlockHeight(bmsg.block)
 
-		// Query the chain for the latest best block since the block
-		// that was processed could be on a side chain or have caused
-		// a reorg.
-		best := b.chain.BestSnapshot()
-		b.updateChainState(best.Hash, best.Height)
-
 		// Update this peer's latest block height, for future
 		// potential sync node candidacy.
+		best := b.chain.BestSnapshot()
 		heightUpdate = best.Height
 		blkHashUpdate = best.Hash
 
@@ -665,7 +615,7 @@ func (b *blockManager) handleBlockMsg(bmsg *blockMsg) {
 	if blkHashUpdate != nil && heightUpdate != 0 {
 		bmsg.peer.UpdateLastBlockHeight(heightUpdate)
 		if isOrphan || b.current() {
-			go b.server.UpdatePeerHeights(blkHashUpdate, int32(heightUpdate), bmsg.peer)
+			go b.server.UpdatePeerHeights(blkHashUpdate, heightUpdate, bmsg.peer)
 		}
 	}
 
@@ -932,7 +882,7 @@ func (b *blockManager) handleInvMsg(imsg *invMsg) {
 	if lastBlock != -1 && b.current() {
 		blkHeight, err := b.chain.BlockHeightByHash(&invVects[lastBlock].Hash)
 		if err == nil {
-			imsg.peer.UpdateLastBlockHeight(int32(blkHeight))
+			imsg.peer.UpdateLastBlockHeight(blkHeight)
 		}
 	}
 
@@ -1126,12 +1076,6 @@ out:
 					}
 				}
 
-				// Query the chain for the latest best block
-				// since the block that was processed could be
-				// on a side chain or have caused a reorg.
-				best := b.chain.BestSnapshot()
-				b.updateChainState(best.Hash, best.Height)
-
 				// Allow any clients performing long polling via the
 				// getblocktemplate RPC to be notified when the new block causes
 				// their old block template to become stale.
@@ -1207,8 +1151,8 @@ func (b *blockManager) handleNotifyMsg(notification *blockchain.Notification) {
 		for _, tx := range block.Transactions()[1:] {
 			b.server.txMemPool.RemoveTransaction(tx, false)
 			b.server.txMemPool.RemoveDoubleSpends(tx)
-			b.server.txMemPool.RemoveOrphan(tx.Hash())
-			acceptedTxs := b.server.txMemPool.ProcessOrphans(tx.Hash())
+			b.server.txMemPool.RemoveOrphan(tx)
+			acceptedTxs := b.server.txMemPool.ProcessOrphans(tx)
 			b.server.AnnounceNewTransactions(acceptedTxs)
 		}
 
@@ -1236,7 +1180,7 @@ func (b *blockManager) handleNotifyMsg(notification *blockchain.Notification) {
 		// Reinsert all of the transactions (except the coinbase) into
 		// the transaction pool.
 		for _, tx := range block.Transactions()[1:] {
-			_, err := b.server.txMemPool.MaybeAcceptTransaction(tx,
+			_, _, err := b.server.txMemPool.MaybeAcceptTransaction(tx,
 				false, false)
 			if err != nil {
 				// Remove the transaction and all transactions
@@ -1418,10 +1362,6 @@ func newBlockManager(s *server, indexManager blockchain.IndexManager) (*blockMan
 	} else {
 		bmgrLog.Info("Checkpoints are disabled")
 	}
-
-	// Initialize the chain state now that the initial block node index has
-	// been generated.
-	bm.updateChainState(best.Hash, best.Height)
 
 	return &bm, nil
 }

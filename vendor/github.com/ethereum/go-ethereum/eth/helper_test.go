@@ -30,11 +30,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -54,15 +56,15 @@ func newTestProtocolManager(fastSync bool, blocks int, generator func(int, *core
 		pow           = new(core.FakePow)
 		db, _         = ethdb.NewMemDatabase()
 		genesis       = core.WriteGenesisBlockForTesting(db, testBank)
-		chainConfig   = &core.ChainConfig{HomesteadBlock: big.NewInt(0)} // homestead set to 0 because of chain maker
-		blockchain, _ = core.NewBlockChain(db, chainConfig, pow, evmux)
+		chainConfig   = &params.ChainConfig{HomesteadBlock: big.NewInt(0)} // homestead set to 0 because of chain maker
+		blockchain, _ = core.NewBlockChain(db, chainConfig, pow, evmux, vm.Config{})
 	)
-	chain, _ := core.GenerateChain(nil, genesis, db, blocks, generator)
+	chain, _ := core.GenerateChain(chainConfig, genesis, db, blocks, generator)
 	if _, err := blockchain.InsertChain(chain); err != nil {
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(chainConfig, fastSync, NetworkId, evmux, &testTxPool{added: newtx}, pow, blockchain, db)
+	pm, err := NewProtocolManager(chainConfig, fastSync, NetworkId, 1000, evmux, &testTxPool{added: newtx}, pow, blockchain, db)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +94,7 @@ type testTxPool struct {
 
 // AddBatch appends a batch of transactions to the pool, and notifies any
 // listeners if the addition channel is non nil
-func (p *testTxPool) AddBatch(txs []*types.Transaction) {
+func (p *testTxPool) AddBatch(txs []*types.Transaction) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -100,28 +102,30 @@ func (p *testTxPool) AddBatch(txs []*types.Transaction) {
 	if p.added != nil {
 		p.added <- txs
 	}
+
+	return nil
 }
 
 // Pending returns all the transactions known to the pool
-func (p *testTxPool) Pending() map[common.Address]types.Transactions {
+func (p *testTxPool) Pending() (map[common.Address]types.Transactions, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
 	batches := make(map[common.Address]types.Transactions)
 	for _, tx := range p.pool {
-		from, _ := tx.From()
+		from, _ := types.Sender(types.HomesteadSigner{}, tx)
 		batches[from] = append(batches[from], tx)
 	}
 	for _, batch := range batches {
 		sort.Sort(types.TxByNonce(batch))
 	}
-	return batches
+	return batches, nil
 }
 
 // newTestTransaction create a new dummy transaction.
 func newTestTransaction(from *ecdsa.PrivateKey, nonce uint64, datasize int) *types.Transaction {
 	tx := types.NewTransaction(nonce, common.Address{}, big.NewInt(0), big.NewInt(100000), big.NewInt(0), make([]byte, datasize))
-	tx, _ = tx.SignECDSA(from)
+	tx, _ = types.SignTx(tx, types.HomesteadSigner{}, from)
 	return tx
 }
 

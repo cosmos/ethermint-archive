@@ -6,30 +6,38 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
+// TODO: better system than "unsafe" prefix
 var Routes = map[string]*rpc.RPCFunc{
 	// subscribe/unsubscribe are reserved for websocket events.
 	"subscribe":   rpc.NewWSRPCFunc(SubscribeResult, "event"),
 	"unsubscribe": rpc.NewWSRPCFunc(UnsubscribeResult, "event"),
 
+	// info API
 	"status":               rpc.NewRPCFunc(StatusResult, ""),
 	"net_info":             rpc.NewRPCFunc(NetInfoResult, ""),
-	"dial_seeds":           rpc.NewRPCFunc(DialSeedsResult, "seeds"),
 	"blockchain":           rpc.NewRPCFunc(BlockchainInfoResult, "minHeight,maxHeight"),
 	"genesis":              rpc.NewRPCFunc(GenesisResult, ""),
 	"block":                rpc.NewRPCFunc(BlockResult, "height"),
 	"validators":           rpc.NewRPCFunc(ValidatorsResult, ""),
 	"dump_consensus_state": rpc.NewRPCFunc(DumpConsensusStateResult, ""),
-	"broadcast_tx_commit":  rpc.NewRPCFunc(BroadcastTxCommitResult, "tx"),
-	"broadcast_tx_sync":    rpc.NewRPCFunc(BroadcastTxSyncResult, "tx"),
-	"broadcast_tx_async":   rpc.NewRPCFunc(BroadcastTxAsyncResult, "tx"),
 	"unconfirmed_txs":      rpc.NewRPCFunc(UnconfirmedTxsResult, ""),
 	"num_unconfirmed_txs":  rpc.NewRPCFunc(NumUnconfirmedTxsResult, ""),
 
-	"tmsp_query": rpc.NewRPCFunc(TMSPQueryResult, "query"),
-	"tmsp_info":  rpc.NewRPCFunc(TMSPInfoResult, ""),
+	// broadcast API
+	"broadcast_tx_commit": rpc.NewRPCFunc(BroadcastTxCommitResult, "tx"),
+	"broadcast_tx_sync":   rpc.NewRPCFunc(BroadcastTxSyncResult, "tx"),
+	"broadcast_tx_async":  rpc.NewRPCFunc(BroadcastTxAsyncResult, "tx"),
 
-	"unsafe_flush_mempool":      rpc.NewRPCFunc(UnsafeFlushMempool, ""),
-	"unsafe_set_config":         rpc.NewRPCFunc(UnsafeSetConfigResult, "type,key,value"),
+	// abci API
+	"abci_query": rpc.NewRPCFunc(ABCIQueryResult, "query"),
+	"abci_info":  rpc.NewRPCFunc(ABCIInfoResult, ""),
+
+	// control API
+	"dial_seeds":           rpc.NewRPCFunc(UnsafeDialSeedsResult, "seeds"),
+	"unsafe_flush_mempool": rpc.NewRPCFunc(UnsafeFlushMempool, ""),
+	"unsafe_set_config":    rpc.NewRPCFunc(UnsafeSetConfigResult, "type,key,value"),
+
+	// profiler API
 	"unsafe_start_cpu_profiler": rpc.NewRPCFunc(UnsafeStartCPUProfilerResult, "filename"),
 	"unsafe_stop_cpu_profiler":  rpc.NewRPCFunc(UnsafeStopCPUProfilerResult, ""),
 	"unsafe_write_heap_profile": rpc.NewRPCFunc(UnsafeWriteHeapProfileResult, "filename"),
@@ -67,8 +75,8 @@ func NetInfoResult() (ctypes.TMResult, error) {
 	}
 }
 
-func DialSeedsResult(seeds []string) (ctypes.TMResult, error) {
-	if r, err := DialSeeds(seeds); err != nil {
+func UnsafeDialSeedsResult(seeds []string) (ctypes.TMResult, error) {
+	if r, err := UnsafeDialSeeds(seeds); err != nil {
 		return nil, err
 	} else {
 		return r, nil
@@ -155,16 +163,16 @@ func BroadcastTxAsyncResult(tx []byte) (ctypes.TMResult, error) {
 	}
 }
 
-func TMSPQueryResult(query []byte) (ctypes.TMResult, error) {
-	if r, err := TMSPQuery(query); err != nil {
+func ABCIQueryResult(query []byte) (ctypes.TMResult, error) {
+	if r, err := ABCIQuery(query); err != nil {
 		return nil, err
 	} else {
 		return r, nil
 	}
 }
 
-func TMSPInfoResult() (ctypes.TMResult, error) {
-	if r, err := TMSPInfo(); err != nil {
+func ABCIInfoResult() (ctypes.TMResult, error) {
+	if r, err := ABCIInfo(); err != nil {
 		return nil, err
 	} else {
 		return r, nil

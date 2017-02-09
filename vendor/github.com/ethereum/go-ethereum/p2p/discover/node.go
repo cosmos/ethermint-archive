@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
-const nodeIDBits = 512
+const NodeIDBits = 512
 
 // Node represents a host on the network.
 // The fields of Node may not be modified.
@@ -209,7 +209,7 @@ func MustParseNode(rawurl string) *Node {
 
 // NodeID is a unique identifier for each node.
 // The node identifier is a marshaled elliptic curve public key.
-type NodeID [nodeIDBits / 8]byte
+type NodeID [NodeIDBits / 8]byte
 
 // NodeID prints as a long hexadecimal number.
 func (n NodeID) String() string {
@@ -224,11 +224,8 @@ func (n NodeID) GoString() string {
 // HexID converts a hex string to a NodeID.
 // The string may be prefixed with 0x.
 func HexID(in string) (NodeID, error) {
-	if strings.HasPrefix(in, "0x") {
-		in = in[2:]
-	}
 	var id NodeID
-	b, err := hex.DecodeString(in)
+	b, err := hex.DecodeString(strings.TrimPrefix(in, "0x"))
 	if err != nil {
 		return id, err
 	} else if len(b) != len(id) {

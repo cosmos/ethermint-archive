@@ -1,4 +1,5 @@
-// Copyright (c) 2015 The btcsuite developers
+// Copyright (c) 2015-2017 The btcsuite developers
+// Copyright (c) 2015-2017 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -156,6 +157,32 @@ var helpDescsEnUS = map[string]string{
 	"getblock--condition1": "verbose=true",
 	"getblock--result0":    "Hex-encoded bytes of the serialized block",
 
+	// GetBlockChainInfoCmd help.
+	"getblockchaininfo--synopsis": "Returns information about the current blockchain state and the status of any active soft-fork deployments.",
+
+	// GetBlockChainInfoResult help.
+	"getblockchaininforesult-chain":                 "The name of the chain the daemon is on (testnet, mainnet, etc)",
+	"getblockchaininforesult-blocks":                "The number of blocks in the best known chain",
+	"getblockchaininforesult-headers":               "The number of headers that we've gathered for in the best known chain",
+	"getblockchaininforesult-bestblockhash":         "The block hash for the latest block in the main chain",
+	"getblockchaininforesult-difficulty":            "The current chain difficulty",
+	"getblockchaininforesult-mediantime":            "The median time from the PoV of the best block in the chain",
+	"getblockchaininforesult-verificationprogress":  "An estimate for how much of the best chain we've verified",
+	"getblockchaininforesult-pruned":                "A bool that indicates if the node is pruned or not",
+	"getblockchaininforesult-pruneheight":           "The lowest block retained in the current pruned chain",
+	"getblockchaininforesult-chainwork":             "The total cumulative work in the best chain",
+	"getblockchaininforesult-softforks":             "The status of the super-majority soft-forks",
+	"getblockchaininforesult-bip9_softforks":        "JSON object describing active BIP0009 deployments",
+	"getblockchaininforesult-bip9_softforks--key":   "bip9_softforks",
+	"getblockchaininforesult-bip9_softforks--value": "An object describing a particular BIP009 deployment",
+	"getblockchaininforesult-bip9_softforks--desc":  "The status of any defined BIP0009 soft-fork deployments",
+
+	// SoftForkDescription help.
+	"softforkdescription-reject":  "The current activation status of the softfork",
+	"softforkdescription-version": "The block version that signals enforcement of this softfork",
+	"softforkdescription-id":      "The string identifier for the soft fork",
+	"-status":                     "A bool which indicates if the soft fork is active",
+
 	// TxRawResult help.
 	"txrawresult-hex":           "Hex-encoded transaction",
 	"txrawresult-txid":          "The hash of the transaction",
@@ -186,6 +213,7 @@ var helpDescsEnUS = map[string]string{
 	"getblockverboseresult-size":              "The size of the block",
 	"getblockverboseresult-height":            "The height of the block in the block chain",
 	"getblockverboseresult-version":           "The block version",
+	"getblockverboseresult-versionHex":        "The block version in hexidecimal",
 	"getblockverboseresult-merkleroot":        "Root hash of the merkle tree",
 	"getblockverboseresult-tx":                "The transaction hashes (only when verbosetx=false)",
 	"getblockverboseresult-rawtx":             "The transactions as JSON objects (only when verbosetx=true)",
@@ -218,6 +246,7 @@ var helpDescsEnUS = map[string]string{
 	"getblockheaderverboseresult-confirmations":     "The number of confirmations",
 	"getblockheaderverboseresult-height":            "The height of the block in the block chain",
 	"getblockheaderverboseresult-version":           "The block version",
+	"getblockheaderverboseresult-versionHex":        "The block version in hexidecimal",
 	"getblockheaderverboseresult-merkleroot":        "Root hash of the merkle tree",
 	"getblockheaderverboseresult-time":              "The block time in seconds since 1 Jan 1970 GMT",
 	"getblockheaderverboseresult-nonce":             "The block nonce",
@@ -331,6 +360,12 @@ var helpDescsEnUS = map[string]string{
 	"infowalletresult-relayfee":        "The minimum relay fee for non-free transactions in BTC/KB",
 	"infowalletresult-errors":          "Any current errors",
 
+	// GetHeadersCmd help.
+	"getheaders--synopsis":     "Returns block headers starting with the first known block hash from the request",
+	"getheaders-blocklocators": "JSON array of hex-encoded hashes of blocks.  Headers are returned starting from the first known hash in this list",
+	"getheaders-hashstop":      "Block hash to stop including block headers for; if not found, all headers to the latest known block are returned.",
+	"getheaders--result0":      "Serialized block headers of all located blocks, limited to some arbitrary maximum number of hashes (currently 2000, which matches the wire protocol headers message, but this is not guaranteed)",
+
 	// GetInfoCmd help.
 	"getinfo--synopsis": "Returns a JSON object containing various state info.",
 
@@ -391,6 +426,7 @@ var helpDescsEnUS = map[string]string{
 	"getpeerinforesult-startingheight": "The latest block height the peer knew about when the connection was established",
 	"getpeerinforesult-currentheight":  "The current height of the peer",
 	"getpeerinforesult-banscore":       "The ban score",
+	"getpeerinforesult-feefilter":      "The requested minimum fee a transaction must have to be announced to the peer",
 	"getpeerinforesult-syncnode":       "Whether or not the peer is the sync peer",
 
 	// GetPeerInfoCmd help.
@@ -433,19 +469,6 @@ var helpDescsEnUS = map[string]string{
 	"gettxout-txid":           "The hash of the transaction",
 	"gettxout-vout":           "The index of the output",
 	"gettxout-includemempool": "Include the mempool when true",
-
-	// GetWorkResult help.
-	"getworkresult-data":     "Hex-encoded block data",
-	"getworkresult-hash1":    "(DEPRECATED) Hex-encoded formatted hash buffer",
-	"getworkresult-midstate": "(DEPRECATED) Hex-encoded precomputed hash state after hashing first half of the data",
-	"getworkresult-target":   "Hex-encoded little-endian hash target",
-
-	// GetWorkCmd help.
-	"getwork--synopsis":   "(DEPRECATED - Use getblocktemplate instead) Returns formatted hash data to work on or checks and submits solved data.",
-	"getwork-data":        "Hex-encoded data to check",
-	"getwork--condition0": "no data provided",
-	"getwork--condition1": "data provided",
-	"getwork--result1":    "Whether or not the solved data is valid and was added to the chain",
 
 	// HelpCmd help.
 	"help--synopsis":   "Returns a list of all commands or help for a specified command.",
@@ -576,6 +599,20 @@ var helpDescsEnUS = map[string]string{
 	"rescan-addresses":  "List of addresses to include in the rescan",
 	"rescan-outpoints":  "List of transaction outpoints to include in the rescan",
 	"rescan-endblock":   "Hash of final block to rescan",
+
+	// Version help.
+	"version--synopsis":       "Returns the JSON-RPC API version (semver)",
+	"version--result0--desc":  "Version objects keyed by the program or API name",
+	"version--result0--key":   "Program or API name",
+	"version--result0--value": "Object containing the semantic version",
+
+	// VersionResult help.
+	"versionresult-versionstring": "The JSON-RPC API version (semver)",
+	"versionresult-major":         "The major component of the JSON-RPC API version",
+	"versionresult-minor":         "The minor component of the JSON-RPC API version",
+	"versionresult-patch":         "The patch component of the JSON-RPC API version",
+	"versionresult-prerelease":    "Prerelease info about the current build",
+	"versionresult-buildmetadata": "Metadata about the current build",
 }
 
 // rpcResultTypes specifies the result types that each RPC command can return.
@@ -596,11 +633,13 @@ var rpcResultTypes = map[string][]interface{}{
 	"getblockhash":          {(*string)(nil)},
 	"getblockheader":        {(*string)(nil), (*btcjson.GetBlockHeaderVerboseResult)(nil)},
 	"getblocktemplate":      {(*btcjson.GetBlockTemplateResult)(nil), (*string)(nil), nil},
+	"getblockchaininfo":     {(*btcjson.GetBlockChainInfoResult)(nil)},
 	"getconnectioncount":    {(*int32)(nil)},
 	"getcurrentnet":         {(*uint32)(nil)},
 	"getdifficulty":         {(*float64)(nil)},
 	"getgenerate":           {(*bool)(nil)},
 	"gethashespersec":       {(*float64)(nil)},
+	"getheaders":            {(*[]string)(nil)},
 	"getinfo":               {(*btcjson.InfoChainResult)(nil)},
 	"getmempoolinfo":        {(*btcjson.GetMempoolInfoResult)(nil)},
 	"getmininginfo":         {(*btcjson.GetMiningInfoResult)(nil)},
@@ -610,7 +649,6 @@ var rpcResultTypes = map[string][]interface{}{
 	"getrawmempool":         {(*[]string)(nil), (*btcjson.GetRawMempoolVerboseResult)(nil)},
 	"getrawtransaction":     {(*string)(nil), (*btcjson.TxRawResult)(nil)},
 	"gettxout":              {(*btcjson.GetTxOutResult)(nil)},
-	"getwork":               {(*btcjson.GetWorkResult)(nil), (*bool)(nil)},
 	"node":                  nil,
 	"help":                  {(*string)(nil), (*string)(nil)},
 	"ping":                  nil,
@@ -622,6 +660,7 @@ var rpcResultTypes = map[string][]interface{}{
 	"validateaddress":       {(*btcjson.ValidateAddressChainResult)(nil)},
 	"verifychain":           {(*bool)(nil)},
 	"verifymessage":         {(*bool)(nil)},
+	"version":               {(*map[string]btcjson.VersionResult)(nil)},
 
 	// Websocket commands.
 	"session":                   {(*btcjson.SessionResult)(nil)},

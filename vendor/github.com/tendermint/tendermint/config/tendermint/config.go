@@ -54,7 +54,7 @@ func GetConfig(rootDir string) cfg.Config {
 	mapConfig.SetRequired("chain_id") // blows up if you try to use it before setting.
 	mapConfig.SetDefault("genesis_file", rootDir+"/genesis.json")
 	mapConfig.SetDefault("proxy_app", "tcp://127.0.0.1:46658")
-	mapConfig.SetDefault("tmsp", "socket")
+	mapConfig.SetDefault("abci", "socket")
 	mapConfig.SetDefault("moniker", "anonymous")
 	mapConfig.SetDefault("node_laddr", "tcp://0.0.0.0:46656")
 	mapConfig.SetDefault("seeds", "")
@@ -62,6 +62,8 @@ func GetConfig(rootDir string) cfg.Config {
 	mapConfig.SetDefault("fast_sync", true)
 	mapConfig.SetDefault("skip_upnp", false)
 	mapConfig.SetDefault("addrbook_file", rootDir+"/addrbook.json")
+	mapConfig.SetDefault("addrbook_strict", true) // disable to allow connections locally
+	mapConfig.SetDefault("pex_reactor", false)    // enable for peer exchange
 	mapConfig.SetDefault("priv_validator_file", rootDir+"/priv_validator.json")
 	mapConfig.SetDefault("db_backend", "leveldb")
 	mapConfig.SetDefault("db_dir", rootDir+"/data")
@@ -84,6 +86,8 @@ func GetConfig(rootDir string) cfg.Config {
 	mapConfig.SetDefault("timeout_precommit", 1000)
 	mapConfig.SetDefault("timeout_precommit_delta", 500)
 	mapConfig.SetDefault("timeout_commit", 1000)
+	// make progress asap (no `timeout_commit`) on full precommit votes
+	mapConfig.SetDefault("skip_timeout_commit", false)
 	mapConfig.SetDefault("mempool_recheck", true)
 	mapConfig.SetDefault("mempool_recheck_empty", true)
 	mapConfig.SetDefault("mempool_broadcast", true)

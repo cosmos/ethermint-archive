@@ -1,0 +1,72 @@
+hash: 7db8b5240b5356931dc38f55f3e622cb0c2875a312dbe81400faf008de06e2f0
+updated: 2017-01-26T20:09:37.143197529-08:00
+imports:
+- name: github.com/alecthomas/template
+  version: a0175ee3bccc567396460bf5acd36800cb10c49c
+  subpackages:
+  - parse
+- name: github.com/alecthomas/units
+  version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
+- name: github.com/go-stack/stack
+  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+- name: github.com/golang/snappy
+  version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
+- name: github.com/jmhodges/levigo
+  version: c42d9e0ca023e2198120196f842701bb4c55d7b9
+- name: github.com/mattn/go-colorable
+  version: d228849504861217f796da67fae4f6e347643f15
+- name: github.com/mattn/go-isatty
+  version: 30a891c33c7cde7b02a981314b4228ec99380cca
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert
+  - require
+- name: github.com/syndtr/goleveldb
+  version: 23851d93a2292dcc56e71a18ec9e0624d84a0f65
+  subpackages:
+  - leveldb
+  - leveldb/cache
+  - leveldb/comparer
+  - leveldb/errors
+  - leveldb/filter
+  - leveldb/iterator
+  - leveldb/journal
+  - leveldb/memdb
+  - leveldb/opt
+  - leveldb/storage
+  - leveldb/table
+  - leveldb/util
+- name: github.com/tendermint/go-common
+  version: 70e694ee76f09058ea38c9ba81b4aa621bd54df1
+  subpackages:
+  - test
+- name: github.com/tendermint/go-db
+  version: 2645626c33d8702739e52a61a55d705c2dfe4530
+- name: github.com/tendermint/go-logger
+  version: cefb3a45c0bf3c493a04e9bcd9b1540528be59f2
+- name: github.com/tendermint/go-wire
+  version: 2f3b7aafe21c80b19b6ee3210ecb3e3d07c7a471
+- name: github.com/tendermint/log15
+  version: ae0f3d6450da9eac7074b439c8e1c3cabf0d5ce6
+  subpackages:
+  - term
+- name: golang.org/x/crypto
+  version: 7c6cc321c680f03b9ef0764448e780704f486b51
+  subpackages:
+  - ripemd160
+- name: golang.org/x/sys
+  version: d75a52659825e75fff6158388dddc6a5b04f9ba5
+  subpackages:
+  - unix
+- name: gopkg.in/alecthomas/kingpin.v2
+  version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib

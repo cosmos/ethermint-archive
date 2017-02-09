@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2016 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"container/list"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
@@ -25,7 +26,6 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/fastsha256"
 	"github.com/btcsuite/golangcrypto/ripemd160"
 	"github.com/btcsuite/websocket"
 )
@@ -420,8 +420,8 @@ func (*wsNotificationManager) notifyBlockConnected(clients map[chan struct{}]*ws
 	block *btcutil.Block) {
 
 	// Notify interested websocket clients about the connected block.
-	ntfn := btcjson.NewBlockConnectedNtfn(block.Hash().String(),
-		int32(block.Height()), block.MsgBlock().Header.Timestamp.Unix())
+	ntfn := btcjson.NewBlockConnectedNtfn(block.Hash().String(), block.Height(),
+		block.MsgBlock().Header.Timestamp.Unix())
 	marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
 	if err != nil {
 		rpcsLog.Error("Failed to marshal block connected notification: "+
@@ -445,7 +445,7 @@ func (*wsNotificationManager) notifyBlockDisconnected(clients map[chan struct{}]
 
 	// Notify interested websocket clients about the disconnected block.
 	ntfn := btcjson.NewBlockDisconnectedNtfn(block.Hash().String(),
-		int32(block.Height()), block.MsgBlock().Header.Timestamp.Unix())
+		block.Height(), block.MsgBlock().Header.Timestamp.Unix())
 	marshalledJSON, err := btcjson.MarshalCmd(nil, ntfn)
 	if err != nil {
 		rpcsLog.Error("Failed to marshal block disconnected "+
@@ -602,7 +602,7 @@ func blockDetails(block *btcutil.Block, txIndex int) *btcjson.BlockDetails {
 		return nil
 	}
 	return &btcjson.BlockDetails{
-		Height: int32(block.Height()),
+		Height: block.Height(),
 		Hash:   block.Hash().String(),
 		Index:  txIndex,
 		Time:   block.MsgBlock().Header.Timestamp.Unix(),
@@ -950,9 +950,25 @@ out:
 			continue
 		}
 
-		// Requests with no ID (notifications) must not have a response per the
-		// JSON-RPC spec.
-		if request.ID == nil {
+		// The JSON-RPC 1.0 spec defines that notifications must have their "id"
+		// set to null and states that notifications do not have a response.
+		//
+		// A JSON-RPC 2.0 notification is a request with "json-rpc":"2.0", and
+		// without an "id" member. The specification states that notifications
+		// must not be responded to. JSON-RPC 2.0 permits the null value as a
+		// valid request id, therefore such requests are not notifications.
+		//
+		// Bitcoin Core serves requests with "id":null or even an absent "id",
+		// and responds to such requests with "id":null in the response.
+		//
+		// Btcd does not respond to any request without and "id" or "id":null,
+		// regardless the indicated JSON-RPC protocol version unless RPC quirks
+		// are enabled. With RPC quirks enabled, such requests will be responded
+		// to if the reqeust does not indicate JSON-RPC version.
+		//
+		// RPC quirks can be enabled by the user to avoid compatibility issues
+		// with software relying on Core's behavior.
+		if request.ID == nil && !(cfg.RPCQuirks && request.Jsonrpc == "") {
 			if !c.authenticated {
 				break out
 			}
@@ -994,7 +1010,7 @@ out:
 			// Check credentials.
 			login := authCmd.Username + ":" + authCmd.Passphrase
 			auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(login))
-			authSha := fastsha256.Sum256([]byte(auth))
+			authSha := sha256.Sum256([]byte(auth))
 			cmp := subtle.ConstantTimeCompare(authSha[:], c.server.authsha[:])
 			limitcmp := subtle.ConstantTimeCompare(authSha[:], c.server.limitauthsha[:])
 			if cmp != 1 && limitcmp != 1 {
@@ -1069,8 +1085,8 @@ out:
 }
 
 // serviceRequest services a parsed RPC request by looking up and executing the
-// appropiate RPC handler.  The response is marshalled and sent to the websocket
-// client.
+// appropriate RPC handler.  The response is marshalled and sent to the
+// websocket client.
 func (c *wsClient) serviceRequest(r *parsedRPCCmd) {
 	var (
 		result interface{}
@@ -2010,8 +2026,7 @@ fetchRange:
 			}
 
 			n := btcjson.NewRescanProgressNtfn(hashList[i].String(),
-				int32(blk.Height()),
-				blk.MsgBlock().Header.Timestamp.Unix())
+				blk.Height(), blk.MsgBlock().Header.Timestamp.Unix())
 			mn, err := btcjson.MarshalCmd(nil, n)
 			if err != nil {
 				rpcsLog.Errorf("Failed to marshal rescan "+
