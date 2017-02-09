@@ -2,22 +2,20 @@ package example
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"reflect"
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	"golang.org/x/net/context"
-
+	. "github.com/tendermint/go-common"
 	"github.com/tendermint/abci/client"
 	"github.com/tendermint/abci/example/dummy"
 	nilapp "github.com/tendermint/abci/example/nil"
 	"github.com/tendermint/abci/server"
 	"github.com/tendermint/abci/types"
-	cmn "github.com/tendermint/go-common"
 )
 
 func TestDummy(t *testing.T) {
@@ -42,14 +40,14 @@ func testStream(t *testing.T, app types.Application) {
 	// Start the listener
 	server, err := server.NewSocketServer("unix://test.sock", app)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Error starting socket server: %v", err.Error()))
+		Exit(Fmt("Error starting socket server: %v", err.Error()))
 	}
 	defer server.Stop()
 
 	// Connect to the socket
 	client, err := abcicli.NewSocketClient("unix://test.sock", false)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Error starting socket client: %v", err.Error()))
+		Exit(Fmt("Error starting socket client: %v", err.Error()))
 	}
 	client.Start()
 	defer client.Stop()
@@ -60,7 +58,7 @@ func testStream(t *testing.T, app types.Application) {
 		// Process response
 		switch r := res.Value.(type) {
 		case *types.Response_DeliverTx:
-			counter++
+			counter += 1
 			if r.DeliverTx.Code != types.CodeType_OK {
 				t.Error("DeliverTx failed with ret_code", r.DeliverTx.Code)
 			}
@@ -105,7 +103,7 @@ func testStream(t *testing.T, app types.Application) {
 // test grpc
 
 func dialerFunc(addr string, timeout time.Duration) (net.Conn, error) {
-	return cmn.Connect(addr)
+	return Connect(addr)
 }
 
 func testGRPCSync(t *testing.T, app *types.GRPCApplication) {
@@ -115,14 +113,14 @@ func testGRPCSync(t *testing.T, app *types.GRPCApplication) {
 	// Start the listener
 	server, err := server.NewGRPCServer("unix://test.sock", app)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Error starting GRPC server: %v", err.Error()))
+		Exit(Fmt("Error starting GRPC server: %v", err.Error()))
 	}
 	defer server.Stop()
 
 	// Connect to the socket
 	conn, err := grpc.Dial("unix://test.sock", grpc.WithInsecure(), grpc.WithDialer(dialerFunc))
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Error dialing GRPC server: %v", err.Error()))
+		Exit(Fmt("Error dialing GRPC server: %v", err.Error()))
 	}
 	defer conn.Close()
 
@@ -135,7 +133,7 @@ func testGRPCSync(t *testing.T, app *types.GRPCApplication) {
 		if err != nil {
 			t.Fatalf("Error in GRPC DeliverTx: %v", err.Error())
 		}
-		counter++
+		counter += 1
 		if response.Code != types.CodeType_OK {
 			t.Error("DeliverTx failed with ret_code", response.Code)
 		}

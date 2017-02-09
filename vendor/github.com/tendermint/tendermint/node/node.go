@@ -2,13 +2,13 @@ package node
 
 import (
 	"bytes"
-	"errors"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
-	abci "github.com/tendermint/abci/types"
-	cmn "github.com/tendermint/go-common"
+	. "github.com/tendermint/go-common"
 	cfg "github.com/tendermint/go-config"
 	"github.com/tendermint/go-crypto"
 	dbm "github.com/tendermint/go-db"
@@ -25,13 +25,11 @@ import (
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/version"
-
-	_ "net/http/pprof"
 )
 
-type Node struct {
-	cmn.BaseService
+import _ "net/http/pprof"
 
+type Node struct {
 	config           cfg.Config
 	sw               *p2p.Switch
 	evsw             types.EventSwitch
@@ -59,14 +57,16 @@ func NewNode(config cfg.Config, privValidator *types.PrivValidator, clientCreato
 	blockStoreDB := dbm.NewDB("blockstore", config.GetString("db_backend"), config.GetString("db_dir"))
 	blockStore := bc.NewBlockStore(blockStoreDB)
 
-	// Get State
+	// Get State db
 	stateDB := dbm.NewDB("state", config.GetString("db_backend"), config.GetString("db_dir"))
+
+	// Get State
 	state := sm.GetState(config, stateDB)
 
 	// Create the proxyApp, which manages connections (consensus, mempool, query)
 	proxyApp := proxy.NewAppConns(config, clientCreator, sm.NewHandshaker(config, state, blockStore))
 	if _, err := proxyApp.Start(); err != nil {
-		cmn.Exit(cmn.Fmt("Error starting proxy app connections: %v", err))
+		Exit(Fmt("Error starting proxy app connections: %v", err))
 	}
 
 	// add the chainid and number of validators to the global config
@@ -80,7 +80,7 @@ func NewNode(config cfg.Config, privValidator *types.PrivValidator, clientCreato
 	eventSwitch := types.NewEventSwitch()
 	_, err := eventSwitch.Start()
 	if err != nil {
-		cmn.Exit(cmn.Fmt("Failed to start switch: %v", err))
+		Exit(Fmt("Failed to start switch: %v", err))
 	}
 
 	// Decide whether to fast-sync or not
@@ -122,30 +122,24 @@ func NewNode(config cfg.Config, privValidator *types.PrivValidator, clientCreato
 		sw.AddReactor("PEX", pexReactor)
 	}
 
-	// Filter peers by addr or pubkey with an ABCI query.
-	// If the query return code is OK, add peer.
-	// XXX: Query format subject to change
+	// filter peers by addr or pubkey with a abci query.
+	// if the query return code is OK, add peer
+	// XXX: query format subject to change
 	if config.GetBool("filter_peers") {
 		// NOTE: addr is ip:port
 		sw.SetAddrFilter(func(addr net.Addr) error {
-			resQuery, err := proxyApp.Query().QuerySync(abci.RequestQuery{Path: cmn.Fmt("/p2p/filter/addr/%s", addr.String())})
-			if err != nil {
-				return err
-			}
-			if resQuery.Code.IsOK() {
+			res := proxyApp.Query().QuerySync([]byte(Fmt("p2p/filter/addr/%s", addr.String())))
+			if res.IsOK() {
 				return nil
 			}
-			return errors.New(resQuery.Code.String())
+			return res
 		})
 		sw.SetPubKeyFilter(func(pubkey crypto.PubKeyEd25519) error {
-			resQuery, err := proxyApp.Query().QuerySync(abci.RequestQuery{Path: cmn.Fmt("/p2p/filter/pubkey/%X", pubkey.Bytes())})
-			if err != nil {
-				return err
-			}
-			if resQuery.Code.IsOK() {
+			res := proxyApp.Query().QuerySync([]byte(Fmt("p2p/filter/pubkey/%X", pubkey.Bytes())))
+			if res.IsOK() {
 				return nil
 			}
-			return errors.New(resQuery.Code.String())
+			return res
 		})
 	}
 
@@ -162,7 +156,7 @@ func NewNode(config cfg.Config, privValidator *types.PrivValidator, clientCreato
 		}()
 	}
 
-	node := &Node{
+	return &Node{
 		config:           config,
 		sw:               sw,
 		evsw:             eventSwitch,
@@ -176,53 +170,17 @@ func NewNode(config cfg.Config, privValidator *types.PrivValidator, clientCreato
 		privKey:          privKey,
 		proxyApp:         proxyApp,
 	}
-	node.BaseService = *cmn.NewBaseService(log, "Node", node)
-	return node
 }
 
-func (n *Node) OnStart() error {
-	n.BaseService.OnStart()
-
-	// Create & add listener
-	protocol, address := ProtocolAndAddress(n.config.GetString("node_laddr"))
-	l := p2p.NewDefaultListener(protocol, address, n.config.GetBool("skip_upnp"))
-	n.sw.AddListener(l)
-
-	// Start the switch
+// Call Start() after adding the listeners.
+func (n *Node) Start() error {
 	n.sw.SetNodeInfo(makeNodeInfo(n.config, n.sw, n.privKey))
 	n.sw.SetNodePrivKey(n.privKey)
 	_, err := n.sw.Start()
-	if err != nil {
-		return err
-	}
-
-	// Dial out of seed nodes exist
-	if n.config.GetString("seeds") != "" {
-		seeds := strings.Split(n.config.GetString("seeds"), ",")
-		n.sw.DialSeeds(seeds)
-	}
-
-	// Run the RPC server
-	if n.config.GetString("rpc_laddr") != "" {
-		_, err := n.startRPC()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return err
 }
 
-func (n *Node) RunForever() {
-	// Sleep forever and then...
-	cmn.TrapSignal(func() {
-		n.Stop()
-	})
-}
-
-func (n *Node) OnStop() {
-	n.BaseService.OnStop()
-
+func (n *Node) Stop() {
 	log.Notice("Stopping Node")
 	// TODO: gracefully disconnect from peers.
 	n.sw.Stop()
@@ -239,10 +197,11 @@ func SetEventSwitch(evsw types.EventSwitch, eventables ...types.Eventable) {
 // Add listeners before starting the Node.
 // The first listener is the primary listener (in NodeInfo)
 func (n *Node) AddListener(l p2p.Listener) {
+	log.Notice(Fmt("Added %v", l))
 	n.sw.AddListener(l)
 }
 
-func (n *Node) startRPC() ([]net.Listener, error) {
+func (n *Node) StartRPC() ([]net.Listener, error) {
 	rpccore.SetConfig(n.config)
 
 	rpccore.SetEventSwitch(n.evsw)
@@ -328,16 +287,16 @@ func makeNodeInfo(config cfg.Config, sw *p2p.Switch, privKey crypto.PrivKeyEd255
 		Network: config.GetString("chain_id"),
 		Version: version.Version,
 		Other: []string{
-			cmn.Fmt("wire_version=%v", wire.Version),
-			cmn.Fmt("p2p_version=%v", p2p.Version),
-			cmn.Fmt("consensus_version=%v", consensus.Version),
-			cmn.Fmt("rpc_version=%v/%v", rpc.Version, rpccore.Version),
+			Fmt("wire_version=%v", wire.Version),
+			Fmt("p2p_version=%v", p2p.Version),
+			Fmt("consensus_version=%v", consensus.Version),
+			Fmt("rpc_version=%v/%v", rpc.Version, rpccore.Version),
 		},
 	}
 
 	// include git hash in the nodeInfo if available
-	if rev, err := cmn.ReadFile(config.GetString("revision_file")); err == nil {
-		nodeInfo.Other = append(nodeInfo.Other, cmn.Fmt("revision=%v", string(rev)))
+	if rev, err := ReadFile(config.GetString("revision_file")); err == nil {
+		nodeInfo.Other = append(nodeInfo.Other, Fmt("revision=%v", string(rev)))
 	}
 
 	if !sw.IsListening() {
@@ -352,9 +311,72 @@ func makeNodeInfo(config cfg.Config, sw *p2p.Switch, privKey crypto.PrivKeyEd255
 	// We assume that the rpcListener has the same ExternalAddress.
 	// This is probably true because both P2P and RPC listeners use UPnP,
 	// except of course if the rpc is only bound to localhost
-	nodeInfo.ListenAddr = cmn.Fmt("%v:%v", p2pHost, p2pPort)
-	nodeInfo.Other = append(nodeInfo.Other, cmn.Fmt("rpc_addr=%v", rpcListenAddr))
+	nodeInfo.ListenAddr = Fmt("%v:%v", p2pHost, p2pPort)
+	nodeInfo.Other = append(nodeInfo.Other, Fmt("rpc_addr=%v", rpcListenAddr))
 	return nodeInfo
+}
+
+//------------------------------------------------------------------------------
+
+// Users wishing to:
+//	* use an external signer for their validators
+//	* supply an in-proc abci app
+// should fork tendermint/tendermint and implement RunNode to
+// call NewNode with their custom priv validator and/or custom
+// proxy.ClientCreator interface
+func RunNode(config cfg.Config) {
+	// Wait until the genesis doc becomes available
+	genDocFile := config.GetString("genesis_file")
+	if !FileExists(genDocFile) {
+		log.Notice(Fmt("Waiting for genesis file %v...", genDocFile))
+		for {
+			time.Sleep(time.Second)
+			if !FileExists(genDocFile) {
+				continue
+			}
+			jsonBlob, err := ioutil.ReadFile(genDocFile)
+			if err != nil {
+				Exit(Fmt("Couldn't read GenesisDoc file: %v", err))
+			}
+			genDoc := types.GenesisDocFromJSON(jsonBlob)
+			if genDoc.ChainID == "" {
+				PanicSanity(Fmt("Genesis doc %v must include non-empty chain_id", genDocFile))
+			}
+			config.Set("chain_id", genDoc.ChainID)
+		}
+	}
+
+	// Create & start node
+	n := NewNodeDefault(config)
+
+	protocol, address := ProtocolAndAddress(config.GetString("node_laddr"))
+	l := p2p.NewDefaultListener(protocol, address, config.GetBool("skip_upnp"))
+	n.AddListener(l)
+	err := n.Start()
+	if err != nil {
+		Exit(Fmt("Failed to start node: %v", err))
+	}
+
+	log.Notice("Started node", "nodeInfo", n.sw.NodeInfo())
+
+	// If seedNode is provided by config, dial out.
+	if config.GetString("seeds") != "" {
+		seeds := strings.Split(config.GetString("seeds"), ",")
+		n.sw.DialSeeds(seeds)
+	}
+
+	// Run the RPC server.
+	if config.GetString("rpc_laddr") != "" {
+		_, err := n.StartRPC()
+		if err != nil {
+			PanicCrisis(err)
+		}
+	}
+
+	// Sleep forever and then...
+	TrapSignal(func() {
+		n.Stop()
+	})
 }
 
 func (n *Node) NodeInfo() *p2p.NodeInfo {
@@ -363,6 +385,59 @@ func (n *Node) NodeInfo() *p2p.NodeInfo {
 
 func (n *Node) DialSeeds(seeds []string) {
 	n.sw.DialSeeds(seeds)
+}
+
+//------------------------------------------------------------------------------
+// replay
+
+// convenience for replay mode
+func newConsensusState(config cfg.Config) *consensus.ConsensusState {
+	// Get BlockStore
+	blockStoreDB := dbm.NewDB("blockstore", config.GetString("db_backend"), config.GetString("db_dir"))
+	blockStore := bc.NewBlockStore(blockStoreDB)
+
+	// Get State
+	stateDB := dbm.NewDB("state", config.GetString("db_backend"), config.GetString("db_dir"))
+	state := sm.MakeGenesisStateFromFile(stateDB, config.GetString("genesis_file"))
+
+	// Create proxyAppConn connection (consensus, mempool, query)
+	proxyApp := proxy.NewAppConns(config, proxy.DefaultClientCreator(config), sm.NewHandshaker(config, state, blockStore))
+	_, err := proxyApp.Start()
+	if err != nil {
+		Exit(Fmt("Error starting proxy app conns: %v", err))
+	}
+
+	// add the chainid to the global config
+	config.Set("chain_id", state.ChainID)
+
+	// Make event switch
+	eventSwitch := types.NewEventSwitch()
+	if _, err := eventSwitch.Start(); err != nil {
+		Exit(Fmt("Failed to start event switch: %v", err))
+	}
+
+	mempool := mempl.NewMempool(config, proxyApp.Mempool())
+
+	consensusState := consensus.NewConsensusState(config, state.Copy(), proxyApp.Consensus(), blockStore, mempool)
+	consensusState.SetEventSwitch(eventSwitch)
+	return consensusState
+}
+
+func RunReplayConsole(config cfg.Config, walFile string) {
+	consensusState := newConsensusState(config)
+
+	if err := consensusState.ReplayConsole(walFile); err != nil {
+		Exit(Fmt("Error during consensus replay: %v", err))
+	}
+}
+
+func RunReplay(config cfg.Config, walFile string) {
+	consensusState := newConsensusState(config)
+
+	if err := consensusState.ReplayMessages(walFile); err != nil {
+		Exit(Fmt("Error during consensus replay: %v", err))
+	}
+	log.Notice("Replay run successfully")
 }
 
 // Defaults to tcp

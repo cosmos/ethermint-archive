@@ -38,7 +38,11 @@ func (genDoc *GenesisDoc) SaveAs(file string) error {
 //------------------------------------------------------------
 // Make genesis state from file
 
-func GenesisDocFromJSON(jsonBlob []byte) (genDoc *GenesisDoc, err error) {
-	wire.ReadJSONPtr(&genDoc, jsonBlob, &err)
+func GenesisDocFromJSON(jsonBlob []byte) (genState *GenesisDoc) {
+	var err error
+	wire.ReadJSONPtr(&genState, jsonBlob, &err)
+	if err != nil {
+		Exit(Fmt("Couldn't read GenesisDoc: %v", err))
+	}
 	return
 }

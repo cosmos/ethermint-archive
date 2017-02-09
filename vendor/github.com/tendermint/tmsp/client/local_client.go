@@ -3,12 +3,12 @@ package abcicli
 import (
 	"sync"
 
+	. "github.com/tendermint/go-common"
 	types "github.com/tendermint/abci/types"
-	cmn "github.com/tendermint/go-common"
 )
 
 type localClient struct {
-	cmn.BaseService
+	BaseService
 	mtx *sync.Mutex
 	types.Application
 	Callback
@@ -22,7 +22,7 @@ func NewLocalClient(mtx *sync.Mutex, app types.Application) *localClient {
 		mtx:         mtx,
 		Application: app,
 	}
-	cli.BaseService = *cmn.NewBaseService(log, "localClient", cli)
+	cli.BaseService = *NewBaseService(log, "localClient", cli)
 	return cli
 }
 
@@ -89,13 +89,13 @@ func (app *localClient) CheckTxAsync(tx []byte) *ReqRes {
 	)
 }
 
-func (app *localClient) QueryAsync(reqQuery types.RequestQuery) *ReqRes {
+func (app *localClient) QueryAsync(tx []byte) *ReqRes {
 	app.mtx.Lock()
-	resQuery := app.Application.Query(reqQuery)
+	res := app.Application.Query(tx)
 	app.mtx.Unlock()
 	return app.callback(
-		types.ToRequestQuery(reqQuery),
-		types.ToResponseQuery(resQuery),
+		types.ToRequestQuery(tx),
+		types.ToResponseQuery(res.Code, res.Data, res.Log),
 	)
 }
 
@@ -185,11 +185,11 @@ func (app *localClient) CheckTxSync(tx []byte) (res types.Result) {
 	return res
 }
 
-func (app *localClient) QuerySync(reqQuery types.RequestQuery) (resQuery types.ResponseQuery, err error) {
+func (app *localClient) QuerySync(query []byte) (res types.Result) {
 	app.mtx.Lock()
-	resQuery = app.Application.Query(reqQuery)
+	res = app.Application.Query(query)
 	app.mtx.Unlock()
-	return resQuery, nil
+	return res
 }
 
 func (app *localClient) CommitSync() (res types.Result) {

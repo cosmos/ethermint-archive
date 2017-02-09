@@ -2,11 +2,10 @@ package main
 
 import (
 	"flag"
-	"log"
 
+	. "github.com/tendermint/go-common"
 	"github.com/tendermint/abci/example/counter"
 	"github.com/tendermint/abci/server"
-	cmn "github.com/tendermint/go-common"
 )
 
 func main() {
@@ -20,11 +19,11 @@ func main() {
 	// Start the listener
 	srv, err := server.NewServer(*addrPtr, *abciPtr, app)
 	if err != nil {
-		log.Fatal(err.Error())
+		Exit(err.Error())
 	}
 
 	// Wait forever
-	cmn.TrapSignal(func() {
+	TrapSignal(func() {
 		// Cleanup
 		srv.Stop()
 	})

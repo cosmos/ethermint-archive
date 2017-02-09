@@ -83,13 +83,13 @@ func (t *IAVLTree) Has(key []byte) bool {
 	return t.root.has(t, key)
 }
 
-func (t *IAVLTree) Proof(key []byte) (value []byte, proofBytes []byte, exists bool) {
-	value, proof := t.ConstructProof(key)
+func (t *IAVLTree) Proof(key []byte) ([]byte, bool) {
+	proof := t.ConstructProof(key)
 	if proof == nil {
-		return nil, nil, false
+		return nil, false
 	}
-	proofBytes = wire.BinaryBytes(proof)
-	return value, proofBytes, true
+	proofBytes := wire.BinaryBytes(proof)
+	return proofBytes, true
 }
 
 func (t *IAVLTree) Set(key []byte, value []byte) (updated bool) {
@@ -120,10 +120,8 @@ func (t *IAVLTree) Save() []byte {
 	if t.root == nil {
 		return nil
 	}
-	if t.ndb != nil {
-		t.root.save(t)
-		t.ndb.Commit()
-	}
+	t.root.save(t)
+	t.ndb.Commit()
 	return t.root.hash
 }
 

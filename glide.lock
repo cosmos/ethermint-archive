@@ -1,5 +1,5 @@
-hash: d2d03e4821ffc8d4bb552b2e51c3e7c1870227bfe1c416d06e0eb856d852a847
-updated: 2017-02-09T04:44:03.770914436-05:00
+hash: b532f79dd27f73dd31f55bc1cc3e37685d5a5a0444c472dba23552dda5d4bc4a
+updated: 2017-02-09T06:46:23.121820316-05:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -134,7 +134,7 @@ imports:
   - leveldb/table
   - leveldb/util
 - name: github.com/tendermint/abci
-  version: 8df0bc3a40ccad0d2be10e33c62c404e65c92502
+  version: a954f91e5f7e7708c6662330363d53372cbc5cfd
   subpackages:
   - client
   - example/dummy
@@ -146,7 +146,7 @@ imports:
   - edwards25519
   - extra25519
 - name: github.com/tendermint/go-autofile
-  version: 0416e0aa9c68205aa44844096f9f151ada9d0405
+  version: 48b17de82914e1ec2f134ce823ba426337d2c518
 - name: github.com/tendermint/go-clist
   version: 3baa390bbaf7634251c42ad69a8682e7e3990552
 - name: github.com/tendermint/go-common
@@ -156,9 +156,9 @@ imports:
 - name: github.com/tendermint/go-crypto
   version: 4b11d62bdb324027ea01554e5767b71174680ba0
 - name: github.com/tendermint/go-db
-  version: 2645626c33d8702739e52a61a55d705c2dfe4530
+  version: 72f6dacd22a686cdf7fcd60286503e3aceda77ba
 - name: github.com/tendermint/go-events
-  version: 2337086736a6adeb2de6f66739b66ecd77535997
+  version: fddee66d90305fccb6f6d84d16c34fa65ea5b7f6
 - name: github.com/tendermint/go-flowrate
   version: a20c98e61957faa93b4014fbd902f20ab9317a6a
   subpackages:
@@ -166,13 +166,13 @@ imports:
 - name: github.com/tendermint/go-logger
   version: cefb3a45c0bf3c493a04e9bcd9b1540528be59f2
 - name: github.com/tendermint/go-merkle
-  version: 653cb1f631528351ddbc359b994eb0c96f0341cd
+  version: 7a86b4486f2cd84ac885c5bbc609fdee2905f5d1
 - name: github.com/tendermint/go-p2p
-  version: 67c9086b7458eb45b1970483decd01cd744c477a
+  version: 3d98f675f30dc4796546b8b890f895926152fa8d
   subpackages:
   - upnp
 - name: github.com/tendermint/go-rpc
-  version: 6177eb8398ebd4613fbecb71fd96d7c7d97303ec
+  version: fcea0cda21f64889be00a0f4b6d13266b1a76ee7
   subpackages:
   - client
   - server
@@ -184,7 +184,7 @@ imports:
   subpackages:
   - term
 - name: github.com/tendermint/tendermint
-  version: d4b3dde8537bc62a6ea3c9830ac3669118141a84
+  version: 764091dfbb035f1b28da4b067526e04c6a849966
   subpackages:
   - blockchain
   - config/tendermint
@@ -199,7 +199,7 @@ imports:
   - types
   - version
 - name: github.com/tendermint/tmsp
-  version: 8df0bc3a40ccad0d2be10e33c62c404e65c92502
+  version: a954f91e5f7e7708c6662330363d53372cbc5cfd
   subpackages:
   - server
   - types

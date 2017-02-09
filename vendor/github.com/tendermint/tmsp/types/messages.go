@@ -49,9 +49,9 @@ func ToRequestCommit() *Request {
 	}
 }
 
-func ToRequestQuery(reqQuery RequestQuery) *Request {
+func ToRequestQuery(queryBytes []byte) *Request {
 	return &Request{
-		Value: &Request_Query{&reqQuery},
+		Value: &Request_Query{&RequestQuery{queryBytes}},
 	}
 }
 
@@ -123,9 +123,9 @@ func ToResponseCommit(code CodeType, data []byte, log string) *Response {
 	}
 }
 
-func ToResponseQuery(resQuery ResponseQuery) *Response {
+func ToResponseQuery(code CodeType, data []byte, log string) *Response {
 	return &Response{
-		Value: &Response_Query{&resQuery},
+		Value: &Response_Query{&ResponseQuery{code, data, log}},
 	}
 }
 

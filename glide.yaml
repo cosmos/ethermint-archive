@@ -7,24 +7,33 @@ import:
   - core
   - core/state
   - core/types
+  - core/vm
   - eth
+  - ethdb
   - event
   - logger
   - logger/glog
   - node
   - p2p
+  - params
   - pow
   - rlp
   - rpc
-- package: github.com/tendermint/tendermint
-  version: develop
-- package: github.com/tendermint/tmsp
-  version: develop
-- package: github.com/tendermint/go-rpc
-  version: develop
-- package: gopkg.in/urfave/cli.v1
-- package: google.golang.org/grpc
-- package: golang.org/x/net
 - package: github.com/spf13/pflag
-- package: github.com/tendermint/go-clist
-- package: github.com/ebuchman/fail-test
+- package: github.com/tendermint/go-common
+- package: github.com/tendermint/go-config
+- package: github.com/tendermint/go-logger
+- package: github.com/tendermint/go-rpc
+  subpackages:
+  - client
+- package: github.com/tendermint/tendermint
+  subpackages:
+  - config/tendermint
+  - node
+  - rpc/core/types
+  - types
+- package: github.com/tendermint/tmsp
+  subpackages:
+  - server
+  - types
+- package: gopkg.in/urfave/cli.v1

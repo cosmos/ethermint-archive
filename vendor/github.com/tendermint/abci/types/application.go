@@ -20,7 +20,7 @@ type Application interface {
 	CheckTx(tx []byte) Result
 
 	// Query for state
-	Query(reqQuery RequestQuery) ResponseQuery
+	Query(query []byte) Result
 
 	// Return the application Merkle root hash
 	Commit() Result
@@ -78,8 +78,8 @@ func (app *GRPCApplication) CheckTx(ctx context.Context, req *RequestCheckTx) (*
 }
 
 func (app *GRPCApplication) Query(ctx context.Context, req *RequestQuery) (*ResponseQuery, error) {
-	resQuery := app.app.Query(*req)
-	return &resQuery, nil
+	r := app.app.Query(req.Query)
+	return &ResponseQuery{r.Code, r.Data, r.Log}, nil
 }
 
 func (app *GRPCApplication) Commit(ctx context.Context, req *RequestCommit) (*ResponseCommit, error) {

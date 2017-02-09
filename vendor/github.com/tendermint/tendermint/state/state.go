@@ -166,10 +166,7 @@ func MakeGenesisStateFromFile(db dbm.DB, genDocFile string) *State {
 	if err != nil {
 		Exit(Fmt("Couldn't read GenesisDoc file: %v", err))
 	}
-	genDoc, err := types.GenesisDocFromJSON(genDocJSON)
-	if err != nil {
-		Exit(Fmt("Error reading GenesisDoc: %v", err))
-	}
+	genDoc := types.GenesisDocFromJSON(genDocJSON)
 	return MakeGenesisState(db, genDoc)
 }
 

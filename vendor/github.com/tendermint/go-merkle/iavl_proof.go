@@ -12,29 +12,33 @@ import (
 const proofLimit = 1 << 16 // 64 KB
 
 type IAVLProof struct {
-	LeafHash   []byte
+	LeafNode   IAVLProofLeafNode
 	InnerNodes []IAVLProofInnerNode
 	RootHash   []byte
 }
 
-func (proof *IAVLProof) Verify(key []byte, value []byte, root []byte) bool {
-	if !bytes.Equal(proof.RootHash, root) {
-		return false
-	}
-	leafNode := IAVLProofLeafNode{KeyBytes: key, ValueBytes: value}
-	leafHash := leafNode.Hash()
-	if !bytes.Equal(leafHash, proof.LeafHash) {
-		return false
-	}
-	hash := leafHash
+func (proof *IAVLProof) Key() []byte {
+	return proof.LeafNode.KeyBytes
+}
+
+func (proof *IAVLProof) Value() []byte {
+	return proof.LeafNode.ValueBytes
+}
+
+func (proof *IAVLProof) Root() []byte {
+	return proof.RootHash
+}
+
+func (proof *IAVLProof) Valid() bool {
+	hash := proof.LeafNode.Hash()
 	for _, branch := range proof.InnerNodes {
 		hash = branch.Hash(hash)
 	}
 	return bytes.Equal(proof.RootHash, hash)
 }
 
-// ReadProof will deserialize a IAVLProof from bytes
-func ReadProof(data []byte) (*IAVLProof, error) {
+// LoadProof will deserialize a IAVLProof from bytes
+func LoadProof(data []byte) (*IAVLProof, error) {
 	// TODO: make go-wire never panic
 	n, err := int(0), error(nil)
 	proof := wire.ReadBinary(&IAVLProof{}, bytes.NewBuffer(data), proofLimit, &n, &err).(*IAVLProof)
@@ -90,18 +94,21 @@ func (leaf IAVLProofLeafNode) Hash() []byte {
 	return hasher.Sum(nil)
 }
 
-func (node *IAVLNode) constructProof(t *IAVLTree, key []byte, valuePtr *[]byte, proof *IAVLProof) (exists bool) {
+func (node *IAVLNode) constructProof(t *IAVLTree, key []byte, proof *IAVLProof) (exists bool) {
 	if node.height == 0 {
 		if bytes.Compare(node.key, key) == 0 {
-			*valuePtr = node.value
-			proof.LeafHash = node.hash
+			leaf := IAVLProofLeafNode{
+				KeyBytes:   node.key,
+				ValueBytes: node.value,
+			}
+			proof.LeafNode = leaf
 			return true
 		} else {
 			return false
 		}
 	} else {
 		if bytes.Compare(key, node.key) < 0 {
-			exists := node.getLeftNode(t).constructProof(t, key, valuePtr, proof)
+			exists := node.getLeftNode(t).constructProof(t, key, proof)
 			if !exists {
 				return false
 			}
@@ -114,7 +121,7 @@ func (node *IAVLNode) constructProof(t *IAVLTree, key []byte, valuePtr *[]byte, 
 			proof.InnerNodes = append(proof.InnerNodes, branch)
 			return true
 		} else {
-			exists := node.getRightNode(t).constructProof(t, key, valuePtr, proof)
+			exists := node.getRightNode(t).constructProof(t, key, proof)
 			if !exists {
 				return false
 			}
@@ -130,19 +137,19 @@ func (node *IAVLNode) constructProof(t *IAVLTree, key []byte, valuePtr *[]byte, 
 	}
 }
 
-// Returns nil, nil if key is not in tree.
-func (t *IAVLTree) ConstructProof(key []byte) (value []byte, proof *IAVLProof) {
+// Returns nil if key is not in tree.
+func (t *IAVLTree) ConstructProof(key []byte) *IAVLProof {
 	if t.root == nil {
-		return nil, nil
+		return nil
 	}
 	t.root.hashWithCount(t) // Ensure that all hashes are calculated.
-	proof = &IAVLProof{
+	proof := &IAVLProof{
 		RootHash: t.root.hash,
 	}
-	exists := t.root.constructProof(t, key, &value, proof)
+	exists := t.root.constructProof(t, key, proof)
 	if exists {
-		return value, proof
+		return proof
 	} else {
-		return nil, nil
+		return nil
 	}
 }
