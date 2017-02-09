@@ -32,7 +32,7 @@ import:
   - node
   - rpc/core/types
   - types
-- package: github.com/tendermint/tmsp
+- package: github.com/tendermint/abci
   subpackages:
   - server
   - types

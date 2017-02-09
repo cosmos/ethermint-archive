@@ -198,7 +198,7 @@ imports:
   - state
   - types
   - version
-- name: github.com/tendermint/tmsp
+- name: github.com/tendermint/abci
   version: a954f91e5f7e7708c6662330363d53372cbc5cfd
   subpackages:
   - server
