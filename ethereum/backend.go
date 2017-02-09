@@ -3,6 +3,7 @@ package ethereum
 import (
 	"bytes"
 	"encoding/hex"
+	"os"
 	"reflect"
 	"time"
 	"unsafe"
@@ -20,6 +21,7 @@ import (
 
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
+	tmspTypes "github.com/tendermint/tmsp/types"
 )
 
 // Backend handles the chain database and VM
@@ -29,6 +31,10 @@ type Backend struct {
 	client   *client.ClientURI
 	config   *eth.Config
 }
+
+const (
+	maxWaitForServerRetries = 10
+)
 
 // New creates a new Backend
 func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) {
@@ -46,6 +52,23 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) 
 	}
 
 	return ethBackend, nil
+}
+
+func waitForServer(s *Backend) error {
+	// wait for Tendermint to open the socket and run http endpoint
+	var result core_types.TMResult
+	retriesCount := 0
+	for result == nil {
+		_, err := s.client.Call("status", map[string]interface{}{}, &result)
+		if err != nil {
+			glog.V(logger.Info).Infof("Waiting for tendermint endpoint to start: %s", err)
+		}
+		if retriesCount++; retriesCount >= maxWaitForServerRetries {
+			return tmspTypes.ErrInternalError
+		}
+		time.Sleep(time.Second)
+	}
+	return nil
 }
 
 // APIs returns the collection of RPC services the ethereum package offers.
@@ -100,17 +123,9 @@ func (s *Backend) Config() *eth.Config {
 
 // listen for txs and forward to tendermint
 func (s *Backend) txBroadcastLoop() {
-
-	// wait for Tendermint to open the socket and run http endpoint
-	var result core_types.TMResult
-	for result == nil {
-		_, err := s.client.Call("status", map[string]interface{}{}, &result)
-		if err != nil {
-			glog.V(logger.Info).Infof("%s", err)
-		}
-		time.Sleep(time.Second)
+	if err := waitForServer(s); err != nil {
+		os.Exit(1)
 	}
-
 	for obj := range s.txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		err := s.BroadcastTx(event.Tx)
