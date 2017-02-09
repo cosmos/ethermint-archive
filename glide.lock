@@ -1,5 +1,5 @@
-hash: b532f79dd27f73dd31f55bc1cc3e37685d5a5a0444c472dba23552dda5d4bc4a
-updated: 2017-02-09T06:46:23.121820316-05:00
+hash: ca1c0bbd3016b16d187fd953de27d2fa5017eb98a8c8a129f09a0fc14052a6b2
+updated: 2017-02-09T13:05:18.690151796-05:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -139,6 +139,7 @@ imports:
   - client
   - example/dummy
   - example/nil
+  - server
   - types
 - name: github.com/tendermint/ed25519
   version: 1f52c6f8b8a5c7908aff4497c186af344b428925
@@ -198,11 +199,6 @@ imports:
   - state
   - types
   - version
-- name: github.com/tendermint/abci
-  version: a954f91e5f7e7708c6662330363d53372cbc5cfd
-  subpackages:
-  - server
-  - types
 - name: golang.org/x/crypto
   version: 92783773f0d5c65e68a806909423bea53c78df01
   subpackages:

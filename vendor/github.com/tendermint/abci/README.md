@@ -14,8 +14,8 @@ and the more detailed [application developer's guide](https://tendermint.com/doc
 Previously, the ABCI was just referred to as TMSP.
 
 Other implementations:
-* [cpp-abci](https://github.com/mdyring/cpp-abci) by Martin Dyring-Andersen
-* [js-abci](https://github.com/tendermint/js-abci)
+* [cpp-tmsp](https://github.com/mdyring/cpp-tmsp) by Martin Dyring-Andersen
+* [js-tmsp](https://github.com/tendermint/js-tmsp)
 * [jTMSP](https://github.com/jTMSP/) for Java
 
 # Specification
