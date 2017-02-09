@@ -1,5 +1,5 @@
-hash: ca1c0bbd3016b16d187fd953de27d2fa5017eb98a8c8a129f09a0fc14052a6b2
-updated: 2017-02-09T13:05:18.690151796-05:00
+hash: 2565b86ae14efbec8bf9add5302ef4985cb7ce9072535522b2196e13d8b15685
+updated: 2017-02-09T13:12:38.042577085-05:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -16,7 +16,7 @@ imports:
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
-  version: 6dd27e7cff818493356ddecd8918b69fb18b998a
+  version: f58fb32283fe04cd1d416040c6692b4a7352d556
   subpackages:
   - accounts
   - cmd/utils

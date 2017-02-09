@@ -149,34 +149,16 @@ func emptySubscriber(mux *TypeMux, types ...interface{}) {
 	}()
 }
 
-func BenchmarkPost1000(b *testing.B) {
-	var (
-		mux              = new(TypeMux)
-		subscribed, done sync.WaitGroup
-		nsubs            = 1000
-	)
-	subscribed.Add(nsubs)
-	done.Add(nsubs)
-	for i := 0; i < nsubs; i++ {
-		go func() {
-			s := mux.Subscribe(testEvent(0))
-			subscribed.Done()
-			for range s.Chan() {
-			}
-			done.Done()
-		}()
-	}
-	subscribed.Wait()
+func BenchmarkPost3(b *testing.B) {
+	var mux = new(TypeMux)
+	defer mux.Stop()
+	emptySubscriber(mux, testEvent(0))
+	emptySubscriber(mux, testEvent(0))
+	emptySubscriber(mux, testEvent(0))
 
-	// The actual benchmark.
-	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		mux.Post(testEvent(0))
 	}
-
-	b.StopTimer()
-	mux.Stop()
-	done.Wait()
 }
 
 func BenchmarkPostConcurrent(b *testing.B) {

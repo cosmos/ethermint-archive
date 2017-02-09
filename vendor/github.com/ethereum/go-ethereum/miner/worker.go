@@ -90,7 +90,7 @@ type worker struct {
 
 	// update loop
 	mux    *event.TypeMux
-	events *event.TypeMuxSubscription
+	events event.Subscription
 	wg     sync.WaitGroup
 
 	agents map[Agent]struct{}

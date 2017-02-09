@@ -89,7 +89,7 @@ type TxPool struct {
 	gasLimit     func() *big.Int // The current gas limit function callback
 	minGasPrice  *big.Int
 	eventMux     *event.TypeMux
-	events       *event.TypeMuxSubscription
+	events       event.Subscription
 	localTx      *txSet
 	signer       types.Signer
 	mu           sync.RWMutex
