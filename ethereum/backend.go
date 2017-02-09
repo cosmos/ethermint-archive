@@ -63,7 +63,7 @@ func waitForServer(s *Backend) error {
 		if err != nil {
 			glog.V(logger.Info).Infof("Waiting for tendermint endpoint to start: %s", err)
 		}
-		if retriesCount++; retriesCount >= maxWaitForServerRetries {
+		if retriesCount += 1; retriesCount >= maxWaitForServerRetries {
 			return tmspTypes.ErrInternalError
 		}
 		time.Sleep(time.Second)
@@ -124,6 +124,8 @@ func (s *Backend) Config() *eth.Config {
 // listen for txs and forward to tendermint
 func (s *Backend) txBroadcastLoop() {
 	if err := waitForServer(s); err != nil {
+		// timeouted when waiting for tendermint communication failed
+		glog.V(logger.Error).Infof("Failed to run tendermint HTTP endpoint, err=%s", err)
 		os.Exit(1)
 	}
 	for obj := range s.txSub.Chan() {
