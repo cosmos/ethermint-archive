@@ -1,12 +1,12 @@
-hash: 5a9cc906331ee5a577b28dec444dba365176d995821555392e17d7e2f16685df
-updated: 2017-02-09T03:17:35.925210413-05:00
+hash: d2d03e4821ffc8d4bb552b2e51c3e7c1870227bfe1c416d06e0eb856d852a847
+updated: 2017-02-09T04:44:03.770914436-05:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
   subpackages:
   - monotime
 - name: github.com/btcsuite/btcd
-  version: 153dca5c1e4b5d1ea1523592495e5bedfa503391
+  version: d06c0bb181529331be8f8d9350288c420d9e60e4
   subpackages:
   - btcec
 - name: github.com/BurntSushi/toml
@@ -16,7 +16,7 @@ imports:
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
-  version: c46c41eae35e3083090e5806932fc5076e53e37c
+  version: 6dd27e7cff818493356ddecd8918b69fb18b998a
   subpackages:
   - accounts
   - cmd/utils
@@ -71,9 +71,9 @@ imports:
   subpackages:
   - proto
 - name: github.com/golang/snappy
-  version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
+  version: 7db9049039a047d955fe8c19b83c8ff5abd765c7
 - name: github.com/gorilla/websocket
-  version: 17634340a83afe0cab595e40fbc63f6ffa1d8915
+  version: c36f2fe5c330f0ac404b616b96c438b8616b1aaf
 - name: github.com/hashicorp/golang-lru
   version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
   subpackages:
@@ -102,9 +102,9 @@ imports:
   subpackages:
   - exp
 - name: github.com/rjeczalik/notify
-  version: b8dab33f409f63a90858d0eff0da94ed1a692b66
+  version: 9d5aa0c3b735c3340018a4627446c3ea5a04a097
 - name: github.com/robertkrimen/otto
-  version: 1c7376969459873387db43f2838ffab2aadf8010
+  version: 6a77b7cbc37d0c39f7d5fa5766826e541df31fd5
   subpackages:
   - ast
   - dbg
@@ -117,7 +117,7 @@ imports:
 - name: github.com/rs/xhandler
   version: ed27b6fd65218132ee50cd95f38474a3d8a2cd12
 - name: github.com/spf13/pflag
-  version: 25f8b5b07aece3207895bf19f7ab517eb3b22a40
+  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - name: github.com/syndtr/goleveldb
   version: 23851d93a2292dcc56e71a18ec9e0624d84a0f65
   subpackages:
@@ -134,7 +134,7 @@ imports:
   - leveldb/table
   - leveldb/util
 - name: github.com/tendermint/abci
-  version: 9745f07beeb2cccd9047d0e7a5bdcf230f9fef24
+  version: 8df0bc3a40ccad0d2be10e33c62c404e65c92502
   subpackages:
   - client
   - example/dummy
@@ -184,7 +184,7 @@ imports:
   subpackages:
   - term
 - name: github.com/tendermint/tendermint
-  version: ce026f4099d4256cc73099bb45775f80807388e9
+  version: d4b3dde8537bc62a6ea3c9830ac3669118141a84
   subpackages:
   - blockchain
   - config/tendermint
@@ -199,12 +199,12 @@ imports:
   - types
   - version
 - name: github.com/tendermint/tmsp
-  version: 9745f07beeb2cccd9047d0e7a5bdcf230f9fef24
+  version: 8df0bc3a40ccad0d2be10e33c62c404e65c92502
   subpackages:
   - server
   - types
 - name: golang.org/x/crypto
-  version: 7c6cc321c680f03b9ef0764448e780704f486b51
+  version: 92783773f0d5c65e68a806909423bea53c78df01
   subpackages:
   - curve25519
   - nacl/box
@@ -217,7 +217,7 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: c33d37840d93fc75251f49ab83c5fc8b2faea5e8
+  version: 236b8f043b920452504e263bc21d354427127473
   subpackages:
   - context
   - html
@@ -231,11 +231,11 @@ imports:
   - trace
   - websocket
 - name: golang.org/x/sys
-  version: d75a52659825e75fff6158388dddc6a5b04f9ba5
+  version: 7a6e5648d140666db5d920909e082ca00a87ba2c
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 44f4f658a783b0cee41fe0a23b8fc91d9c120558
+  version: 06d6eba81293389cafdff7fca90d75592194b2d9
   subpackages:
   - encoding
   - encoding/charmap
@@ -253,7 +253,7 @@ imports:
   - runes
   - transform
 - name: google.golang.org/grpc
-  version: 2b7e876a2eb64e93cb8140f497d3ea9d8882279c
+  version: 9b791e0ea399a912e17e176e5de6e7ac7d8c15ff
   subpackages:
   - codes
   - credentials
@@ -262,6 +262,8 @@ imports:
   - metadata
   - naming
   - peer
+  - stats
+  - tap
   - transport
 - name: gopkg.in/fatih/set.v0
   version: 27c40922c40b43fe04554d8223a402af3ea333f3

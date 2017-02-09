@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/connmgr"
 	"github.com/btcsuite/btcd/database"
 	_ "github.com/btcsuite/btcd/database/ffldb"
@@ -123,6 +125,7 @@ type config struct {
 	TestNet3             bool          `long:"testnet" description:"Use the test network"`
 	RegressionTest       bool          `long:"regtest" description:"Use the regression test network"`
 	SimNet               bool          `long:"simnet" description:"Use the simulation test network"`
+	AddCheckpoints       []string      `long:"addcheckpoint" description:"Add a custom checkpoint.  Format: '<height>:<hash>'"`
 	DisableCheckpoints   bool          `long:"nocheckpoints" description:"Disable built-in checkpoints.  Don't do this unless you know what you're doing."`
 	DbType               string        `long:"dbtype" description:"Database backend to use for the Block Chain"`
 	Profile              string        `long:"profile" description:"Enable HTTP profiling on given port -- NOTE port must be between 1024 and 65536"`
@@ -147,10 +150,10 @@ type config struct {
 	DropAddrIndex        bool          `long:"dropaddrindex" description:"Deletes the address-based transaction index from the database on start up and then exits."`
 	RelayNonStd          bool          `long:"relaynonstd" description:"Relay non-standard transactions regardless of the default settings for the active network."`
 	RejectNonStd         bool          `long:"rejectnonstd" description:"Reject non-standard transactions regardless of the default settings for the active network."`
-	onionlookup          func(string) ([]net.IP, error)
 	lookup               func(string) ([]net.IP, error)
 	oniondial            func(string, string, time.Duration) (net.Conn, error)
 	dial                 func(string, string, time.Duration) (net.Conn, error)
+	addCheckpoints       []chaincfg.Checkpoint
 	miningAddrs          []btcutil.Address
 	minRelayTxFee        btcutil.Amount
 }
@@ -302,6 +305,54 @@ func normalizeAddresses(addrs []string, defaultPort string) []string {
 	}
 
 	return removeDuplicateAddresses(addrs)
+}
+
+// newCheckpointFromStr parses checkpoints in the '<height>:<hash>' format.
+func newCheckpointFromStr(checkpoint string) (chaincfg.Checkpoint, error) {
+	parts := strings.Split(checkpoint, ":")
+	if len(parts) != 2 {
+		return chaincfg.Checkpoint{}, fmt.Errorf("unable to parse "+
+			"checkpoint %q -- use the syntax <height>:<hash>",
+			checkpoint)
+	}
+
+	height, err := strconv.ParseInt(parts[0], 10, 32)
+	if err != nil {
+		return chaincfg.Checkpoint{}, fmt.Errorf("unable to parse "+
+			"checkpoint %q due to malformed height", checkpoint)
+	}
+
+	if len(parts[1]) == 0 {
+		return chaincfg.Checkpoint{}, fmt.Errorf("unable to parse "+
+			"checkpoint %q due to missing hash", checkpoint)
+	}
+	hash, err := chainhash.NewHashFromStr(parts[1])
+	if err != nil {
+		return chaincfg.Checkpoint{}, fmt.Errorf("unable to parse "+
+			"checkpoint %q due to malformed hash", checkpoint)
+	}
+
+	return chaincfg.Checkpoint{
+		Height: int32(height),
+		Hash:   hash,
+	}, nil
+}
+
+// parseCheckpoints checks the checkpoint strings for valid syntax
+// ('<height>:<hash>') and parses them to chaincfg.Checkpoint instances.
+func parseCheckpoints(checkpointStrings []string) ([]chaincfg.Checkpoint, error) {
+	if len(checkpointStrings) == 0 {
+		return nil, nil
+	}
+	checkpoints := make([]chaincfg.Checkpoint, len(checkpointStrings))
+	for i, cpString := range checkpointStrings {
+		checkpoint, err := newCheckpointFromStr(cpString)
+		if err != nil {
+			return nil, err
+		}
+		checkpoints[i] = checkpoint
+	}
+	return checkpoints, nil
 }
 
 // filesExists reports whether the named file or directory exists.
@@ -796,6 +847,25 @@ func loadConfig() (*config, []string, error) {
 	cfg.ConnectPeers = normalizeAddresses(cfg.ConnectPeers,
 		activeNetParams.DefaultPort)
 
+	// --noonion and --onion do not mix.
+	if cfg.NoOnion && cfg.OnionProxy != "" {
+		err := fmt.Errorf("%s: the --noonion and --onion options may "+
+			"not be activated at the same time", funcName)
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return nil, nil, err
+	}
+
+	// Check the checkpoints for syntax errors.
+	cfg.addCheckpoints, err = parseCheckpoints(cfg.AddCheckpoints)
+	if err != nil {
+		str := "%s: Error parsing checkpoints: %v"
+		err := fmt.Errorf(str, funcName, err)
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return nil, nil, err
+	}
+
 	// Tor stream isolation requires either proxy or onion proxy to be set.
 	if cfg.TorIsolation && cfg.Proxy == "" && cfg.OnionProxy == "" {
 		str := "%s: Tor stream isolation requires either proxy or " +
@@ -824,8 +894,14 @@ func loadConfig() (*config, []string, error) {
 			return nil, nil, err
 		}
 
-		if cfg.TorIsolation &&
+		// Tor isolation flag means proxy credentials will be overridden
+		// unless there is also an onion proxy configured in which case
+		// that one will be overridden.
+		torIsolation := false
+		if cfg.TorIsolation && cfg.OnionProxy == "" &&
 			(cfg.ProxyUser != "" || cfg.ProxyPass != "") {
+
+			torIsolation = true
 			fmt.Fprintln(os.Stderr, "Tor isolation set -- "+
 				"overriding specified proxy user credentials")
 		}
@@ -834,24 +910,26 @@ func loadConfig() (*config, []string, error) {
 			Addr:         cfg.Proxy,
 			Username:     cfg.ProxyUser,
 			Password:     cfg.ProxyPass,
-			TorIsolation: cfg.TorIsolation,
+			TorIsolation: torIsolation,
 		}
 		cfg.dial = proxy.DialTimeout
-		if !cfg.NoOnion {
+
+		// Treat the proxy as tor and perform DNS resolution through it
+		// unless the --noonion flag is set or there is an
+		// onion-specific proxy configured.
+		if !cfg.NoOnion && cfg.OnionProxy == "" {
 			cfg.lookup = func(host string) ([]net.IP, error) {
 				return connmgr.TorLookupIP(host, cfg.Proxy)
 			}
 		}
 	}
 
-	// Setup onion address dial and DNS resolution (lookup) functions
-	// depending on the specified options.  The default is to use the
-	// same dial and lookup functions selected above.  However, when an
-	// onion-specific proxy is specified, the onion address dial and
-	// lookup functions are set to use the onion-specific proxy while
-	// leaving the normal dial and lookup functions as selected above.
-	// This allows .onion address traffic to be routed through a different
-	// proxy than normal traffic.
+	// Setup onion address dial function depending on the specified options.
+	// The default is to use the same dial function selected above.  However,
+	// when an onion-specific proxy is specified, the onion address dial
+	// function is set to use the onion-specific proxy while leaving the
+	// normal dial function as selected above.  This allows .onion address
+	// traffic to be routed through a different proxy than normal traffic.
 	if cfg.OnionProxy != "" {
 		_, _, err := net.SplitHostPort(cfg.OnionProxy)
 		if err != nil {
@@ -862,6 +940,8 @@ func loadConfig() (*config, []string, error) {
 			return nil, nil, err
 		}
 
+		// Tor isolation flag means onion proxy credentials will be
+		// overridden.
 		if cfg.TorIsolation &&
 			(cfg.OnionProxyUser != "" || cfg.OnionProxyPass != "") {
 			fmt.Fprintln(os.Stderr, "Tor isolation set -- "+
@@ -869,30 +949,33 @@ func loadConfig() (*config, []string, error) {
 				"credentials ")
 		}
 
-		cfg.oniondial = func(a, b string, t time.Duration) (net.Conn, error) {
+		cfg.oniondial = func(network, addr string, timeout time.Duration) (net.Conn, error) {
 			proxy := &socks.Proxy{
 				Addr:         cfg.OnionProxy,
 				Username:     cfg.OnionProxyUser,
 				Password:     cfg.OnionProxyPass,
 				TorIsolation: cfg.TorIsolation,
 			}
-			return proxy.DialTimeout(a, b, t)
+			return proxy.DialTimeout(network, addr, timeout)
 		}
-		cfg.onionlookup = func(host string) ([]net.IP, error) {
-			return connmgr.TorLookupIP(host, cfg.OnionProxy)
+
+		// When configured in bridge mode (both --onion and --proxy are
+		// configured), it means that the proxy configured by --proxy is
+		// not a tor proxy, so override the DNS resolution to use the
+		// onion-specific proxy.
+		if cfg.Proxy != "" {
+			cfg.lookup = func(host string) ([]net.IP, error) {
+				return connmgr.TorLookupIP(host, cfg.OnionProxy)
+			}
 		}
 	} else {
 		cfg.oniondial = cfg.dial
-		cfg.onionlookup = cfg.lookup
 	}
 
-	// Specifying --noonion means the onion address dial and DNS resolution
-	// (lookup) functions result in an error.
+	// Specifying --noonion means the onion address dial function results in
+	// an error.
 	if cfg.NoOnion {
 		cfg.oniondial = func(a, b string, t time.Duration) (net.Conn, error) {
-			return nil, errors.New("tor has been disabled")
-		}
-		cfg.onionlookup = func(a string) ([]net.IP, error) {
 			return nil, errors.New("tor has been disabled")
 		}
 	}
@@ -987,16 +1070,17 @@ func btcdDial(addr net.Addr) (net.Conn, error) {
 	return cfg.dial(addr.Network(), addr.String(), defaultConnectTimeout)
 }
 
-// btcdLookup returns the correct DNS lookup function to use depending on the
-// passed host and configuration options.  For example, .onion addresses will be
-// resolved using the onion specific proxy if one was specified, but will
-// otherwise treat the normal proxy as tor unless --noonion was specified in
-// which case the lookup will fail.  Meanwhile, normal IP addresses will be
-// resolved using tor if a proxy was specified unless --noonion was also
-// specified in which case the normal system DNS resolver will be used.
+// btcdLookup resolves the IP of the given host using the correct DNS lookup
+// function depending on the configuration options.  For example, addresses will
+// be resolved using tor when the --proxy flag was specified unless --noonion
+// was also specified in which case the normal system DNS resolver will be used.
+//
+// Any attempt to resolve a tor address (.onion) will return an error since they
+// are not intended to be resolved outside of the tor proxy.
 func btcdLookup(host string) ([]net.IP, error) {
 	if strings.HasSuffix(host, ".onion") {
-		return cfg.onionlookup(host)
+		return nil, fmt.Errorf("attempt to resolve tor address %s", host)
 	}
+
 	return cfg.lookup(host)
 }

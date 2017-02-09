@@ -44,9 +44,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "1.1.0"
+	jsonrpcSemverString = "1.3.0"
 	jsonrpcSemverMajor  = 1
-	jsonrpcSemverMinor  = 1
+	jsonrpcSemverMinor  = 3
 	jsonrpcSemverPatch  = 0
 )
 
@@ -222,6 +222,7 @@ var rpcUnimplemented = map[string]struct{}{
 	"estimatefee":      {},
 	"estimatepriority": {},
 	"getchaintips":     {},
+	"getmempoolentry":  {},
 	"getnetworkinfo":   {},
 	"getwork":          {},
 	"invalidateblock":  {},
@@ -232,11 +233,13 @@ var rpcUnimplemented = map[string]struct{}{
 // Commands that are available to a limited user
 var rpcLimited = map[string]struct{}{
 	// Websockets commands
+	"loadtxfilter":          {},
 	"notifyblocks":          {},
 	"notifynewtransactions": {},
 	"notifyreceived":        {},
 	"notifyspent":           {},
 	"rescan":                {},
+	"rescanblocks":          {},
 	"session":               {},
 
 	// Websockets AND HTTP/S commands
@@ -919,18 +922,24 @@ func handleGetAddedNodeInfo(s *rpcServer, cmd interface{}, closeChan <-chan stru
 			host = peer.Addr()
 		}
 
-		// Do a DNS lookup for the address.  If the lookup fails, just
-		// use the host.
 		var ipList []string
-		ips, err := btcdLookup(host)
-		if err == nil {
+		switch {
+		case net.ParseIP(host) != nil, strings.HasSuffix(host, ".onion"):
+			ipList = make([]string, 1)
+			ipList[0] = host
+		default:
+			// Do a DNS lookup for the address.  If the lookup fails, just
+			// use the host.
+			ips, err := btcdLookup(host)
+			if err != nil {
+				ipList = make([]string, 1)
+				ipList[0] = host
+				break
+			}
 			ipList = make([]string, 0, len(ips))
 			for _, ip := range ips {
 				ipList = append(ipList, ip.String())
 			}
-		} else {
-			ipList = make([]string, 1)
-			ipList[0] = host
 		}
 
 		// Add the addresses and connection info to the result.
@@ -1234,17 +1243,12 @@ func handleGetBlockHash(s *rpcServer, cmd interface{}, closeChan <-chan struct{}
 func handleGetBlockHeader(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) (interface{}, error) {
 	c := cmd.(*btcjson.GetBlockHeaderCmd)
 
-	// Load the raw header bytes from the database.
+	// Fetch the header from chain.
 	hash, err := chainhash.NewHashFromStr(c.Hash)
 	if err != nil {
 		return nil, rpcDecodeHexError(c.Hash)
 	}
-	var headerBytes []byte
-	err = s.server.db.View(func(dbTx database.Tx) error {
-		var err error
-		headerBytes, err = dbTx.FetchBlockHeader(hash)
-		return err
-	})
+	blockHeader, err := s.chain.FetchHeader(hash)
 	if err != nil {
 		return nil, &btcjson.RPCError{
 			Code:    btcjson.ErrRPCBlockNotFound,
@@ -1255,18 +1259,16 @@ func handleGetBlockHeader(s *rpcServer, cmd interface{}, closeChan <-chan struct
 	// When the verbose flag isn't set, simply return the serialized block
 	// header as a hex-encoded string.
 	if c.Verbose != nil && !*c.Verbose {
-		return hex.EncodeToString(headerBytes), nil
+		var headerBuf bytes.Buffer
+		err := blockHeader.Serialize(&headerBuf)
+		if err != nil {
+			context := "Failed to serialize block header"
+			return nil, internalRPCError(err.Error(), context)
+		}
+		return hex.EncodeToString(headerBuf.Bytes()), nil
 	}
 
 	// The verbose flag is set, so generate the JSON object and return it.
-
-	// Deserialize the header.
-	var blockHeader wire.BlockHeader
-	err = blockHeader.Deserialize(bytes.NewReader(headerBytes))
-	if err != nil {
-		context := "Failed to deserialize block header"
-		return nil, internalRPCError(err.Error(), context)
-	}
 
 	// Get the block height from chain.
 	blockHeight, err := s.chain.BlockHeightByHash(hash)
@@ -1468,7 +1470,7 @@ func (state *gbtWorkState) updateBlockTemplate(s *rpcServer, useCoinbaseValue bo
 	// generated.
 	var msgBlock *wire.MsgBlock
 	var targetDifficulty string
-	latestHash := s.server.blockManager.chain.BestSnapshot().Hash
+	latestHash := &s.server.blockManager.chain.BestSnapshot().Hash
 	template := state.template
 	if template == nil || state.prevHash == nil ||
 		!state.prevHash.IsEqual(latestHash) ||
@@ -2024,9 +2026,9 @@ func handleGetBlockTemplateProposal(s *rpcServer, request *btcjson.TemplateReque
 	block := btcutil.NewBlock(&msgBlock)
 
 	// Ensure the block is building from the expected previous block.
-	expectedPrevHash := s.server.blockManager.chain.BestSnapshot().Hash
+	expectedPrevHash := &s.server.blockManager.chain.BestSnapshot().Hash
 	prevHash := &block.MsgBlock().Header.PrevBlock
-	if expectedPrevHash == nil || !expectedPrevHash.IsEqual(prevHash) {
+	if !expectedPrevHash.IsEqual(prevHash) {
 		return "bad-prevblk", nil
 	}
 
@@ -2141,7 +2143,7 @@ func handleGetHeaders(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) 
 				"headers: " + err.Error(),
 		}
 	}
-	blockHeaders, err := fetchHeaders(s.server.db, blockHashes)
+	blockHeaders, err := fetchHeaders(s.chain, blockHashes)
 	if err != nil {
 		return nil, &btcjson.RPCError{
 			Code: btcjson.ErrRPCDatabase,
@@ -2306,23 +2308,10 @@ func handleGetNetworkHashPS(s *rpcServer, cmd interface{}, closeChan <-chan stru
 			return nil, internalRPCError(err.Error(), context)
 		}
 
-		// Load the raw header bytes.
-		var headerBytes []byte
-		err = s.server.db.View(func(dbTx database.Tx) error {
-			var err error
-			headerBytes, err = dbTx.FetchBlockHeader(hash)
-			return err
-		})
+		// Fetch the header from chain.
+		header, err := s.chain.FetchHeader(hash)
 		if err != nil {
 			context := "Failed to fetch block header"
-			return nil, internalRPCError(err.Error(), context)
-		}
-
-		// Deserialize the header.
-		var header wire.BlockHeader
-		err = header.Deserialize(bytes.NewReader(headerBytes))
-		if err != nil {
-			context := "Failed to deserialize block header"
 			return nil, internalRPCError(err.Error(), context)
 		}
 
@@ -2512,23 +2501,10 @@ func handleGetRawTransaction(s *rpcServer, cmd interface{}, closeChan <-chan str
 	var blkHashStr string
 	var chainHeight int32
 	if blkHash != nil {
-		// Load the raw header bytes.
-		var headerBytes []byte
-		err := s.server.db.View(func(dbTx database.Tx) error {
-			var err error
-			headerBytes, err = dbTx.FetchBlockHeader(blkHash)
-			return err
-		})
+		// Fetch the header from chain.
+		header, err := s.chain.FetchHeader(blkHash)
 		if err != nil {
 			context := "Failed to fetch block header"
-			return nil, internalRPCError(err.Error(), context)
-		}
-
-		// Deserialize the header.
-		var header wire.BlockHeader
-		err = header.Deserialize(bytes.NewReader(headerBytes))
-		if err != nil {
-			context := "Failed to deserialize block header"
 			return nil, internalRPCError(err.Error(), context)
 		}
 
@@ -3152,26 +3128,13 @@ func handleSearchRawTransactions(s *rpcServer, cmd interface{}, closeChan <-chan
 		var blkHashStr string
 		var blkHeight int32
 		if blkHash := rtx.blkHash; blkHash != nil {
-			// Load the raw header bytes from the database.
-			var headerBytes []byte
-			err := s.server.db.View(func(dbTx database.Tx) error {
-				var err error
-				headerBytes, err = dbTx.FetchBlockHeader(blkHash)
-				return err
-			})
+			// Fetch the header from chain.
+			header, err := s.chain.FetchHeader(blkHash)
 			if err != nil {
 				return nil, &btcjson.RPCError{
 					Code:    btcjson.ErrRPCBlockNotFound,
 					Message: "Block not found",
 				}
-			}
-
-			// Deserialize the block header.
-			var header wire.BlockHeader
-			err = header.Deserialize(bytes.NewReader(headerBytes))
-			if err != nil {
-				context := "Failed to deserialize block header"
-				return nil, internalRPCError(err.Error(), context)
 			}
 
 			// Get the block height from chain.
@@ -3245,12 +3208,28 @@ func handleSendRawTransaction(s *rpcServer, cmd interface{}, closeChan <-chan st
 		}
 	}
 
+	// When the transaction was accepted it should be the first item in the
+	// returned array of accepted transactions.  The only way this will not
+	// be true is if the API for ProcessTransaction changes and this code is
+	// not properly updated, but ensure the condition holds as a safeguard.
+	//
+	// Also, since an error is being returned to the caller, ensure the
+	// transaction is removed from the memory pool.
+	if len(acceptedTxs) == 0 || !acceptedTxs[0].Tx.Hash().IsEqual(tx.Hash()) {
+		s.server.txMemPool.RemoveTransaction(tx, true)
+
+		errStr := fmt.Sprintf("transaction %v is not in accepted list",
+			tx.Hash())
+		return nil, internalRPCError(errStr, "")
+	}
+
 	s.server.AnnounceNewTransactions(acceptedTxs)
 
 	// Keep track of all the sendrawtransaction request txns so that they
 	// can be rebroadcast if they don't make their way into a block.
-	iv := wire.NewInvVect(wire.InvTypeTx, tx.Hash())
-	s.server.AddRebroadcastInventory(iv, tx)
+	txD := acceptedTxs[0]
+	iv := wire.NewInvVect(wire.InvTypeTx, txD.Tx.Hash())
+	s.server.AddRebroadcastInventory(iv, txD)
 
 	return tx.Hash().String(), nil
 }

@@ -65,6 +65,28 @@ var (
 	userAgentVersion = fmt.Sprintf("%d.%d.%d", appMajor, appMinor, appPatch)
 )
 
+// onionAddr implements the net.Addr interface and represents a tor address.
+type onionAddr struct {
+	addr string
+}
+
+// String returns the onion address.
+//
+// This is part of the net.Addr interface.
+func (oa *onionAddr) String() string {
+	return oa.addr
+}
+
+// Network returns "onion".
+//
+// This is part of the net.Addr interface.
+func (oa *onionAddr) Network() string {
+	return "onion"
+}
+
+// Ensure onionAddr implements the net.Addr interface.
+var _ net.Addr = (*onionAddr)(nil)
+
 // broadcastMsg provides the ability to house a bitcoin message to be broadcast
 // to all connected peers except specified excluded peers.
 type broadcastMsg struct {
@@ -191,6 +213,7 @@ type serverPeer struct {
 	continueHash    *chainhash.Hash
 	relayMtx        sync.Mutex
 	disableRelayTx  bool
+	sentAddrs       bool
 	requestQueue    []*wire.InvVect
 	requestedTxns   map[chainhash.Hash]struct{}
 	requestedBlocks map[chainhash.Hash]struct{}
@@ -223,7 +246,7 @@ func newServerPeer(s *server, isPersistent bool) *serverPeer {
 // required by the configuration for the peer package.
 func (sp *serverPeer) newestBlock() (*chainhash.Hash, int32, error) {
 	best := sp.server.blockManager.chain.BestSnapshot()
-	return best.Hash, best.Height, nil
+	return &best.Hash, best.Height, nil
 }
 
 // addKnownAddresses adds the given addresses to the set of known addresses to
@@ -371,6 +394,15 @@ func (sp *serverPeer) OnVersion(_ *peer.Peer, msg *wire.MsgVersion) {
 // pool up to the maximum inventory allowed per message.  When the peer has a
 // bloom filter loaded, the contents are filtered accordingly.
 func (sp *serverPeer) OnMemPool(_ *peer.Peer, msg *wire.MsgMemPool) {
+	// Only allow mempool requests if the server has bloom filtering
+	// enabled.
+	if sp.server.services&wire.SFNodeBloom != wire.SFNodeBloom {
+		peerLog.Debugf("peer %v sent mempool request with bloom "+
+			"filtering disabled -- disconnecting", sp)
+		sp.Disconnect()
+		return
+	}
+
 	// A decaying ban score increase is applied to prevent flooding.
 	// The ban score accumulates and passes the ban threshold if a burst of
 	// mempool messages comes from a peer. The score decays each minute to
@@ -694,24 +726,17 @@ func (s *server) locateBlocks(locators []*chainhash.Hash, hashStop *chainhash.Ha
 
 // fetchHeaders fetches and decodes headers from the db for each hash in
 // blockHashes.
-func fetchHeaders(db database.DB, blockHashes []chainhash.Hash) ([]*wire.BlockHeader, error) {
-	headers := make([]*wire.BlockHeader, 0, len(blockHashes))
-	err := db.View(func(dbTx database.Tx) error {
-		rawHeaders, err := dbTx.FetchBlockHeaders(blockHashes)
+func fetchHeaders(chain *blockchain.BlockChain, blockHashes []chainhash.Hash) ([]wire.BlockHeader, error) {
+	headers := make([]wire.BlockHeader, 0, len(blockHashes))
+	for i := range blockHashes {
+		header, err := chain.FetchHeader(&blockHashes[i])
 		if err != nil {
-			return err
+			return nil, err
 		}
-		for _, headerBytes := range rawHeaders {
-			h := new(wire.BlockHeader)
-			err = h.Deserialize(bytes.NewReader(headerBytes))
-			if err != nil {
-				return err
-			}
-			headers = append(headers, h)
-		}
-		return nil
-	})
-	return headers, err
+		headers = append(headers, header)
+	}
+
+	return headers, nil
 }
 
 // OnGetHeaders is invoked when a peer receives a getheaders bitcoin
@@ -728,11 +753,15 @@ func (sp *serverPeer) OnGetHeaders(_ *peer.Peer, msg *wire.MsgGetHeaders) {
 		peerLog.Errorf("OnGetHeaders: failed to fetch hashes: %v", err)
 		return
 	}
-	blockHeaders, err := fetchHeaders(sp.server.db, blockHashes)
+	headers, err := fetchHeaders(sp.server.blockManager.chain, blockHashes)
 	if err != nil {
 		peerLog.Errorf("OnGetHeaders: failed to fetch block headers: "+
 			"%v", err)
 		return
+	}
+	blockHeaders := make([]*wire.BlockHeader, len(headers))
+	for i := range headers {
+		blockHeaders[i] = &headers[i]
 	}
 
 	if len(blockHeaders) > wire.MaxBlockHeadersPerMsg {
@@ -870,8 +899,19 @@ func (sp *serverPeer) OnGetAddr(_ *peer.Peer, msg *wire.MsgGetAddr) {
 	// Do not accept getaddr requests from outbound peers.  This reduces
 	// fingerprinting attacks.
 	if !sp.Inbound() {
+		peerLog.Debugf("Ignoring getaddr request from outbound peer ",
+			"%v", sp)
 		return
 	}
+
+	// Only allow one getaddr request per connection to discourage
+	// address stamping of inv announcements.
+	if sp.sentAddrs {
+		peerLog.Debugf("Ignoring repeated getaddr request from peer ",
+			"%v", sp)
+		return
+	}
+	sp.sentAddrs = true
 
 	// Get the current known addresses from the address manager.
 	addrCache := sp.server.addrManager.AddressCache()
@@ -1090,7 +1130,7 @@ func (s *server) pushBlockMsg(sp *serverPeer, hash *chainhash.Hash, doneChan cha
 	if sendInv {
 		best := sp.server.blockManager.chain.BestSnapshot()
 		invMsg := wire.NewMsgInvSizeHint(1)
-		iv := wire.NewInvVect(wire.InvTypeBlock, best.Hash)
+		iv := wire.NewInvVect(wire.InvTypeBlock, &best.Hash)
 		invMsg.AddInvVect(iv)
 		sp.QueueMessage(invMsg, doneChan)
 		sp.continueHash = nil
@@ -1333,8 +1373,9 @@ func (s *server) handleRelayInvMsg(state *peerState, msg relayMsg) {
 
 			txD, ok := msg.data.(*mempool.TxDesc)
 			if !ok {
-				peerLog.Warnf("Underlying data for tx" +
-					" inv relay is not a *mempool.TxDesc")
+				peerLog.Warnf("Underlying data for tx inv "+
+					"relay is not a *mempool.TxDesc: %T",
+					msg.data)
 				return
 			}
 
@@ -2469,13 +2510,13 @@ func newServer(listenAddrs []string, db database.DB, chainParams *chaincfg.Param
 		permanentPeers = cfg.AddPeers
 	}
 	for _, addr := range permanentPeers {
-		tcpAddr, err := addrStringToNetAddr(addr)
+		netAddr, err := addrStringToNetAddr(addr)
 		if err != nil {
 			return nil, err
 		}
 
 		go s.connManager.Connect(&connmgr.ConnReq{
-			Addr:      tcpAddr,
+			Addr:      netAddr,
 			Permanent: true,
 		})
 	}
@@ -2499,27 +2540,44 @@ func newServer(listenAddrs []string, db database.DB, chainParams *chaincfg.Param
 
 // addrStringToNetAddr takes an address in the form of 'host:port' and returns
 // a net.Addr which maps to the original address with any host names resolved
-// to IP addresses.
+// to IP addresses.  It also handles tor addresses properly by returning a
+// net.Addr that encapsulates the address.
 func addrStringToNetAddr(addr string) (net.Addr, error) {
 	host, strPort, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
 	}
 
+	port, err := strconv.Atoi(strPort)
+	if err != nil {
+		return nil, err
+	}
+
+	// Skip if host is already an IP address.
+	if ip := net.ParseIP(host); ip != nil {
+		return &net.TCPAddr{
+			IP:   ip,
+			Port: port,
+		}, nil
+	}
+
+	// Tor addresses cannot be resolved to an IP, so just return an onion
+	// address instead.
+	if strings.HasSuffix(host, ".onion") {
+		if cfg.NoOnion {
+			return nil, errors.New("tor has been disabled")
+		}
+
+		return &onionAddr{addr: addr}, nil
+	}
+
 	// Attempt to look up an IP address associated with the parsed host.
-	// The btcdLookup function will transparently handle performing the
-	// lookup over Tor if necessary.
 	ips, err := btcdLookup(host)
 	if err != nil {
 		return nil, err
 	}
 	if len(ips) == 0 {
 		return nil, fmt.Errorf("no addresses found for %s", host)
-	}
-
-	port, err := strconv.Atoi(strPort)
-	if err != nil {
-		return nil, err
 	}
 
 	return &net.TCPAddr{

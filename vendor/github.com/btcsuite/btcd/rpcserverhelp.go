@@ -590,6 +590,12 @@ var helpDescsEnUS = map[string]string{
 	"stopnotifyspent--synopsis": "Cancel registered spending notifications for each passed outpoint.",
 	"stopnotifyspent-outpoints": "List of transaction outpoints to stop monitoring.",
 
+	// LoadTxFilterCmd help.
+	"loadtxfilter--synopsis": "Load, add to, or reload a websocket client's transaction filter for mempool transactions, new blocks and rescanblocks.",
+	"loadtxfilter-reload":    "Load a new filter instead of adding data to an existing one",
+	"loadtxfilter-addresses": "Array of addresses to add to the transaction filter",
+	"loadtxfilter-outpoints": "Array of outpoints to add to the transaction filter",
+
 	// Rescan help.
 	"rescan--synopsis": "Rescan block chain for transactions to addresses.\n" +
 		"When the endblock parameter is omitted, the rescan continues through the best block in the main chain.\n" +
@@ -599,6 +605,15 @@ var helpDescsEnUS = map[string]string{
 	"rescan-addresses":  "List of addresses to include in the rescan",
 	"rescan-outpoints":  "List of transaction outpoints to include in the rescan",
 	"rescan-endblock":   "Hash of final block to rescan",
+
+	// RescanBlocks help.
+	"rescanblocks--synopsis":   "Rescan blocks for transactions matching the loaded transaction filter.",
+	"rescanblocks-blockhashes": "List of hashes to rescan.  Each next block must be a child of the previous.",
+	"rescanblocks--result0":    "List of matching blocks.",
+
+	// RescannedBlock help.
+	"rescannedblock-hash":         "Hash of the matching block.",
+	"rescannedblock-transactions": "List of matching transactions, serialized and hex-encoded.",
 
 	// Version help.
 	"version--synopsis":       "Returns the JSON-RPC API version (semver)",
@@ -663,6 +678,7 @@ var rpcResultTypes = map[string][]interface{}{
 	"version":               {(*map[string]btcjson.VersionResult)(nil)},
 
 	// Websocket commands.
+	"loadtxfilter":              nil,
 	"session":                   {(*btcjson.SessionResult)(nil)},
 	"notifyblocks":              nil,
 	"stopnotifyblocks":          nil,
@@ -673,6 +689,7 @@ var rpcResultTypes = map[string][]interface{}{
 	"notifyspent":               nil,
 	"stopnotifyspent":           nil,
 	"rescan":                    nil,
+	"rescanblocks":              {(*[]btcjson.RescannedBlock)(nil)},
 }
 
 // helpCacher provides a concurrent safe type that provides help and usage for

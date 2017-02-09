@@ -65,6 +65,7 @@ import (
 	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/tap"
 	testpb "google.golang.org/grpc/test/grpc_testing"
 )
 
@@ -418,6 +419,7 @@ type test struct {
 	testServer        testpb.TestServiceServer // nil means none
 	healthServer      *health.Server           // nil means disabled
 	maxStream         uint32
+	tapHandle         tap.ServerInHandle
 	maxMsgSize        int
 	userAgent         string
 	clientCompression bool
@@ -426,6 +428,7 @@ type test struct {
 	streamClientInt   grpc.StreamClientInterceptor
 	unaryServerInt    grpc.UnaryServerInterceptor
 	streamServerInt   grpc.StreamServerInterceptor
+	sc                <-chan grpc.ServiceConfig
 
 	// srv and srvAddr are set once startServer is called.
 	srv     *grpc.Server
@@ -448,7 +451,9 @@ func (te *test) tearDown() {
 		te.restoreLogs()
 		te.restoreLogs = nil
 	}
-	te.srv.Stop()
+	if te.srv != nil {
+		te.srv.Stop()
+	}
 }
 
 // newTest returns a new test using the provided testing.T and
@@ -472,6 +477,9 @@ func (te *test) startServer(ts testpb.TestServiceServer) {
 	sopts := []grpc.ServerOption{grpc.MaxConcurrentStreams(te.maxStream)}
 	if te.maxMsgSize > 0 {
 		sopts = append(sopts, grpc.MaxMsgSize(te.maxMsgSize))
+	}
+	if te.tapHandle != nil {
+		sopts = append(sopts, grpc.InTapHandle(te.tapHandle))
 	}
 	if te.serverCompression {
 		sopts = append(sopts,
@@ -540,6 +548,10 @@ func (te *test) clientConn() *grpc.ClientConn {
 	opts := []grpc.DialOption{
 		grpc.WithDialer(te.e.dialer),
 		grpc.WithUserAgent(te.userAgent),
+	}
+
+	if te.sc != nil {
+		opts = append(opts, grpc.WithServiceConfig(te.sc))
 	}
 
 	if te.clientCompression {
@@ -625,7 +637,10 @@ func testTimeoutOnDeadServer(t *testing.T, e env) {
 	}
 	te.srv.Stop()
 	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
-	if _, err := tc.EmptyCall(ctx, &testpb.Empty{}, grpc.FailFast(false)); grpc.Code(err) != codes.DeadlineExceeded {
+	_, err := tc.EmptyCall(ctx, &testpb.Empty{}, grpc.FailFast(false))
+	if e.balancer && grpc.Code(err) != codes.DeadlineExceeded {
+		// If e.balancer == nil, the ac will stop reconnecting because the dialer returns non-temp error,
+		// the error will be an internal error.
 		t.Fatalf("TestService/EmptyCall(%v, _) = _, %v, want _, error code: %s", ctx, err, codes.DeadlineExceeded)
 	}
 	awaitNewConnLogOutput()
@@ -1005,6 +1020,141 @@ func testFailFast(t *testing.T, e env) {
 	awaitNewConnLogOutput()
 }
 
+func TestServiceConfig(t *testing.T) {
+	defer leakCheck(t)()
+	for _, e := range listTestEnv() {
+		testServiceConfig(t, e)
+	}
+}
+
+func testServiceConfig(t *testing.T, e env) {
+	te := newTest(t, e)
+	ch := make(chan grpc.ServiceConfig)
+	te.sc = ch
+	te.userAgent = testAppUA
+	te.declareLogNoise(
+		"transport: http2Client.notifyError got notified that the client transport was broken EOF",
+		"grpc: addrConn.transportMonitor exits due to: grpc: the connection is closing",
+		"grpc: addrConn.resetTransport failed to create client transport: connection error",
+		"Failed to dial : context canceled; please retry.",
+	)
+	defer te.tearDown()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		mc := grpc.MethodConfig{
+			WaitForReady: true,
+			Timeout:      time.Millisecond,
+		}
+		m := make(map[string]grpc.MethodConfig)
+		m["/grpc.testing.TestService/EmptyCall"] = mc
+		m["/grpc.testing.TestService/FullDuplexCall"] = mc
+		sc := grpc.ServiceConfig{
+			Methods: m,
+		}
+		ch <- sc
+	}()
+	cc := te.clientConn()
+	tc := testpb.NewTestServiceClient(cc)
+	// The following RPCs are expected to become non-fail-fast ones with 1ms deadline.
+	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); grpc.Code(err) != codes.DeadlineExceeded {
+		t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want _, %s", err, codes.DeadlineExceeded)
+	}
+	if _, err := tc.FullDuplexCall(context.Background()); grpc.Code(err) != codes.DeadlineExceeded {
+		t.Fatalf("TestService/FullDuplexCall(_) = _, %v, want %s", err, codes.DeadlineExceeded)
+	}
+	wg.Wait()
+	// Generate a service config update.
+	mc := grpc.MethodConfig{
+		WaitForReady: false,
+	}
+	m := make(map[string]grpc.MethodConfig)
+	m["/grpc.testing.TestService/EmptyCall"] = mc
+	m["/grpc.testing.TestService/FullDuplexCall"] = mc
+	sc := grpc.ServiceConfig{
+		Methods: m,
+	}
+	ch <- sc
+	// Loop until the new update becomes effective.
+	for {
+		if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); grpc.Code(err) != codes.Unavailable {
+			continue
+		}
+		break
+	}
+	// The following RPCs are expected to become fail-fast.
+	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); grpc.Code(err) != codes.Unavailable {
+		t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want _, %s", err, codes.Unavailable)
+	}
+	if _, err := tc.FullDuplexCall(context.Background()); grpc.Code(err) != codes.Unavailable {
+		t.Fatalf("TestService/FullDuplexCall(_) = _, %v, want %s", err, codes.Unavailable)
+	}
+}
+
+func TestTap(t *testing.T) {
+	defer leakCheck(t)()
+	for _, e := range listTestEnv() {
+		if e.name == "handler-tls" {
+			continue
+		}
+		testTap(t, e)
+	}
+}
+
+type myTap struct {
+	cnt int
+}
+
+func (t *myTap) handle(ctx context.Context, info *tap.Info) (context.Context, error) {
+	if info != nil {
+		if info.FullMethodName == "/grpc.testing.TestService/EmptyCall" {
+			t.cnt++
+		} else if info.FullMethodName == "/grpc.testing.TestService/UnaryCall" {
+			return nil, fmt.Errorf("tap error")
+		}
+	}
+	return ctx, nil
+}
+
+func testTap(t *testing.T, e env) {
+	te := newTest(t, e)
+	te.userAgent = testAppUA
+	ttap := &myTap{}
+	te.tapHandle = ttap.handle
+	te.declareLogNoise(
+		"transport: http2Client.notifyError got notified that the client transport was broken EOF",
+		"grpc: addrConn.transportMonitor exits due to: grpc: the connection is closing",
+		"grpc: addrConn.resetTransport failed to create client transport: connection error",
+	)
+	te.startServer(&testServer{security: e.security})
+	defer te.tearDown()
+
+	cc := te.clientConn()
+	tc := testpb.NewTestServiceClient(cc)
+	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}); err != nil {
+		t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want _, <nil>", err)
+	}
+	if ttap.cnt != 1 {
+		t.Fatalf("Get the count in ttap %d, want 1", ttap.cnt)
+	}
+
+	payload, err := newPayload(testpb.PayloadType_COMPRESSABLE, 31)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := &testpb.SimpleRequest{
+		ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+		ResponseSize: proto.Int32(45),
+		Payload:      payload,
+	}
+	if _, err := tc.UnaryCall(context.Background(), req); grpc.Code(err) != codes.Unavailable {
+		t.Fatalf("TestService/UnaryCall(_, _) = _, %v, want _, %s", err, codes.Unavailable)
+	}
+}
+
 func healthCheck(d time.Duration, cc *grpc.ClientConn, serviceName string) (*healthpb.HealthCheckResponse, error) {
 	ctx, _ := context.WithTimeout(context.Background(), d)
 	hc := healthpb.NewHealthClient(cc)
@@ -1287,6 +1437,43 @@ func testExceedMsgLimit(t *testing.T, e env) {
 	}
 	if _, err := stream.Recv(); err == nil || grpc.Code(err) != codes.Internal {
 		t.Fatalf("%v.Recv() = _, %v, want _, error code: %s", stream, err, codes.Internal)
+	}
+}
+
+func TestPeerClientSide(t *testing.T) {
+	defer leakCheck(t)()
+	for _, e := range listTestEnv() {
+		testPeerClientSide(t, e)
+	}
+}
+
+func testPeerClientSide(t *testing.T, e env) {
+	te := newTest(t, e)
+	te.userAgent = testAppUA
+	te.startServer(&testServer{security: e.security})
+	defer te.tearDown()
+	tc := testpb.NewTestServiceClient(te.clientConn())
+	peer := new(peer.Peer)
+	if _, err := tc.EmptyCall(context.Background(), &testpb.Empty{}, grpc.Peer(peer), grpc.FailFast(false)); err != nil {
+		t.Fatalf("TestService/EmptyCall(_, _) = _, %v, want _, <nil>", err)
+	}
+	pa := peer.Addr.String()
+	if e.network == "unix" {
+		if pa != te.srvAddr {
+			t.Fatalf("peer.Addr = %v, want %v", pa, te.srvAddr)
+		}
+		return
+	}
+	_, pp, err := net.SplitHostPort(pa)
+	if err != nil {
+		t.Fatalf("Failed to parse address from peer.")
+	}
+	_, sp, err := net.SplitHostPort(te.srvAddr)
+	if err != nil {
+		t.Fatalf("Failed to parse address of test server.")
+	}
+	if pp != sp {
+		t.Fatalf("peer.Addr = localhost:%v, want localhost:%v", pp, sp)
 	}
 }
 
@@ -2504,8 +2691,7 @@ func testStreamsQuotaRecovery(t *testing.T, e env) {
 
 	cc := te.clientConn()
 	tc := testpb.NewTestServiceClient(cc)
-	ctx, cancel := context.WithCancel(context.Background())
-	if _, err := tc.StreamingInputCall(ctx); err != nil {
+	if _, err := tc.StreamingInputCall(context.Background()); err != nil {
 		t.Fatalf("%v.StreamingInputCall(_) = _, %v, want _, <nil>", tc, err)
 	}
 	// Loop until the new max stream setting is effective.
@@ -2522,18 +2708,26 @@ func testStreamsQuotaRecovery(t *testing.T, e env) {
 		}
 		t.Fatalf("%v.StreamingInputCall(_) = _, %v, want _, %s", tc, err, codes.DeadlineExceeded)
 	}
-	cancel()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ctx, cancel := context.WithCancel(context.Background())
-			if _, err := tc.StreamingInputCall(ctx); err != nil {
-				t.Errorf("%v.StreamingInputCall(_) = _, %v, want _, <nil>", tc, err)
+			payload, err := newPayload(testpb.PayloadType_COMPRESSABLE, 314)
+			if err != nil {
+				t.Fatal(err)
 			}
-			cancel()
+			req := &testpb.SimpleRequest{
+				ResponseType: testpb.PayloadType_COMPRESSABLE.Enum(),
+				ResponseSize: proto.Int32(1592),
+				Payload:      payload,
+			}
+			// No rpc should go through due to the max streams limit.
+			ctx, _ := context.WithTimeout(context.Background(), 10*time.Millisecond)
+			if _, err := tc.UnaryCall(ctx, req, grpc.FailFast(false)); grpc.Code(err) != codes.DeadlineExceeded {
+				t.Errorf("TestService/UnaryCall(_, _) = _, %v, want _, %s", err, codes.DeadlineExceeded)
+			}
 		}()
 	}
 	wg.Wait()
@@ -3111,6 +3305,117 @@ func TestServerCredsDispatch(t *testing.T) {
 	}
 }
 
+func TestFlowControlLogicalRace(t *testing.T) {
+	// Test for a regression of https://github.com/grpc/grpc-go/issues/632,
+	// and other flow control bugs.
+
+	defer leakCheck(t)()
+
+	const (
+		itemCount   = 100
+		itemSize    = 1 << 10
+		recvCount   = 2
+		maxFailures = 3
+
+		requestTimeout = time.Second
+	)
+
+	requestCount := 10000
+	if raceMode {
+		requestCount = 1000
+	}
+
+	lis, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("Failed to listen: %v", err)
+	}
+	defer lis.Close()
+
+	s := grpc.NewServer()
+	testpb.RegisterTestServiceServer(s, &flowControlLogicalRaceServer{
+		itemCount: itemCount,
+		itemSize:  itemSize,
+	})
+	defer s.Stop()
+
+	go s.Serve(lis)
+
+	ctx := context.Background()
+
+	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		t.Fatalf("grpc.Dial(%q) = %v", lis.Addr().String(), err)
+	}
+	defer cc.Close()
+	cl := testpb.NewTestServiceClient(cc)
+
+	failures := 0
+	for i := 0; i < requestCount; i++ {
+		ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+		output, err := cl.StreamingOutputCall(ctx, &testpb.StreamingOutputCallRequest{})
+		if err != nil {
+			t.Fatalf("StreamingOutputCall; err = %q", err)
+		}
+
+		j := 0
+	loop:
+		for ; j < recvCount; j++ {
+			_, err := output.Recv()
+			if err != nil {
+				if err == io.EOF {
+					break loop
+				}
+				switch grpc.Code(err) {
+				case codes.DeadlineExceeded:
+					break loop
+				default:
+					t.Fatalf("Recv; err = %q", err)
+				}
+			}
+		}
+		cancel()
+		<-ctx.Done()
+
+		if j < recvCount {
+			t.Errorf("got %d responses to request %d", j, i)
+			failures++
+			if failures >= maxFailures {
+				// Continue past the first failure to see if the connection is
+				// entirely broken, or if only a single RPC was affected
+				break
+			}
+		}
+	}
+}
+
+type flowControlLogicalRaceServer struct {
+	testpb.TestServiceServer
+
+	itemSize  int
+	itemCount int
+}
+
+func (s *flowControlLogicalRaceServer) StreamingOutputCall(req *testpb.StreamingOutputCallRequest, srv testpb.TestService_StreamingOutputCallServer) error {
+	for i := 0; i < s.itemCount; i++ {
+		err := srv.Send(&testpb.StreamingOutputCallResponse{
+			Payload: &testpb.Payload{
+				// Sending a large stream of data which the client reject
+				// helps to trigger some types of flow control bugs.
+				//
+				// Reallocating memory here is inefficient, but the stress it
+				// puts on the GC leads to more frequent flow control
+				// failures. The GC likely causes more variety in the
+				// goroutine scheduling orders.
+				Body: bytes.Repeat([]byte("a"), s.itemSize),
+			},
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // interestingGoroutines returns all goroutines we care about for the purpose
 // of leak checking. It excludes testing or runtime ones.
 func interestingGoroutines() (gs []string) {
@@ -3131,6 +3436,7 @@ func interestingGoroutines() (gs []string) {
 			strings.Contains(stack, "testing.tRunner(") ||
 			strings.Contains(stack, "runtime.goexit") ||
 			strings.Contains(stack, "created by runtime.gc") ||
+			strings.Contains(stack, "created by runtime/trace.Start") ||
 			strings.Contains(stack, "created by google3/base/go/log.init") ||
 			strings.Contains(stack, "interestingGoroutines") ||
 			strings.Contains(stack, "runtime.MHeap_Scavenger") ||
