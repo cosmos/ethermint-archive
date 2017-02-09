@@ -9,15 +9,17 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
+var clientIdentifier = "geth" // Client identifier to advertise over the network
+
 // MakeSystemNode sets up a local node and configures the services to launch
 func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 	params.TargetGasLimit = common.String2Big(ctx.GlobalString(utils.TargetGasLimitFlag.Name))
 
 	// Configure the node's service container
 	stackConf := &node.Config{
-		DataDir:     utils.MustMakeDataDir(ctx),
+		DataDir:     utils.MakeDataDir(ctx),
 		PrivateKey:  utils.MakeNodeKey(ctx),
-		Name:        utils.MakeNodeName(name, version, ctx),
+		Name:        clientIdentifier,
 		IPCPath:     utils.MakeIPCPath(ctx),
 		HTTPHost:    utils.MakeHTTPRpcHost(ctx),
 		HTTPPort:    ctx.GlobalInt(utils.RPCPortFlag.Name),
@@ -28,19 +30,24 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 		WSOrigins:   ctx.GlobalString(utils.WSAllowedOriginsFlag.Name),
 		WSModules:   utils.MakeRPCModules(ctx.GlobalString(utils.WSApiFlag.Name)),
 	}
+	// Assemble and return the protocol stack
+	stack, err := node.New(stackConf)
+	if err != nil {
+		utils.Fatalf("Failed to create the protocol stack: %v", err)
+	}
+
 	// Configure the Ethereum service
-	accman := utils.MakeAccountManager(ctx)
-	jitEnabled := ctx.GlobalBool(utils.VMEnableJitFlag.Name)
+	accman := stack.AccountManager()
+	// jitEnabled := ctx.GlobalBool(utils.VMEnableJitFlag.Name)
 	ethConf := &eth.Config{
-		ChainConfig:             utils.MustMakeChainConfig(ctx),
-		BlockChainVersion:       ctx.GlobalInt(utils.BlockchainVersionFlag.Name),
-		DatabaseCache:           ctx.GlobalInt(utils.CacheFlag.Name),
-		DatabaseHandles:         utils.MakeDatabaseHandles(),
-		NetworkId:               ctx.GlobalInt(utils.NetworkIdFlag.Name),
-		AccountManager:          accman,
-		Etherbase:               utils.MakeEtherbase(accman, ctx),
-		EnableJit:               jitEnabled,
-		ForceJit:                ctx.GlobalBool(utils.VMForceJitFlag.Name),
+		ChainConfig: utils.MakeChainConfig(ctx, stack),
+		// BlockChainVersion:       ctx.GlobalInt(utils.BlockchainVersionFlag.Name), TODO
+		DatabaseCache:   ctx.GlobalInt(utils.CacheFlag.Name),
+		DatabaseHandles: utils.MakeDatabaseHandles(),
+		NetworkId:       ctx.GlobalInt(utils.NetworkIdFlag.Name),
+		Etherbase:       utils.MakeEtherbase(accman, ctx),
+		//EnableJit:               jitEnabled, // TODO
+		//ForceJit:                ctx.GlobalBool(utils.VMForceJitFlag.Name),
 		GasPrice:                common.String2Big(ctx.GlobalString(utils.GasPriceFlag.Name)),
 		GpoMinGasPrice:          common.String2Big(ctx.GlobalString(utils.GpoMinGasPriceFlag.Name)),
 		GpoMaxGasPrice:          common.String2Big(ctx.GlobalString(utils.GpoMaxGasPriceFlag.Name)),
@@ -51,11 +58,6 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 		SolcPath:                ctx.GlobalString(utils.SolcPathFlag.Name),
 	}
 
-	// Assemble and return the protocol stack
-	stack, err := node.New(stackConf)
-	if err != nil {
-		utils.Fatalf("Failed to create the protocol stack: %v", err)
-	}
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		return NewBackend(ctx, ethConf)
 	}); err != nil {

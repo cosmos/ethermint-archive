@@ -24,7 +24,7 @@ import (
 // Backend handles the chain database and VM
 type Backend struct {
 	ethereum *eth.Ethereum
-	txSub    event.Subscription
+	txSub    *event.TypeMux //Subscription
 	client   *client.ClientURI
 	config   *eth.Config
 }
@@ -55,10 +55,12 @@ func (s *Backend) APIs() []rpc.API {
 		if v.Namespace == "net" {
 			continue
 		}
-		if txPoolAPI, ok := v.Service.(*eth.PublicTransactionPoolAPI); ok {
+		/*if txPoolAPI, ok := v.Service.(*ethapi.PublicTransactionPoolAPI); ok {
 			s.setFakeTxPool(txPoolAPI)
 			go s.txBroadcastLoop()
-		}
+		}*/
+		// TODO: do we need to overwrite the txPool ?!
+		go s.txBroadcastLoop()
 		retApis = append(retApis, v)
 	}
 	return retApis
@@ -99,7 +101,9 @@ func (s *Backend) Config() *eth.Config {
 
 // listen for txs and forward to tendermint
 func (s *Backend) txBroadcastLoop() {
-	for obj := range s.txSub.Chan() {
+
+	txSub := s.txSub.Subscribe(core.TxPreEvent{})
+	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		err := s.BroadcastTx(event.Tx)
 		glog.V(logger.Info).Infof("Broadcast, err=%s", err)
@@ -135,7 +139,8 @@ func setFakePow(ethereum *eth.Ethereum) {
 	*realPtrToPow = powToSet
 }
 
-func (s *Backend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+/*
+func (s *Backend) setFakeTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
 	mux := new(event.TypeMux)
 	s.txSub = mux.Subscribe(core.TxPreEvent{})
 	txPool := core.NewTxPool(s.Config().ChainConfig, mux, s.Ethereum().BlockChain().State, s.Ethereum().BlockChain().GasLimit)
@@ -148,7 +153,7 @@ func (s *Backend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	*realPtrToTxPool = txPool
 }
 
-func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+func (s *Backend) setFakeMuxTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
 	mux := new(event.TypeMux)
 	s.txSub = mux.Subscribe(core.TxPreEvent{})
 	pointerVal := reflect.ValueOf(txPoolAPI)
@@ -163,3 +168,4 @@ func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	realPtrToEventMux := (**event.TypeMux)(ptrToEventMux)
 	*realPtrToEventMux = mux
 }
+*/
