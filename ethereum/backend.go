@@ -2,6 +2,8 @@ package ethereum
 
 import (
 	"bytes"
+	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -12,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	abciTypes "github.com/tendermint/abci/types"
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -22,6 +25,10 @@ type Backend struct {
 	client   *client.ClientURI
 	config   *eth.Config
 }
+
+const (
+	maxWaitForServerRetries = 10
+)
 
 // New creates a new Backend
 func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) {
@@ -39,6 +46,23 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) 
 	}
 
 	return ethBackend, nil
+}
+
+func waitForServer(s *Backend) error {
+	// wait for Tendermint to open the socket and run http endpoint
+	var result core_types.TMResult
+	retriesCount := 0
+	for result == nil {
+		_, err := s.client.Call("status", map[string]interface{}{}, &result)
+		if err != nil {
+			glog.V(logger.Info).Infof("Waiting for tendermint endpoint to start: %s", err)
+		}
+		if retriesCount += 1; retriesCount >= maxWaitForServerRetries {
+			return abciTypes.ErrInternalError
+		}
+		time.Sleep(time.Second)
+	}
+	return nil
 }
 
 // APIs returns the collection of RPC services the ethereum package offers.
@@ -95,13 +119,19 @@ func (s *Backend) Config() *eth.Config {
 // Transactions sent via the go-ethereum rpc need to be routed to tendermint
 
 // listen for txs and forward to tendermint
+// TODO: some way to exit this (it runs in a go-routine)
 func (s *Backend) txBroadcastLoop() {
+	if err := waitForServer(s); err != nil {
+		// timeouted when waiting for tendermint communication failed
+		glog.V(logger.Error).Infof("Failed to run tendermint HTTP endpoint, err=%s", err)
+		os.Exit(1)
+	}
 
 	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		err := s.BroadcastTx(event.Tx)
-		glog.V(logger.Info).Infof("Broadcast, err=%s", err)
+		glog.V(logger.Error).Infof("Broadcast, err=%s", err)
 	}
 }
 
