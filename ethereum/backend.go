@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/node"
@@ -24,7 +23,6 @@ import (
 // Backend handles the chain database and VM
 type Backend struct {
 	ethereum *eth.Ethereum
-	txSub    *event.TypeMux //Subscription
 	client   *client.ClientURI
 	config   *eth.Config
 }
@@ -102,7 +100,7 @@ func (s *Backend) Config() *eth.Config {
 // listen for txs and forward to tendermint
 func (s *Backend) txBroadcastLoop() {
 
-	txSub := s.txSub.Subscribe(core.TxPreEvent{})
+	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		err := s.BroadcastTx(event.Tx)
