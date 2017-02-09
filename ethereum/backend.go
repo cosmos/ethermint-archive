@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"reflect"
+	"time"
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -99,10 +100,21 @@ func (s *Backend) Config() *eth.Config {
 
 // listen for txs and forward to tendermint
 func (s *Backend) txBroadcastLoop() {
+
+	// wait for Tendermint to open the socket and run http endpoint
+	var result core_types.TMResult
+	for result == nil {
+		_, err := s.client.Call("status", map[string]interface{}{}, &result)
+		if err != nil {
+			glog.V(logger.Info).Infof("%s", err)
+		}
+		time.Sleep(time.Second)
+	}
+
 	for obj := range s.txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		err := s.BroadcastTx(event.Tx)
-		glog.V(logger.Info).Infof("Broadcast, err=%s", err)
+		glog.V(logger.Error).Infof("Broadcast, err=%s", err)
 	}
 }
 
