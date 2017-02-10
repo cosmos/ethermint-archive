@@ -2,7 +2,6 @@ package ethereum
 
 import (
 	"bytes"
-	"encoding/hex"
 	"reflect"
 	"unsafe"
 
@@ -57,10 +56,11 @@ func (s *Backend) APIs() []rpc.API {
 			s.setFakeTxPool(txPoolAPI)
 			go s.txBroadcastLoop()
 		}*/
-		// TODO: do we need to overwrite the txPool ?!
-		go s.txBroadcastLoop()
 		retApis = append(retApis, v)
 	}
+
+	// TODO: do we need to overwrite the txPool ?!
+	go s.txBroadcastLoop()
 	return retApis
 }
 
@@ -116,7 +116,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 		return err
 	}
 	params := map[string]interface{}{
-		"tx": hex.EncodeToString(buf.Bytes()),
+		"tx": buf.Bytes(),
 	}
 	_, err := s.client.Call("broadcast_tx_sync", params, &result)
 	return err
