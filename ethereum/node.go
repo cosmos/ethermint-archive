@@ -56,6 +56,7 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 		GpobaseStepUp:           ctx.GlobalInt(utils.GpobaseStepUpFlag.Name),
 		GpobaseCorrectionFactor: ctx.GlobalInt(utils.GpobaseCorrectionFactorFlag.Name),
 		SolcPath:                ctx.GlobalString(utils.SolcPathFlag.Name),
+		PowFake:		 true,
 	}
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
