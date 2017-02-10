@@ -2,8 +2,6 @@ package ethereum
 
 import (
 	"bytes"
-	"reflect"
-	"unsafe"
 
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -12,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/pow"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	client "github.com/tendermint/go-rpc/client"
@@ -32,7 +29,7 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) 
 	if err != nil {
 		return nil, err
 	}
-	setFakePow(ethereum)
+	// setFakePow(ethereum)
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
 	ethBackend := &Backend{
 		ethereum: ethereum,
@@ -127,6 +124,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 // and does not expose many of the fields that we need to overwrite.
 // So the quickest way forward is to use `unsafe` to overwrite those fields.
 
+/*
 func setFakePow(ethereum *eth.Ethereum) {
 	powToSet := pow.PoW(core.FakePow{})
 	pointerVal := reflect.ValueOf(ethereum.BlockChain())
@@ -136,6 +134,7 @@ func setFakePow(ethereum *eth.Ethereum) {
 	realPtrToPow := (*pow.PoW)(ptrToPow)
 	*realPtrToPow = powToSet
 }
+*/
 
 /*
 func (s *Backend) setFakeTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
