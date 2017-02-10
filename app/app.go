@@ -236,7 +236,7 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 }
 
 // EndBlock computes the Ethereum state root and prepares the ethereum block
-func (app *EthermintApplication) EndBlock(height uint64) (diffs []*abciTypes.Validator) {
+func (app *EthermintApplication) EndBlock(height uint64) abciTypes.ResponseEndBlock {
 
 	glog.V(logger.Debug).Infof("End block with txs: %v", app.blockResults.transactions)
 
@@ -248,9 +248,9 @@ func (app *EthermintApplication) EndBlock(height uint64) (diffs []*abciTypes.Val
 
 	// return validator updates
 	if app.strategy != nil {
-		return app.strategy.GetUpdatedValidators()
+		return abciTypes.ResponseEndBlock{Diffs: app.strategy.GetUpdatedValidators()}
 	}
-	return nil
+	return abciTypes.ResponseEndBlock{}
 }
 
 // Commit returns a hash of the current state
