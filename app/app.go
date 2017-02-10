@@ -131,12 +131,11 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) error {
 		return err
 	}
 
-	// TODO: only do once a block
-	blockchain := app.backend.Ethereum().BlockChain()
-	currentBlock := blockchain.CurrentBlock()
-	height := currentBlock.Number()
+	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
+	if tx.Protected() {
+		signer = ethTypes.NewEIP155Signer(tx.ChainId())
+	}
 
-	signer := ethTypes.MakeSigner(blockchain.Config(), height)
 	from, err := ethTypes.Sender(signer, tx)
 	if err != nil {
 		return core.ErrInvalidSender
