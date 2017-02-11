@@ -36,7 +36,6 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) 
 	if err != nil {
 		return nil, err
 	}
-	// setFakePow(ethereum)
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
 	ethBackend := &Backend{
 		ethereum: ethereum,
@@ -73,14 +72,9 @@ func (s *Backend) APIs() []rpc.API {
 		if v.Namespace == "net" {
 			continue
 		}
-		/*if txPoolAPI, ok := v.Service.(*ethapi.PublicTransactionPoolAPI); ok {
-			s.setFakeTxPool(txPoolAPI)
-			go s.txBroadcastLoop()
-		}*/
 		retApis = append(retApis, v)
 	}
 
-	// TODO: do we need to overwrite the txPool ?!
 	go s.txBroadcastLoop()
 	return retApis
 }
@@ -130,8 +124,9 @@ func (s *Backend) txBroadcastLoop() {
 	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
-		err := s.BroadcastTx(event.Tx)
-		glog.V(logger.Error).Infof("Broadcast, err=%s", err)
+		if err := s.BroadcastTx(event.Tx); err != nil {
+			glog.V(logger.Error).Infof("Broadcast, err=%s", err)
+		}
 	}
 }
 
@@ -148,51 +143,3 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 	_, err := s.client.Call("broadcast_tx_sync", params, &result)
 	return err
 }
-
-//----------------------------------------------------------------------
-// NOTE: go-ethereum uses a monolithic Ethereum struct
-// and does not expose many of the fields that we need to overwrite.
-// So the quickest way forward is to use `unsafe` to overwrite those fields.
-
-/*
-func setFakePow(ethereum *eth.Ethereum) {
-	powToSet := pow.PoW(core.FakePow{})
-	pointerVal := reflect.ValueOf(ethereum.BlockChain())
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("pow")
-	ptrToPow := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToPow := (*pow.PoW)(ptrToPow)
-	*realPtrToPow = powToSet
-}
-*/
-
-/*
-func (s *Backend) setFakeTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
-	mux := new(event.TypeMux)
-	s.txSub = mux.Subscribe(core.TxPreEvent{})
-	txPool := core.NewTxPool(s.Config().ChainConfig, mux, s.Ethereum().BlockChain().State, s.Ethereum().BlockChain().GasLimit)
-	txPool.Pending()
-	pointerVal := reflect.ValueOf(txPoolAPI)
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("txPool")
-	ptrToTxPool := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
-	*realPtrToTxPool = txPool
-}
-
-func (s *Backend) setFakeMuxTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
-	mux := new(event.TypeMux)
-	s.txSub = mux.Subscribe(core.TxPreEvent{})
-	pointerVal := reflect.ValueOf(txPoolAPI)
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("txPool")
-	ptrToTxPool := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
-	pointerVal = reflect.ValueOf(*realPtrToTxPool)
-	val = reflect.Indirect(pointerVal)
-	member = val.FieldByName("eventMux")
-	ptrToEventMux := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToEventMux := (**event.TypeMux)(ptrToEventMux)
-	*realPtrToEventMux = mux
-}
-*/
