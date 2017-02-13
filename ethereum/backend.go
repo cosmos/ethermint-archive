@@ -136,8 +136,9 @@ func (s *Backend) txBroadcastLoop() {
 	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
-		err := s.BroadcastTx(event.Tx)
-		glog.V(logger.Error).Infof("Broadcast, err=%s", err)
+		if err := s.BroadcastTx(event.Tx); err != nil {
+			glog.V(logger.Error).Infof("Broadcast, err=%s", err)
+		}
 	}
 }
 
