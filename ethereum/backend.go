@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"time"
+	"reflect"
+	"unsafe"
 
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -17,6 +19,7 @@ import (
 	abciTypes "github.com/tendermint/abci/types"
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 // Backend handles the chain database and VM
@@ -73,15 +76,18 @@ func (s *Backend) APIs() []rpc.API {
 		if v.Namespace == "net" {
 			continue
 		}
-		/*if txPoolAPI, ok := v.Service.(*ethapi.PublicTransactionPoolAPI); ok {
-			s.setFakeTxPool(txPoolAPI)
-			go s.txBroadcastLoop()
-		}*/
+		if v.Namespace == "miner" {
+			continue
+		}
+		if _, ok := v.Service.(*eth.PublicMinerAPI); ok {
+			continue
+		}
 		retApis = append(retApis, v)
 	}
 
 	// TODO: do we need to overwrite the txPool ?!
 	go s.txBroadcastLoop()
+	minerWorkerUpsubscribe(s.ethereum)
 	return retApis
 }
 
@@ -153,6 +159,26 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 // NOTE: go-ethereum uses a monolithic Ethereum struct
 // and does not expose many of the fields that we need to overwrite.
 // So the quickest way forward is to use `unsafe` to overwrite those fields.
+
+func minerWorkerUpsubscribe(ethereum *eth.Ethereum) {
+	pointerVal := reflect.ValueOf(ethereum)
+	val := reflect.Indirect(pointerVal)
+	member := val.FieldByName("miner")
+	val = reflect.Indirect(member)
+	member = val.FieldByName("worker")
+
+	ptrToWorker := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToWorker := (**interface{})(ptrToWorker)
+
+	val = reflect.Indirect(member)
+	member = val.FieldByName("events")
+
+	ptrToEvents := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToEvents := (*event.Subscription)(ptrToEvents)
+
+	(*realPtrToEvents).Unsubscribe()
+	*realPtrToWorker = nil
+}
 
 /*
 func setFakePow(ethereum *eth.Ethereum) {
