@@ -87,7 +87,7 @@ func (s *Backend) APIs() []rpc.API {
 
 	// TODO: do we need to overwrite the txPool ?!
 	go s.txBroadcastLoop()
-	minerWorkerUpsubscribe(s.ethereum)
+	minerWorkerUnsubscribe(s.ethereum)
 	return retApis
 }
 
@@ -161,7 +161,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 // and does not expose many of the fields that we need to overwrite.
 // So the quickest way forward is to use `unsafe` to overwrite those fields.
 
-func minerWorkerUpsubscribe(ethereum *eth.Ethereum) {
+func minerWorkerUnsubscribe(ethereum *eth.Ethereum) {
 	pointerVal := reflect.ValueOf(ethereum)
 	val := reflect.Indirect(pointerVal)
 	member := val.FieldByName("miner")
