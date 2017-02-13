@@ -244,8 +244,6 @@ func (app *EthermintApplication) EndBlock(height uint64) abciTypes.ResponseEndBl
 	core.AccumulateRewards(app.blockResults.state, app.blockResults.header, []*ethTypes.Header{})
 	app.blockResults.header.GasUsed = app.blockResults.totalUsedGas
 
-	//	app.backend.Ethereum().TxPool().RemoveBatch(app.currentTransactions)
-
 	// return validator updates
 	if app.strategy != nil {
 		return abciTypes.ResponseEndBlock{Diffs: app.strategy.GetUpdatedValidators()}
@@ -292,11 +290,6 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 		return abciTypes.ErrInternalError
 	}
 	app.resetBlockResults(state)
-
-	// reset the tx pool for the next block
-	// (CheckTx and Commit should not run concurrently, so its safe)
-	// app.txPool.Stop()
-	// app.txPool = createNewTxPool(app.backend)
 
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
@@ -377,11 +370,6 @@ func newBlockHeader(receiver common.Address, prevBlock *ethTypes.Block) *ethType
 		GasLimit:   core.CalcGasLimit(prevBlock),
 		Coinbase:   receiver,
 	}
-}
-
-func createNewTxPool(backend *ethereum.Backend) *core.TxPool {
-	eth, cfg := backend.Ethereum(), backend.Config()
-	return core.NewTxPool(cfg.ChainConfig, eth.EventMux(), eth.BlockChain().State, eth.BlockChain().GasLimit)
 }
 
 func decodeTx(txBytes []byte) (*ethTypes.Transaction, error) {
