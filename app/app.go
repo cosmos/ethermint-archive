@@ -2,7 +2,7 @@ package app
 
 import (
 	"bytes"
-	//"encoding/json"
+	"encoding/json"
 	"math/big"
 	"sync"
 
@@ -301,19 +301,11 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
 
-// TODO
-func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
-	return abciTypes.Result{}
-}
-
-/*
 type jsonRequest struct {
 	Method  string          `json:"method"`
-	Version string          `json:"jsonrpc"`
 	Id      json.RawMessage `json:"id,omitempty"`
-	Payload json.RawMessage `json:"params,omitempty"`
+	Params []interface{}	`json:"params,omitempty"`
 }
-
 
 // Query queries the state of EthermintApplication
 func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
@@ -321,12 +313,9 @@ func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
 	if err := json.Unmarshal(query, &in); err != nil {
 		return abciTypes.ErrInternalError
 	}
-	if err := app.rpcClient.Send(in); err != nil {
-		return abciTypes.ErrInternalError
-	}
-	result := make(map[string]interface{})
-	if err := app.rpcClient.Recv(&result); err != nil {
-		return abciTypes.ErrInternalError
+	var result interface{}
+	if err := app.rpcClient.Call(&result, in.Method, in.Params...); err != nil {
+		return abciTypes.NewError(abciTypes.ErrInternalError.Code, err.Error())
 	}
 	bytes, err := json.Marshal(result)
 	if err != nil {
@@ -334,7 +323,6 @@ func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
 	}
 	return abciTypes.NewResultOK(bytes, "")
 }
-*/
 
 //----------------------------------------------------------------------------
 
