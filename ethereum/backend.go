@@ -84,10 +84,7 @@ func (s *Backend) APIs() []rpc.API {
 		}
 		retApis = append(retApis, v)
 	}
-
-	// TODO: do we need to overwrite the txPool ?!
 	go s.txBroadcastLoop()
-	minerWorkerUnsubscribe(s.ethereum)
 	return retApis
 }
 
@@ -127,13 +124,15 @@ func (s *Backend) Config() *eth.Config {
 // listen for txs and forward to tendermint
 // TODO: some way to exit this (it runs in a go-routine)
 func (s *Backend) txBroadcastLoop() {
+	minerWorkerUnsubscribe(s.ethereum)
+	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
+
 	if err := waitForServer(s); err != nil {
 		// timeouted when waiting for tendermint communication failed
 		glog.V(logger.Error).Infof("Failed to run tendermint HTTP endpoint, err=%s", err)
 		os.Exit(1)
 	}
 
-	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		if err := s.BroadcastTx(event.Tx); err != nil {
