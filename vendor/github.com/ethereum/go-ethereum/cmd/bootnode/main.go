@@ -20,22 +20,28 @@ package main
 import (
 	"crypto/ecdsa"
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/nat"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 func main() {
 	var (
 		listenAddr  = flag.String("addr", ":30301", "listen address")
-		genKey      = flag.String("genkey", "", "generate a node key and quit")
+		genKey      = flag.String("genkey", "", "generate a node key")
+		writeAddr   = flag.Bool("writeaddress", false, "write out the node's pubkey hash and quit")
 		nodeKeyFile = flag.String("nodekey", "", "private key filename")
 		nodeKeyHex  = flag.String("nodekeyhex", "", "private key as hex (for testing)")
 		natdesc     = flag.String("nat", "none", "port mapping mechanism (any|none|upnp|pmp|extip:<IP>)")
+		netrestrict = flag.String("netrestrict", "", "restrict network communication to the given IP networks (CIDR masks)")
+		runv5       = flag.Bool("v5", false, "run a v5 topic discovery bootnode")
 
 		nodeKey *ecdsa.PrivateKey
 		err     error
@@ -45,22 +51,19 @@ func main() {
 	glog.SetToStderr(true)
 	flag.Parse()
 
-	if *genKey != "" {
-		key, err := crypto.GenerateKey()
-		if err != nil {
-			utils.Fatalf("could not generate key: %v", err)
-		}
-		if err := crypto.SaveECDSA(*genKey, key); err != nil {
-			utils.Fatalf("%v", err)
-		}
-		os.Exit(0)
-	}
-
 	natm, err := nat.Parse(*natdesc)
 	if err != nil {
 		utils.Fatalf("-nat: %v", err)
 	}
 	switch {
+	case *genKey != "":
+		nodeKey, err = crypto.GenerateKey()
+		if err != nil {
+			utils.Fatalf("could not generate key: %v", err)
+		}
+		if err = crypto.SaveECDSA(*genKey, nodeKey); err != nil {
+			utils.Fatalf("%v", err)
+		}
 	case *nodeKeyFile == "" && *nodeKeyHex == "":
 		utils.Fatalf("Use -nodekey or -nodekeyhex to specify a private key")
 	case *nodeKeyFile != "" && *nodeKeyHex != "":
@@ -75,8 +78,28 @@ func main() {
 		}
 	}
 
-	if _, err := discover.ListenUDP(nodeKey, *listenAddr, natm, ""); err != nil {
-		utils.Fatalf("%v", err)
+	if *writeAddr {
+		fmt.Printf("%v\n", discover.PubkeyID(&nodeKey.PublicKey))
+		os.Exit(0)
 	}
+
+	var restrictList *netutil.Netlist
+	if *netrestrict != "" {
+		restrictList, err = netutil.ParseNetlist(*netrestrict)
+		if err != nil {
+			utils.Fatalf("-netrestrict: %v", err)
+		}
+	}
+
+	if *runv5 {
+		if _, err := discv5.ListenUDP(nodeKey, *listenAddr, natm, "", restrictList); err != nil {
+			utils.Fatalf("%v", err)
+		}
+	} else {
+		if _, err := discover.ListenUDP(nodeKey, *listenAddr, natm, "", restrictList); err != nil {
+			utils.Fatalf("%v", err)
+		}
+	}
+
 	select {}
 }

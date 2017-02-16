@@ -26,4 +26,4 @@ get_deps:
 
 get_vendor_deps:
 	go get github.com/Masterminds/glide
-	glide install
+	glide install --strip-vendor

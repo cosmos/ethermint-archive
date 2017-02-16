@@ -4,6 +4,7 @@ type Tree interface {
 	Size() (size int)
 	Height() (height int8)
 	Has(key []byte) (has bool)
+	Proof(key []byte) (proof []byte, exists bool)
 	Get(key []byte) (index int, value []byte, exists bool)
 	GetByIndex(index int) (key []byte, value []byte)
 	Set(key []byte, value []byte) (updated bool)
@@ -14,6 +15,7 @@ type Tree interface {
 	Load(hash []byte)
 	Copy() Tree
 	Iterate(func(key []byte, value []byte) (stop bool)) (stopped bool)
+	IterateRange(start []byte, end []byte, ascending bool, fx func(key []byte, value []byte) (stop bool)) (stopped bool)
 }
 
 type Hashable interface {

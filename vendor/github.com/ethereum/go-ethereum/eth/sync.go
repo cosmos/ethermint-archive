@@ -46,7 +46,8 @@ type txsync struct {
 // syncTransactions starts sending all currently pending transactions to the given peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
 	var txs types.Transactions
-	for _, batch := range pm.txpool.Pending() {
+	pending, _ := pm.txpool.Pending()
+	for _, batch := range pending {
 		txs = append(txs, batch...)
 	}
 	if len(txs) == 0 {
@@ -166,7 +167,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	}
 	// Make sure the peer's TD is higher than our own
 	currentBlock := pm.blockchain.CurrentBlock()
-	td := pm.blockchain.GetTd(currentBlock.Hash())
+	td := pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 
 	pHead, pTd := peer.Head()
 	if pTd.Cmp(td) <= 0 {

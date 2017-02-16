@@ -168,7 +168,7 @@ func mergeScripts(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 	pkScript []byte, class ScriptClass, addresses []btcutil.Address,
 	nRequired int, sigScript, prevScript []byte) []byte {
 
-	// TODO(oga) the scripthash and multisig paths here are overly
+	// TODO: the scripthash and multisig paths here are overly
 	// inefficient in that they will recompute already known data.
 	// some internal refactoring could probably make this avoid needless
 	// extra calculations.
@@ -294,7 +294,7 @@ sigLoop:
 		hash := calcSignatureHash(pkPops, hashType, tx, idx)
 
 		for _, addr := range addresses {
-			// All multisig addresses should be pubkey addreses
+			// All multisig addresses should be pubkey addresses
 			// it is an error to call this internal function with
 			// bad input.
 			pkaddr := addr.(*btcutil.AddressPubKey)

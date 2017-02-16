@@ -113,9 +113,9 @@ func (am *Manager) Accounts() []Account {
 	return am.cache.accounts()
 }
 
-// DeleteAccount deletes the key matched by account if the passphrase is correct.
-// If a contains no filename, the address must match a unique key.
-func (am *Manager) DeleteAccount(a Account, passphrase string) error {
+// Delete deletes the key matched by account if the passphrase is correct.
+// If the account contains no filename, the address must match a unique key.
+func (am *Manager) Delete(a Account, passphrase string) error {
 	// Decrypting the key isn't really necessary, but we do
 	// it anyway to check the password and zero out the key
 	// immediately afterwards.
@@ -136,10 +136,12 @@ func (am *Manager) DeleteAccount(a Account, passphrase string) error {
 	return err
 }
 
-// Sign signs hash with an unlocked private key matching the given address.
-func (am *Manager) Sign(addr common.Address, hash []byte) (signature []byte, err error) {
+// Sign calculates a ECDSA signature for the given hash. The produced signature
+// is in the [R || S || V] format where V is 0 or 1.
+func (am *Manager) Sign(addr common.Address, hash []byte) ([]byte, error) {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
+
 	unlockedKey, found := am.unlocked[addr]
 	if !found {
 		return nil, ErrLocked
@@ -147,14 +149,14 @@ func (am *Manager) Sign(addr common.Address, hash []byte) (signature []byte, err
 	return crypto.Sign(hash, unlockedKey.PrivateKey)
 }
 
-// SignWithPassphrase signs hash if the private key matching the given address can be
-// decrypted with the given passphrase.
-func (am *Manager) SignWithPassphrase(addr common.Address, passphrase string, hash []byte) (signature []byte, err error) {
-	_, key, err := am.getDecryptedKey(Account{Address: addr}, passphrase)
+// SignWithPassphrase signs hash if the private key matching the given address
+// can be decrypted with the given passphrase. The produced signature is in the
+// [R || S || V] format where V is 0 or 1.
+func (am *Manager) SignWithPassphrase(a Account, passphrase string, hash []byte) (signature []byte, err error) {
+	_, key, err := am.getDecryptedKey(a, passphrase)
 	if err != nil {
 		return nil, err
 	}
-
 	defer zeroKey(key.PrivateKey)
 	return crypto.Sign(hash, key.PrivateKey)
 }
@@ -213,11 +215,17 @@ func (am *Manager) TimedUnlock(a Account, passphrase string, timeout time.Durati
 	return nil
 }
 
-func (am *Manager) getDecryptedKey(a Account, auth string) (Account, *Key, error) {
+// Find resolves the given account into a unique entry in the keystore.
+func (am *Manager) Find(a Account) (Account, error) {
 	am.cache.maybeReload()
 	am.cache.mu.Lock()
 	a, err := am.cache.find(a)
 	am.cache.mu.Unlock()
+	return a, err
+}
+
+func (am *Manager) getDecryptedKey(a Account, auth string) (Account, *Key, error) {
+	a, err := am.Find(a)
 	if err != nil {
 		return a, nil, err
 	}

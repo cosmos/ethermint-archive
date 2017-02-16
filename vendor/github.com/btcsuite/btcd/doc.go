@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2016 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -50,6 +50,9 @@ Application Options:
       --rpcmaxclients=      Max number of RPC clients for standard connections
                             (10)
       --rpcmaxwebsockets=   Max number of RPC websocket connections (25)
+      --rpcquirks           Mirror some JSON-RPC quirks of Bitcoin Core -- NOTE:
+                            Discouraged unless interoperability issues need to
+                            be worked around
       --norpc               Disable built-in RPC server -- NOTE: The RPC server
                             is disabled by default if no rpcuser/rpcpass or
                             rpclimituser/rpclimitpass is specified
@@ -71,6 +74,7 @@ Application Options:
       --testnet             Use the test network
       --regtest             Use the regression test network
       --simnet              Use the simulation test network
+      --addcheckpoint=      Add a custom checkpoint.  Format: '<height>:<hash>'
       --nocheckpoints       Disable built-in checkpoints.  Don't do this unless
                             you know what you're doing.
       --dbtype=             Database backend to use for the Block Chain (ffldb)
@@ -91,7 +95,7 @@ Application Options:
       --norelaypriority     Do not require free or low-fee transactions to have
                             high priority for relaying
       --maxorphantx=        Max number of orphan transactions to keep in memory
-                            (1000)
+                            (100)
       --generate            Generate (mine) bitcoins using the CPU
       --miningaddr=         Add the specified payment address to the list of
                             addresses to use for generated blocks -- At least
@@ -103,7 +107,6 @@ Application Options:
                             a block (750000)
       --blockprioritysize=  Size in bytes for high-priority/low-fee transactions
                             when creating a block (50000)
-      --getworkkey=         DEPRECATED -- Use the --miningaddr option instead
       --nopeerbloomfilters  Disable bloom filtering support.
       --sigcachemaxsize=    The maximum number of entries in the signature
                             verification cache.

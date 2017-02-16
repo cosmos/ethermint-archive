@@ -170,15 +170,14 @@ the method name for further details such as parameter and return information.
 |20|[getpeerinfo](#getpeerinfo)|N|Returns information about each connected network peer as an array of json objects.|
 |21|[getrawmempool](#getrawmempool)|Y|Returns an array of hashes for all of the transactions currently in the memory pool.|
 |22|[getrawtransaction](#getrawtransaction)|Y|Returns information about a transaction given its hash.|
-|23|[getwork](#getwork)|N|Returns formatted hash data to work on or checks and submits solved data.<br /><font color="orange">NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.</font>|
-|24|[help](#help)|Y|Returns a list of all commands or help for a specified command.|
-|25|[ping](#ping)|N|Queues a ping to be sent to each connected peer.|
-|26|[sendrawtransaction](#sendrawtransaction)|Y|Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.<br /><font color="orange">btcd does not yet implement the `allowhighfees` parameter, so it has no effect</font>|
-|27|[setgenerate](#setgenerate) |N|Set the server to generate coins (mine) or not.<br/>NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.|
-|28|[stop](#stop)|N|Shutdown btcd.|
-|29|[submitblock](#submitblock)|Y|Attempts to submit a new serialized, hex-encoded block to the network.|
-|30|[validateaddress](#validateaddress)|Y|Verifies the given address is valid.  NOTE: Since btcd does not have a wallet integrated, btcd will only return whether the address is valid or not.|
-|31|[verifychain](#verifychain)|N|Verifies the block chain database.|
+|23|[help](#help)|Y|Returns a list of all commands or help for a specified command.|
+|24|[ping](#ping)|N|Queues a ping to be sent to each connected peer.|
+|25|[sendrawtransaction](#sendrawtransaction)|Y|Submits the serialized, hex-encoded transaction to the local peer and relays it to the network.<br /><font color="orange">btcd does not yet implement the `allowhighfees` parameter, so it has no effect</font>|
+|26|[setgenerate](#setgenerate) |N|Set the server to generate coins (mine) or not.<br/>NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.|
+|27|[stop](#stop)|N|Shutdown btcd.|
+|28|[submitblock](#submitblock)|Y|Attempts to submit a new serialized, hex-encoded block to the network.|
+|29|[validateaddress](#validateaddress)|Y|Verifies the given address is valid.  NOTE: Since btcd does not have a wallet integrated, btcd will only return whether the address is valid or not.|
+|30|[verifychain](#verifychain)|N|Verifies the block chain database.|
 
 <a name="MethodDetails" />
 **5.2 Method Details**<br />
@@ -443,21 +442,6 @@ Example Return|`{`<br />&nbsp;&nbsp;`"bytes": 310768,`<br />&nbsp;&nbsp;`"size":
 [Return to Overview](#MethodOverview)<br />
 
 ***
-<a name="getwork"/>
-
-|   |   |
-|---|---|
-|Method|getwork|
-|Parameters|1. data (string, optional) - The hex|
-|Description|Returns information about a transaction given its hash.|
-|Notes|<font color="orange">NOTE: Since btcd does not have the wallet integrated to provide payment addresses, btcd must be configured via the `--miningaddr` option to provide which payment addresses to pay created blocks to for this RPC to function.</font>
-|Returns (data not specified)|`{ (json object)`<br />&nbsp;&nbsp;`"data": "hex",  (string) hex-encoded block data`<br />&nbsp;&nbsp;`"hash1": "hex",  (string)  (DEPRECATED) hex-encoded formatted hash buffer`<br />&nbsp;&nbsp;`"midstate": "hex",  (string) (DEPRECATED) hex-encoded precomputed hash state after hashing first half of the data`<br />&nbsp;&nbsp;`"target": "hex",  (string) the hex-encoded little-endian hash target`<br />`}`|
-|Returns (data specified)|`true` or `false` (boolean)|
-|Example Return (data not specified)|`{`<br />&nbsp;&nbsp;`"data": "00000002c39b5d2b7a1e8f7356a1efce26b24bd15d7d906e85341ef9cec99b6a000000006474f...",`<br />&nbsp;&nbsp;`"hash1": "00000000000000000000000000000000000000000000000000000000000000000000008000000...",`<br />&nbsp;&nbsp;`"midstate": "ae4a80fc51476e452de855b4e20d5f33418c50fc7cae3b1ecd5badb819b8a584",`<br />&nbsp;&nbsp;`"target": "0000000000000000000000000000000000000000000000008c96010000000000",`<br />`}`|
-|Example Return (data specified)|`true`|
-[Return to Overview](#MethodOverview)<br />
-
-***
 <a name="help"/>
 
 |   |   |
@@ -583,6 +567,8 @@ The following is an overview of the RPC methods which are implemented by btcd, b
 |4|[searchrawtransactions](#searchrawtransactions)|Y|Query for transactions related to a particular address.|None|
 |5|[node](#node)|N|Attempts to add or remove a peer. |None|
 |6|[generate](#generate)|N|When in simnet or regtest mode, generate a set number of blocks. |None|
+|7|[version](#version)|Y|Returns the JSON-RPC API version.|
+|8|[getheaders](#getheaders)|Y|Returns block headers starting with the first known block hash from the request.|
 
 
 <a name="ExtMethodDetails" />
@@ -664,6 +650,32 @@ The following is an overview of the RPC methods which are implemented by btcd, b
 
 ***
 
+<a name="version"/>
+
+|   |   |
+|---|---|
+|Method|version|
+|Parameters|None|
+|Description|Returns the version of the JSON-RPC API built into this release of btcd.|
+|Returns|`{ (json object)`<br />&nbsp;&nbsp;`"btcdjsonrpcapi": {`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"versionstring": "x.y.z",  (string) the version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"major": x,  (numeric) the major version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"minor": y,  (numeric) the minor version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"patch": z,  (numeric) the patch version of the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"prerelease": "",  (string) prerelease info for the JSON-RPC API`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"buildmetadata": ""  (string) metadata about the server build`<br />&nbsp;&nbsp;`}`<br />`}`|
+|Example Return|`{`<br />&nbsp;&nbsp;`"btcdjsonrpcapi": {`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"versionstring": "1.0.0",`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"major": 1,  `<br />&nbsp;&nbsp;&nbsp;&nbsp;`"minor": 0,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"patch": 0,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"prerelease": "",`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"buildmetadata": ""`<br />&nbsp;&nbsp;`}`<br />`}`|
+[Return to Overview](#MethodOverview)<br />
+
+***
+
+<a name="getheaders"/>
+
+|   |   |
+|---|---|
+|Method|getheaders|
+|Parameters|1. Block Locators (JSON array, required)<br />&nbsp;`[ (json array of strings)`<br />&nbsp;&nbsp;`"blocklocator", (string) the known block hash`<br />&nbsp;&nbsp;`...`<br />&nbsp;`]`<br />2. hashstop (string) - last desired block's hash|
+|Description|Returns block headers starting with the first known block hash from the request.|
+|Returns|`[ (json array of strings)`<br />&nbsp;&nbsp;`"blockheader",`<br />&nbsp;&nbsp;`...`<br />`]`|
+|Example Return|`[`<br />&nbsp;&nbsp;`"0000002099417930b2ae09feda10e38b58c0f6bb44b4d60fa33f0e000000000000000000d53...",`<br />&nbsp;&nbsp;`"000000203ba25a173bfd24d09e0c76002a910b685ca297bd09a17b020000000000000000702..."`<br />`]`|
+[Return to Overview](#MethodOverview)<br />
+
+***
+
 <a name="WSExtMethods" />
 ### 7. Websocket Extension Methods (Websocket-specific)
 
@@ -676,16 +688,18 @@ user.  Click the method name for further details such as parameter and return in
 |#|Method|Description|Notifications|
 |---|------|-----------|-------------|
 |1|[authenticate](#authenticate)|Authenticate the connection against the username and passphrase configured for the RPC server.<br /><font color="orange">NOTE: This is only required if an HTTP Authorization header is not being used.</font>|None|
-|2|[notifyblocks](#notifyblocks)|Send notifications when a block is connected or disconnected from the best chain.|[blockconnected](#blockconnected) and [blockdisconnected](#blockdisconnected)|
+|2|[notifyblocks](#notifyblocks)|Send notifications when a block is connected or disconnected from the best chain.|[blockconnected](#blockconnected), [blockdisconnected](#blockdisconnected), [filteredblockconnected](#filteredblockconnected), and [filteredblockdisconnected](#filteredblockdisconnected)|
 |3|[stopnotifyblocks](#stopnotifyblocks)|Cancel registered notifications for whenever a block is connected or disconnected from the main (best) chain. |None|
-|4|[notifyreceived](#notifyreceived)|Send notifications when a txout spends to an address.|[recvtx](#recvtx) and [redeemingtx](#redeemingtx)|
-|5|[stopnotifyreceived](#stopnotifyreceived)|Cancel registered notifications for when a txout spends to any of the passed addresses.|None|
-|6|[notifyspent](#notifyspent)|Send notification when a txout is spent.|[redeemingtx](#redeemingtx)|
-|7|[stopnotifyspent](#stopnotifyspent)|Cancel registered spending notifications for each passed outpoint.|None|
-|8|[rescan](#rescan)|Rescan block chain for transactions to addresses and spent transaction outpoints.|[recvtx](#recvtx), [redeemingtx](#redeemingtx), [rescanprogress](#rescanprogress), and [rescanfinished](#rescanfinished) |
+|4|[notifyreceived](#notifyreceived)|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Send notifications when a txout spends to an address.|[recvtx](#recvtx) and [redeemingtx](#redeemingtx)|
+|5|[stopnotifyreceived](#stopnotifyreceived)|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Cancel registered notifications for when a txout spends to any of the passed addresses.|None|
+|6|[notifyspent](#notifyspent)|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Send notification when a txout is spent.|[redeemingtx](#redeemingtx)|
+|7|[stopnotifyspent](#stopnotifyspent)|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Cancel registered spending notifications for each passed outpoint.|None|
+|8|[rescan](#rescan)|*DEPRECATED, for similar functionality see [rescanblocks](#rescanblocks)*<br />Rescan block chain for transactions to addresses and spent transaction outpoints.|[recvtx](#recvtx), [redeemingtx](#redeemingtx), [rescanprogress](#rescanprogress), and [rescanfinished](#rescanfinished) |
 |9|[notifynewtransactions](#notifynewtransactions)|Send notifications for all new transactions as they are accepted into the mempool.|[txaccepted](#txaccepted) or [txacceptedverbose](#txacceptedverbose)|
 |10|[stopnotifynewtransactions](#stopnotifynewtransactions)|Stop sending either a txaccepted or a txacceptedverbose notification when a new transaction is accepted into the mempool.|None|
 |11|[session](#session)|Return details regarding a websocket client's current connection.|None|
+|12|[loadtxfilter](#loadtxfilter)|Load, add to, or reload a websocket client's transaction filter for mempool transactions, new blocks and rescanblocks.|[relevanttxaccepted](#relevanttxaccepted)|
+|13|[rescanblocks](#rescanblocks)|Rescan blocks for transactions matching the loaded transaction filter.|None|
 
 <a name="WSExtMethodDetails" />
 **7.2 Method Details**<br />
@@ -707,7 +721,7 @@ user.  Click the method name for further details such as parameter and return in
 |   |   |
 |---|---|
 |Method|notifyblocks|
-|Notifications|[blockconnected](#blockconnected) and [blockdisconnected](#blockdisconnected)|
+|Notifications|[blockconnected](#blockconnected), [blockdisconnected](#blockdisconnected), [filteredblockconnected](#filteredblockconnected), and [filteredblockdisconnected](#filteredblockdisconnected)|
 |Parameters|None|
 |Description|Request notifications for whenever a block is connected or disconnected from the main (best) chain.<br />NOTE: If a client subscribes to both block and transaction (recvtx and redeemingtx) notifications, the blockconnected notification will be sent after all transaction notifications have been sent.  This allows clients to know when all relevant transactions for a block have been received.|
 |Returns|Nothing|
@@ -734,7 +748,7 @@ user.  Click the method name for further details such as parameter and return in
 |Method|notifyreceived|
 |Notifications|[recvtx](#recvtx) and [redeemingtx](#redeemingtx)|
 |Parameters|1. Addresses (JSON array, required)<br />&nbsp;`[ (json array of strings)`<br />&nbsp;&nbsp;`"bitcoinaddress", (string) the bitcoin address`<br />&nbsp;&nbsp;`...`<br />&nbsp;`]`|
-|Description|Send a recvtx notification when a transaction added to mempool or appears in a newly-attached block contains a txout pkScript sending to any of the passed addresses.  Matching outpoints are automatically registered for redeemingtx notifications.|
+|Description|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Send a recvtx notification when a transaction added to mempool or appears in a newly-attached block contains a txout pkScript sending to any of the passed addresses.  Matching outpoints are automatically registered for redeemingtx notifications.|
 |Returns|Nothing|
 [Return to Overview](#WSExtMethodOverview)<br />
 
@@ -747,7 +761,7 @@ user.  Click the method name for further details such as parameter and return in
 |Method|stopnotifyreceived|
 |Notifications|None|
 |Parameters|1. Addresses (JSON array, required)<br />&nbsp;`[ (json array of strings)`<br />&nbsp;&nbsp;`"bitcoinaddress", (string) the bitcoin address`<br />&nbsp;&nbsp;`...`<br />&nbsp;`]`|
-|Description|Cancel registered receive notifications for each passed address.|
+|Description|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Cancel registered receive notifications for each passed address.|
 |Returns|Nothing|
 [Return to Overview](#WSExtMethodOverview)<br />
 
@@ -760,7 +774,7 @@ user.  Click the method name for further details such as parameter and return in
 |Method|notifyspent|
 |Notifications|[redeemingtx](#redeemingtx)|
 |Parameters|1. Outpoints (JSON array, required)<br />&nbsp;`[ (JSON array)`<br />&nbsp;&nbsp;`{ (JSON object)`<br />&nbsp;&nbsp;&nbsp;`"hash":"data", (string) the hex-encoded bytes of the outpoint hash`<br />&nbsp;&nbsp;&nbsp;`"index":n (numeric) the txout index of the outpoint`<br />&nbsp;&nbsp;`},`<br />&nbsp;&nbsp;`...`<br />&nbsp;`]`|
-|Description|Send a redeemingtx notification when a transaction spending an outpoint appears in mempool (if relayed to this btcd instance) and when such a transaction first appears in a newly-attached block.|
+|Description|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Send a redeemingtx notification when a transaction spending an outpoint appears in mempool (if relayed to this btcd instance) and when such a transaction first appears in a newly-attached block.|
 |Returns|Nothing|
 [Return to Overview](#WSExtMethodOverview)<br />
 
@@ -773,7 +787,7 @@ user.  Click the method name for further details such as parameter and return in
 |Method|stopnotifyspent|
 |Notifications|None|
 |Parameters|1. Outpoints (JSON array, required)<br />&nbsp;`[ (JSON array)`<br />&nbsp;&nbsp;`{ (JSON object)`<br />&nbsp;&nbsp;&nbsp;`"hash":"data", (string) the hex-encoded bytes of the outpoint hash`<br />&nbsp;&nbsp;&nbsp;`"index":n (numeric) the txout index of the outpoint`<br />&nbsp;&nbsp;`},`<br />&nbsp;&nbsp;`...`<br />&nbsp;`]`|
-|Description|Cancel registered spending notifications for each passed outpoint.|
+|Description|*DEPRECATED, for similar functionality see [loadtxfilter](#loadtxfilter)*<br />Cancel registered spending notifications for each passed outpoint.|
 |Returns|Nothing|
 [Return to Overview](#WSExtMethodOverview)<br />
 
@@ -786,7 +800,7 @@ user.  Click the method name for further details such as parameter and return in
 |Method|rescan|
 |Notifications|[recvtx](#recvtx), [redeemingtx](#redeemingtx), [rescanprogress](#rescanprogress), and [rescanfinished](#rescanfinished)|
 |Parameters|1. BeginBlock (string, required) block hash to begin rescanning from<br />2. Addresses (JSON array, required)<br />&nbsp;`[ (json array of strings)`<br />&nbsp;&nbsp;`"bitcoinaddress", (string) the bitcoin address`<br />&nbsp;&nbsp;`...` <br />&nbsp;`]`<br />3. Outpoints (JSON array, required)<br />&nbsp;`[ (JSON array)`<br />&nbsp;&nbsp;`{ (JSON object)`<br />&nbsp;&nbsp;&nbsp;`"hash":"data", (string) the hex-encoded bytes of the outpoint hash`<br />&nbsp;&nbsp;&nbsp;`"index":n (numeric) the txout index of the outpoint`<br />&nbsp;&nbsp;`},`<br />&nbsp;&nbsp;`...`<br />&nbsp;`]`<br />4. EndBlock (string, optional) hash of final block to rescan|
-|Description|Rescan block chain for transactions to addresses, starting at block BeginBlock and ending at EndBlock.  The current known UTXO set for all passed addresses at height BeginBlock should included in the Outpoints argument.  If EndBlock is omitted, the rescan continues through the best block in the main chain.  Additionally, if no EndBlock is provided, the client is automatically registered for transaction notifications for all rescanned addresses and the final UTXO set.  Rescan results are sent as recvtx and redeemingtx notifications.  This call returns once the rescan completes.|
+|Description|*DEPRECATED, for similar functionality see [rescanblocks](#rescanblocks)*<br />Rescan block chain for transactions to addresses, starting at block BeginBlock and ending at EndBlock.  The current known UTXO set for all passed addresses at height BeginBlock should included in the Outpoints argument.  If EndBlock is omitted, the rescan continues through the best block in the main chain.  Additionally, if no EndBlock is provided, the client is automatically registered for transaction notifications for all rescanned addresses and the final UTXO set.  Rescan results are sent as recvtx and redeemingtx notifications.  This call returns once the rescan completes.|
 |Returns|Nothing|
 [Return to Overview](#WSExtMethodOverview)<br />
 
@@ -830,6 +844,32 @@ user.  Click the method name for further details such as parameter and return in
 |Example Return|`{`<br />&nbsp;&nbsp;`"sessionid": 67089679842`<br />`}`|
 [Return to Overview](#WSExtMethodOverview)<br />
 
+***
+
+<a name="loadtxfilter"/>
+
+|   |   |
+|---|---|
+|Method|loadtxfilter|
+|Notifications|[relevanttxaccepted](#relevanttxaccepted)|
+|Parameters|1. Reload (boolean, required) - Load a new filter instead of adding data to an existing one<br />2. Addresses (JSON array, required) - Array of addresses to add to the transaction filter<br />3. Outpoints (JSON array, required) - Array of outpoints to add to the transaction filter|
+|Description|Load, add to, or reload a websocket client's transaction filter for mempool transactions, new blocks and [rescanblocks](#rescanblocks).|
+|Returns|Nothing|
+[Return to Overview](#WSExtMethodOverview)<br />
+
+***
+
+<a name="rescanblocks"/>
+
+|   |   |
+|---|---|
+|Method|rescanblocks|
+|Notifications|None|
+|Parameters|1. Blockhashes (JSON array, required) - List of hashes to rescan.  Each next block must be a child of the previous.|
+|Description|Rescan blocks for transactions matching the loaded transaction filter.|
+|Returns|`[ (JSON array)`<br />&nbsp;&nbsp;`{ (JSON object)`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"hash": "data", (string) Hash of the matching block.`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"transactions": [ (JSON array) List of matching transactions, serialized and hex-encoded.`<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`"serializedtx" (string) Serialized and hex-encoded transaction.`<br />&nbsp;&nbsp;&nbsp;&nbsp;`]`<br />&nbsp;&nbsp;`}`<br />`]`|
+|Example Return|`[`<br />&nbsp;&nbsp;`{`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"hash": "0000002099417930b2ae09feda10e38b58c0f6bb44b4d60fa33f0e000000000000000000d53...",`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"transactions": [`<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`"493046022100cb42f8df44eca83dd0a727988dcde9384953e830b1f8004d57485e2ede1b9c8..."`<br />&nbsp;&nbsp;&nbsp;&nbsp;`]`<br />&nbsp;&nbsp;`}`<br />`]`|
+
 
 <a name="Notifications" />
 ### 8. Notifications (Websocket-specific)
@@ -843,14 +883,17 @@ The following is an overview of the JSON-RPC notifications used for Websocket co
 
 |#|Method|Description|Request|
 |---|------|-----------|-------|
-|1|[blockconnected](#blockconnected)|Block connected to the main chain.|[notifyblocks](#notifyblocks)|
-|2|[blockdisconnected](#blockdisconnected)|Block disconnected from the main chain.|[notifyblocks](#notifyblocks)|
-|3|[recvtx](#recvtx)|Processed a transaction output spending to a wallet address.|[notifyreceived](#notifyreceived) and [rescan](#rescan)|
-|4|[redeemingtx](#redeemingtx)|Processed a transaction that spends a registered outpoint.|[notifyspent](#notifyspent) and [rescan](#rescan)|
+|1|[blockconnected](#blockconnected)|*DEPRECATED, for similar functionality see [filteredblockconnected](#filteredblockconnected)*<br />Block connected to the main chain.|[notifyblocks](#notifyblocks)|
+|2|[blockdisconnected](#blockdisconnected)|*DEPRECATED, for similar functionality see [filteredblockdisconnected](#filteredblockdisconnected)*<br />Block disconnected from the main chain.|[notifyblocks](#notifyblocks)|
+|3|[recvtx](#recvtx)|*DEPRECATED, for similar functionality see [relevanttxaccepted](#relevanttxaccepted) and [filteredblockconnected](#filteredblockconnected)*<br />Processed a transaction output spending to a wallet address.|[notifyreceived](#notifyreceived) and [rescan](#rescan)|
+|4|[redeemingtx](#redeemingtx)|*DEPRECATED, for similar functionality see [relevanttxaccepted](#relevanttxaccepted) and [filteredblockconnected](#filteredblockconnected)*<br />Processed a transaction that spends a registered outpoint.|[notifyspent](#notifyspent) and [rescan](#rescan)|
 |5|[txaccepted](#txaccepted)|Received a new transaction after requesting simple notifications of all new transactions accepted into the mempool.|[notifynewtransactions](#notifynewtransactions)|
 |6|[txacceptedverbose](#txacceptedverbose)|Received a new transaction after requesting verbose notifications of all new transactions accepted into the mempool.|[notifynewtransactions](#notifynewtransactions)|
-|7|[rescanprogress](#rescanprogress)|A rescan operation that is underway has made progress.|[rescan](#rescan)|
-|8|[rescanfinished](#rescanfinished)|A rescan operation has completed.|[rescan](#rescan)|
+|7|[rescanprogress](#rescanprogress)|*DEPRECATED, notifications not used by [rescanblocks](#rescanblocks)*<br />A rescan operation that is underway has made progress.|[rescan](#rescan)|
+|8|[rescanfinished](#rescanfinished)|*DEPRECATED, notifications not used by [rescanblocks](#rescanblocks)*<br />A rescan operation has completed.|[rescan](#rescan)|
+|9|[relevanttxaccepted](#relevanttxaccepted)|A transaction matching the tx filter has been accepted into the mempool.|[loadtxfilter](#loadtxfilter)|
+|10|[filteredblockconnected](#filteredblockconnected)|Block connected to the main chain; contains any transactions that match the client's tx filter.|[notifyblocks](#notifyblocks), [loadtxfilter](#loadtxfilter)|
+|11|[filteredblockdisconnected](#filteredblockdisconnected)|Block disconnected from the main chain.|[notifyblocks](#notifyblocks), [loadtxfilter](#loadtxfilter)|
 
 <a name="NotificationDetails" />
 **8.2 Notification Details**<br />
@@ -862,7 +905,7 @@ The following is an overview of the JSON-RPC notifications used for Websocket co
 |Method|blockconnected|
 |Request|[notifyblocks](#notifyblocks)|
 |Parameters|1. BlockHash (string) hex-encoded bytes of the attached block hash<br />2. BlockHeight (numeric) height of the attached block<br />3. BlockTime (numeric) unix time of the attached block|
-|Description|Notifies when a block has been added to the main chain.  Notification is sent to all connected clients.|
+|Description|*DEPRECATED, for similar functionality see [filteredblockconnected](#filteredblockconnected)*<br />Notifies when a block has been added to the main chain.  Notification is sent to all connected clients.|
 |Example|Example blockconnected notification for mainnet block 280330 (newlines added for readability):<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "blockconnected",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"000000000000000004cbdfe387f4df44b914e464ca79838a8ab777b3214dbffd",`<br />&nbsp;&nbsp;&nbsp;`280330,`<br />&nbsp;&nbsp;&nbsp;`1389636265`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
 [Return to Overview](#NotificationOverview)<br />
 
@@ -875,7 +918,7 @@ The following is an overview of the JSON-RPC notifications used for Websocket co
 |Method|blockdisconnected|
 |Request|[notifyblocks](#notifyblocks)|
 |Parameters|1. BlockHash (string) hex-encoded bytes of the disconnected block hash<br />2. BlockHeight (numeric) height of the disconnected block<br />3. BlockTime (numeric) unix time of the disconnected block|
-|Description|Notifies when a block has been removed from the main chain.  Notification is sent to all connected clients.|
+|Description|*DEPRECATED, for similar functionality see [filteredblockdisconnected](#filteredblockdisconnected)*<br />Notifies when a block has been removed from the main chain.  Notification is sent to all connected clients.|
 |Example|Example blockdisconnected notification for mainnet block 280330 (newlines added for readability):<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "blockdisconnected",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"000000000000000004cbdfe387f4df44b914e464ca79838a8ab777b3214dbffd",`<br />&nbsp;&nbsp;&nbsp;`280330,`<br />&nbsp;&nbsp;&nbsp;`1389636265`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
 [Return to Overview](#NotificationOverview)<br />
 
@@ -888,7 +931,7 @@ The following is an overview of the JSON-RPC notifications used for Websocket co
 |Method|recvtx|
 |Request|[rescan](#rescan) or [notifyreceived](#notifyreceived)|
 |Parameters|1. Transaction (string) full transaction encoded as a hex string<br />2. Block details (object, optional) details about a block and the index of the transaction within a block, if the transaction is mined|
-|Description|Notifies a client when a transaction is processed that contains at least a single output with a pkScript sending to a requested address.  If multiple outputs send to requested addresses, a single notification is sent.  If a mempool (unmined) transaction is processed, the block details object (second parameter) is excluded.|
+|Description|*DEPRECATED, for similar functionality see [relevanttxaccepted](#relevanttxaccepted) and [filteredblockconnected](#filteredblockconnected)*<br />Notifies a client when a transaction is processed that contains at least a single output with a pkScript sending to a requested address.  If multiple outputs send to requested addresses, a single notification is sent.  If a mempool (unmined) transaction is processed, the block details object (second parameter) is excluded.|
 |Example|Example recvtx notification for mainnet transaction 61d3696de4c888730cbe06b0ad8ecb6d72d6108e893895aa9bc067bd7eba3fad when processed by mempool (newlines added for readability):<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "recvtx",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"010000000114d9ff358894c486b4ae11c2a8cf7851b1df64c53d2e511278eff17c22fb737300000000..."`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`<br />The recvtx notification for the same txout, after the transaction was mined into block 276425:<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "recvtx",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"010000000114d9ff358894c486b4ae11c2a8cf7851b1df64c53d2e511278eff17c22fb737300000000...",`<br />&nbsp;&nbsp;&nbsp;`{`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"height": 276425,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"hash": "000000000000000325474bb799b9e591f965ca4461b72cb7012b808db92bb2fc",`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"index": 684,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"time": 1387737310`<br />&nbsp;&nbsp;&nbsp;`}`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
 [Return to Overview](#NotificationOverview)<br />
 
@@ -901,7 +944,7 @@ The following is an overview of the JSON-RPC notifications used for Websocket co
 |Method|redeemingtx|
 |Requests|[notifyspent](#notifyspent) and [rescan](#rescan)|
 |Parameters|1. Transaction (string) full transaction encoded as a hex string<br />2. Block details (object, optional) details about a block and the index of the transaction within a block, if the transaction is mined|
-|Description|Notifies a client when an registered outpoint is spent by a transaction accepted to mempool and/or mined into a block.|
+|Description|*DEPRECATED, for similar functionality see [relevanttxaccepted](#relevanttxaccepted) and [filteredblockconnected](#filteredblockconnected)*<br />Notifies a client when an registered outpoint is spent by a transaction accepted to mempool and/or mined into a block.|
 |Example|Example redeemingtx notification for mainnet outpoint 61d3696de4c888730cbe06b0ad8ecb6d72d6108e893895aa9bc067bd7eba3fad:0 after being spent by transaction 4ad0c16ac973ff675dec1f3e5f1273f1c45be2a63554343f21b70240a1e43ece (newlines added for readability):<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "redeemingtx",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"0100000003ad3fba7ebd67c09baa9538898e10d6726dcb8eadb006be0c7388c8e46d69d3610000000..."`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`<br />The redeemingtx notification for the same txout, after the spending transaction was mined into block 279143:<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "recvtx",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"0100000003ad3fba7ebd67c09baa9538898e10d6726dcb8eadb006be0c7388c8e46d69d3610000000...",`<br />&nbsp;&nbsp;&nbsp;`{`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"height": 279143,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"hash": "00000000000000017188b968a371bab95aa43522665353b646e41865abae02a4",`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"index": 6,`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"time": 1389115004`<br />&nbsp;&nbsp;&nbsp;`}`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
 [Return to Overview](#NotificationOverview)<br />
 
@@ -940,7 +983,7 @@ The following is an overview of the JSON-RPC notifications used for Websocket co
 |Method|rescanprogress|
 |Request|[rescan](#rescan)|
 |Parameters|1. Hash (string) hash of the last processed block<br />2. Height (numeric) height of the last processed block<br />3. Time (numeric) UNIX time of the last processed block|
-|Description|Notifies a client with the current progress at periodic intervals when a long-running [rescan](#rescan) is underway.|
+|Description|*DEPRECATED, notifications not used by [rescanblocks](#rescanblocks)*<br />Notifies a client with the current progress at periodic intervals when a long-running [rescan](#rescan) is underway.|
 |Example|`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "rescanprogress",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"0000000000000ea86b49e11843b2ad937ac89ae74a963c7edd36e0147079b89d",`<br />&nbsp;&nbsp;&nbsp;`127213,`<br />&nbsp;&nbsp;&nbsp;`1306533807`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
 [Return to Overview](#NotificationOverview)<br />
 
@@ -953,8 +996,46 @@ The following is an overview of the JSON-RPC notifications used for Websocket co
 |Method|rescanfinished|
 |Request|[rescan](#rescan)|
 |Parameters|1. Hash (string) hash of the last rescanned block<br />2. Height (numeric) height of the last rescanned block<br />3. Time (numeric) UNIX time of the last rescanned block |
-|Description|Notifies a client that the [rescan](#rescan) has completed and no further notifications will be sent.|
+|Description|*DEPRECATED, notifications not used by [rescanblocks](#rescanblocks)*<br />Notifies a client that the [rescan](#rescan) has completed and no further notifications will be sent.|
 |Example|`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "rescanfinished",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`"0000000000000ea86b49e11843b2ad937ac89ae74a963c7edd36e0147079b89d",`<br />&nbsp;&nbsp;&nbsp;`127213,`<br />&nbsp;&nbsp;&nbsp;`1306533807`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
+[Return to Overview](#NotificationOverview)<br />
+
+***
+
+<a name="relevanttxaccepted"/>
+
+|   |   |
+|---|---|
+|Method|relevanttxaccepted|
+|Request|[loadtxfilter](#loadtxfilter)|
+|Parameters|1. Transaction (string) hex-encoded serialized transaction matching the client's filter loaded ith [loadtxfilter](#loadtxfilter)|
+|Description|Notifies a client that a transaction matching the client's tx filter has been accepted into he mempool.|
+|Example|Example `relevanttxaccepted` notification (newlines added for readability):<br />`{`<br >&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "relevanttxaccepted",`<br />&nbsp;`"params": [`<br >&nbsp;&nbsp;`"01000000014221abdcca25c8a3b0c044034875dece048c77d567a806f0c2e7e0f5e25a8f100..."`<br >&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
+
+***
+
+<a name="filteredblockconnected"/>
+
+|   |   |
+|---|---|
+|Method|filteredblockconnected|
+|Request|[notifyblocks](#notifyblocks), [loadtxfilter](#loadtxfilter)|
+|Parameters|1. BlockHeight (numeric) height of the attached block<br />2. Header (string) hex-encoded serialized header of the attached block<br />3. Transactions (JSON array) hex-encoded serialized transactions matching the filter for the client connection loaded with [loadtxfilter](#loadtxfilter)|
+|Description|Notifies when a block has been added to the main chain.  Notification is sent to all connected clients.|
+|Example|Example filteredblockconnected notification for mainnet block 280330 (newlines added for readability):<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "filteredblockconnected",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`280330,`<br />&nbsp;&nbsp;&nbsp;`"0200000052d1e8813f697293e41942aa230e7e4fcc44832d78a1372202000000000000006aa...",`<br />&nbsp;&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;&nbsp;`"01000000014221abdcca25c8a3b0c044034875dece048c77d567a806f0c2e7e0f5e25a8f100..."`<br />&nbsp;&nbsp;&nbsp;`]`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
+[Return to Overview](#NotificationOverview)<br />
+
+***
+
+<a name="filteredblockdisconnected"/>
+
+|   |   |
+|---|---|
+|Method|filteredblockdisconnected|
+|Request|[notifyblocks](#notifyblocks), [loadtxfilter](#loadtxfilter)|
+|Parameters|1. BlockHeight (numeric) height of the disconnected block<br />2. Header (string) hex-encoded serialized header of the disconnected block|
+|Description|Notifies when a block has been removed from the main chain.  Notification is sent to all connected clients.|
+|Example|Example blockdisconnected notification for mainnet block 280330 (newlines added for readability):<br />`{`<br />&nbsp;`"jsonrpc": "1.0",`<br />&nbsp;`"method": "blockdisconnected",`<br />&nbsp;`"params":`<br />&nbsp;&nbsp;`[`<br />&nbsp;&nbsp;&nbsp;`280330,`<br />&nbsp;&nbsp;&nbsp;`"0200000052d1e8813f697293e41942aa230e7e4fcc44832d78a1372202000000000000006aa..."`<br />&nbsp;&nbsp;`],`<br />&nbsp;`"id": null`<br />`}`|
 [Return to Overview](#NotificationOverview)<br />
 
 

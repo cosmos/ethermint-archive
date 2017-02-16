@@ -101,6 +101,7 @@ func (cs *ConsensusState) catchupReplay(csHeight int) error {
 	// Search for height marker
 	gr, found, err = cs.wal.group.Search("#HEIGHT: ", makeHeightSearchFunc(csHeight))
 	if err == io.EOF {
+		log.Warn("Replay: wal.group.Search returned EOF", "height", csHeight)
 		return nil
 	} else if err != nil {
 		return err
@@ -245,16 +246,18 @@ func (cs *ConsensusState) startForReplay() {
 	// don't want to start full cs
 	cs.BaseService.OnStart()
 
+	log.Warn("Replay commands are disabled until someone updates them and writes tests")
+	/* TODO:!
 	// since we replay tocks we just ignore ticks
-	go func() {
-		for {
-			select {
-			case <-cs.tickChan:
-			case <-cs.Quit:
-				return
+		go func() {
+			for {
+				select {
+				case <-cs.tickChan:
+				case <-cs.Quit:
+					return
+				}
 			}
-		}
-	}()
+		}()*/
 }
 
 // console function for parsing input and running commands

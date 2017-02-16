@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"gopkg.in/urfave/cli.v1"
-	"log"
+	// "log"
 	"os"
 	"os/user"
 	"path"
@@ -20,11 +20,11 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
 	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
+	"github.com/tendermint/abci/server"
 	cfg "github.com/tendermint/go-config"
 	tmlog "github.com/tendermint/go-logger"
 	tmcfg "github.com/tendermint/tendermint/config/tendermint"
 	tendermintNode "github.com/tendermint/tendermint/node"
-	"github.com/tendermint/tmsp/server"
 )
 
 var (
@@ -45,9 +45,9 @@ const (
 )
 
 var (
-	verString  string // Combined textual representation of all the version components
-	cliApp     *cli.App
-	mainLogger = logger.NewLogger("main")
+	verString string // Combined textual representation of all the version components
+	cliApp    *cli.App
+	// mainLogger = logger.NewLogger("main")
 )
 
 func init() {
@@ -56,7 +56,7 @@ func init() {
 		verString += "-" + versionMeta
 	}
 	cliApp = newCliApp(verString, "the ethermint command line interface")
-	cliApp.Action = tmspEthereumAction
+	cliApp.Action = abciEthereumAction
 	cliApp.Commands = []cli.Command{
 		{
 			Action:      initCommand,
@@ -68,16 +68,16 @@ func init() {
 	cliApp.HideVersion = true // we have a command to print the version
 
 	cliApp.After = func(ctx *cli.Context) error {
-		logger.Flush()
+		// logger.Flush()
 		return nil
 	}
 
-	logger.AddLogSystem(logger.NewStdLogSystem(os.Stdout, log.LstdFlags, logger.DebugLevel))
+	// logger.AddLogSystem(logger.NewStdLogSystem(os.Stdout, log.LstdFlags, logger.DebugLevel))
 	glog.SetToStderr(true)
 }
 
 func main() {
-	mainLogger.Infoln("Starting ethermint")
+	glog.V(logger.Info).Infof("Starting ethermint")
 	if err := cliApp.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -94,7 +94,7 @@ func initCommand(ctx *cli.Context) error {
 		utils.Fatalf("must supply path to genesis JSON file")
 	}
 
-	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(utils.MustMakeDataDir(ctx), "chaindata"), 0, 0)
+	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(utils.MakeDataDir(ctx), "chaindata"), 0, 0)
 	if err != nil {
 		utils.Fatalf("could not open database: %v", err)
 	}
@@ -129,11 +129,11 @@ func getTendermintConfig(ctx *cli.Context) cfg.Config {
 	return config
 }
 
-func tmspEthereumAction(ctx *cli.Context) error {
+func abciEthereumAction(ctx *cli.Context) error {
 	stack := ethereum.MakeSystemNode(clientIdentifier, verString, ctx)
 	utils.StartNode(stack)
 	addr := ctx.GlobalString("addr")
-	tmsp := ctx.GlobalString("tmsp")
+	abci := ctx.GlobalString("abci")
 
 	var backend *ethereum.Backend
 	if err := stack.Service(&backend); err != nil {
@@ -149,11 +149,11 @@ func tmspEthereumAction(ctx *cli.Context) error {
 		os.Exit(1)
 
 	}
-	_, err = server.NewServer(addr, tmsp, ethApp)
+	_, err = server.NewServer(addr, abci, ethApp)
 	/*
 		_, err = server.NewServer(
 			addr,
-			tmsp,
+			abci,
 			app.NewTMSPEthereumApplication(
 				backend,
 				client,
@@ -234,7 +234,7 @@ func newCliApp(version, usage string) *cli.App {
 		utils.BootnodesFlag,
 		DataDirFlag,
 		utils.KeyStoreDirFlag,
-		utils.BlockchainVersionFlag,
+		// utils.BlockchainVersionFlag,
 		utils.CacheFlag,
 		utils.LightKDFFlag,
 		utils.JSpathFlag,
@@ -245,7 +245,7 @@ func newCliApp(version, usage string) *cli.App {
 		utils.TargetGasLimitFlag,
 		utils.GasPriceFlag,
 		utils.NATFlag,
-		utils.NatspecEnabledFlag,
+		// utils.NatspecEnabledFlag,
 		utils.NodeKeyFileFlag,
 		utils.NodeKeyHexFlag,
 		utils.RPCEnabledFlag,
@@ -310,7 +310,7 @@ func newCliApp(version, usage string) *cli.App {
 			Usage: "TMSP app listen address",
 		},
 		cli.StringFlag{
-			Name:  "tmsp",
+			Name:  "abci",
 			Value: "socket",
 			Usage: "socket | grpc",
 		},

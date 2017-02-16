@@ -56,6 +56,7 @@ import (
 
 // http2Client implements the ClientTransport interface with HTTP2.
 type http2Client struct {
+	ctx        context.Context
 	target     string // server name/addr
 	userAgent  string
 	md         interface{}
@@ -97,6 +98,8 @@ type http2Client struct {
 	scheme string
 
 	creds []credentials.PerRPCCredentials
+
+	statsHandler stats.Handler
 
 	mu            sync.Mutex     // guard the following variables
 	state         transportState // the state of underlying connection
@@ -181,6 +184,7 @@ func newHTTP2Client(ctx context.Context, addr TargetInfo, opts ConnectOptions) (
 	}
 	var buf bytes.Buffer
 	t := &http2Client{
+		ctx:        ctx,
 		target:     addr.Addr,
 		userAgent:  ua,
 		md:         addr.Metadata,
@@ -206,6 +210,17 @@ func newHTTP2Client(ctx context.Context, addr TargetInfo, opts ConnectOptions) (
 		creds:           opts.PerRPCCredentials,
 		maxStreams:      math.MaxInt32,
 		streamSendQuota: defaultWindowSize,
+		statsHandler:    opts.StatsHandler,
+	}
+	if t.statsHandler != nil {
+		t.ctx = t.statsHandler.TagConn(t.ctx, &stats.ConnTagInfo{
+			RemoteAddr: t.remoteAddr,
+			LocalAddr:  t.localAddr,
+		})
+		connBegin := &stats.ConnBegin{
+			Client: true,
+		}
+		t.statsHandler.HandleConn(t.ctx, connBegin)
 	}
 	// Start the reader goroutine for incoming message. Each transport has
 	// a dedicated goroutine which reads HTTP2 frame from network. Then it
@@ -367,7 +382,7 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 	}
 	t.mu.Unlock()
 	if reset {
-		t.streamsQuota.reset(-1)
+		t.streamsQuota.add(-1)
 	}
 
 	// HPACK encodes various headers. Note that once WriteField(...) is
@@ -458,7 +473,7 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 			return nil, connectionErrorf(true, err, "transport: %v", err)
 		}
 	}
-	if stats.On() {
+	if t.statsHandler != nil {
 		outHeader := &stats.OutHeader{
 			Client:      true,
 			WireLength:  bufLen,
@@ -467,7 +482,7 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 			LocalAddr:   t.localAddr,
 			Compression: callHdr.SendCompress,
 		}
-		stats.Handle(s.clientStatsCtx, outHeader)
+		t.statsHandler.HandleRPC(s.clientStatsCtx, outHeader)
 	}
 	t.writableChan <- 0
 	return s, nil
@@ -547,6 +562,12 @@ func (t *http2Client) Close() (err error) {
 		s.mu.Unlock()
 		s.write(recvMsg{err: ErrConnClosing})
 	}
+	if t.statsHandler != nil {
+		connEnd := &stats.ConnEnd{
+			Client: true,
+		}
+		t.statsHandler.HandleConn(t.ctx, connEnd)
+	}
 	return
 }
 
@@ -604,19 +625,14 @@ func (t *http2Client) Write(s *Stream, data []byte, opts *Options) error {
 		var p []byte
 		if r.Len() > 0 {
 			size := http2MaxFrameLen
-			s.sendQuotaPool.add(0)
 			// Wait until the stream has some quota to send the data.
 			sq, err := wait(s.ctx, s.done, s.goAway, t.shutdownChan, s.sendQuotaPool.acquire())
 			if err != nil {
 				return err
 			}
-			t.sendQuotaPool.add(0)
 			// Wait until the transport has some quota to send the data.
 			tq, err := wait(s.ctx, s.done, s.goAway, t.shutdownChan, t.sendQuotaPool.acquire())
 			if err != nil {
-				if _, ok := err.(StreamError); ok || err == io.EOF {
-					t.sendQuotaPool.cancel()
-				}
 				return err
 			}
 			if sq < size {
@@ -898,19 +914,19 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) {
 	endStream := frame.StreamEnded()
 	var isHeader bool
 	defer func() {
-		if stats.On() {
+		if t.statsHandler != nil {
 			if isHeader {
 				inHeader := &stats.InHeader{
 					Client:     true,
 					WireLength: int(frame.Header().Length),
 				}
-				stats.Handle(s.clientStatsCtx, inHeader)
+				t.statsHandler.HandleRPC(s.clientStatsCtx, inHeader)
 			} else {
 				inTrailer := &stats.InTrailer{
 					Client:     true,
 					WireLength: int(frame.Header().Length),
 				}
-				stats.Handle(s.clientStatsCtx, inTrailer)
+				t.statsHandler.HandleRPC(s.clientStatsCtx, inTrailer)
 			}
 		}
 	}()
@@ -1035,13 +1051,13 @@ func (t *http2Client) applySettings(ss []http2.Setting) {
 			t.maxStreams = int(s.Val)
 			t.mu.Unlock()
 			if reset {
-				t.streamsQuota.reset(int(s.Val) - ms)
+				t.streamsQuota.add(int(s.Val) - ms)
 			}
 		case http2.SettingInitialWindowSize:
 			t.mu.Lock()
 			for _, stream := range t.activeStreams {
 				// Adjust the sending quota for each stream.
-				stream.sendQuotaPool.reset(int(s.Val - t.streamSendQuota))
+				stream.sendQuotaPool.add(int(s.Val - t.streamSendQuota))
 			}
 			t.streamSendQuota = s.Val
 			t.mu.Unlock()

@@ -122,7 +122,11 @@ func (voteSet *VoteSet) Size() int {
 // Duplicate votes return added=false, err=nil.
 // Conflicting votes return added=*, err=ErrVoteConflictingVotes.
 // NOTE: vote should not be mutated after adding.
+// NOTE: VoteSet must not be nil
 func (voteSet *VoteSet) AddVote(vote *Vote) (added bool, err error) {
+	if voteSet == nil {
+		PanicSanity("AddVote() on nil VoteSet")
+	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 
@@ -276,7 +280,11 @@ func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower
 // NOTE: if there are too many peers, or too much peer churn,
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
+// NOTE: VoteSet must not be nil
 func (voteSet *VoteSet) SetPeerMaj23(peerID string, blockID BlockID) {
+	if voteSet == nil {
+		PanicSanity("SetPeerMaj23() on nil VoteSet")
+	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 
@@ -325,19 +333,25 @@ func (voteSet *VoteSet) BitArrayByBlockID(blockID BlockID) *BitArray {
 	defer voteSet.mtx.Unlock()
 	votesByBlock, ok := voteSet.votesByBlock[blockID.Key()]
 	if ok {
-		return votesByBlock.bitArray
+		return votesByBlock.bitArray.Copy()
 	}
 	return nil
 }
 
 // NOTE: if validator has conflicting votes, returns "canonical" vote
 func (voteSet *VoteSet) GetByIndex(valIndex int) *Vote {
+	if voteSet == nil {
+		return nil
+	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	return voteSet.votes[valIndex]
 }
 
 func (voteSet *VoteSet) GetByAddress(address []byte) *Vote {
+	if voteSet == nil {
+		return nil
+	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	valIndex, val := voteSet.valSet.GetByAddress(address)
@@ -377,9 +391,16 @@ func (voteSet *VoteSet) HasTwoThirdsAny() bool {
 	return voteSet.sum > voteSet.valSet.TotalVotingPower()*2/3
 }
 
+func (voteSet *VoteSet) HasAll() bool {
+	return voteSet.sum == voteSet.valSet.TotalVotingPower()
+}
+
 // Returns either a blockhash (or nil) that received +2/3 majority.
 // If there exists no such majority, returns (nil, PartSetHeader{}, false).
 func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
+	if voteSet == nil {
+		return BlockID{}, false
+	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	if voteSet.maj23 != nil {

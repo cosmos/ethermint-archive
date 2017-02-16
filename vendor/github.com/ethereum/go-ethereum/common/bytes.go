@@ -37,7 +37,7 @@ func ToHex(b []byte) string {
 
 func FromHex(s string) []byte {
 	if len(s) > 1 {
-		if s[0:2] == "0x" {
+		if s[0:2] == "0x" || s[0:2] == "0X" {
 			s = s[2:]
 		}
 		if len(s)%2 == 1 {
@@ -143,7 +143,7 @@ func Hex2BytesFixed(str string, flen int) []byte {
 		return h
 	} else {
 		if len(h) > flen {
-			return h[len(h)-flen : len(h)]
+			return h[len(h)-flen:]
 		} else {
 			hh := make([]byte, flen)
 			copy(hh[flen-len(h):flen], h[:])

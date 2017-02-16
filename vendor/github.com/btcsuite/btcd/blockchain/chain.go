@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2016 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,8 +7,6 @@ package blockchain
 import (
 	"container/list"
 	"fmt"
-	"math/big"
-	"sort"
 	"sync"
 	"time"
 
@@ -26,96 +24,12 @@ const (
 	maxOrphanBlocks = 100
 )
 
-// blockNode represents a block within the block chain and is primarily used to
-// aid in selecting the best chain to be the main chain.  The main chain is
-// stored into the block database.
-type blockNode struct {
-	// parent is the parent block for this node.
-	parent *blockNode
-
-	// children contains the child nodes for this node.  Typically there
-	// will only be one, but sometimes there can be more than one and that
-	// is when the best chain selection algorithm is used.
-	children []*blockNode
-
-	// hash is the double sha 256 of the block.
-	hash *chainhash.Hash
-
-	// parentHash is the double sha 256 of the parent block.  This is kept
-	// here over simply relying on parent.hash directly since block nodes
-	// are sparse and the parent node might not be in memory when its hash
-	// is needed.
-	parentHash *chainhash.Hash
-
-	// height is the position in the block chain.
-	height int32
-
-	// workSum is the total amount of work in the chain up to and including
-	// this node.
-	workSum *big.Int
-
-	// inMainChain denotes whether the block node is currently on the
-	// the main chain or not.  This is used to help find the common
-	// ancestor when switching chains.
-	inMainChain bool
-
-	// Some fields from block headers to aid in best chain selection.
-	version   int32
-	bits      uint32
-	timestamp time.Time
-}
-
-// newBlockNode returns a new block node for the given block header.  It is
-// completely disconnected from the chain and the workSum value is just the work
-// for the passed block.  The work sum is updated accordingly when the node is
-// inserted into a chain.
-func newBlockNode(blockHeader *wire.BlockHeader, blockHash *chainhash.Hash, height int32) *blockNode {
-	// Make a copy of the hash so the node doesn't keep a reference to part
-	// of the full block/block header preventing it from being garbage
-	// collected.
-	prevHash := blockHeader.PrevBlock
-	node := blockNode{
-		hash:       blockHash,
-		parentHash: &prevHash,
-		workSum:    CalcWork(blockHeader.Bits),
-		height:     height,
-		version:    blockHeader.Version,
-		bits:       blockHeader.Bits,
-		timestamp:  blockHeader.Timestamp,
-	}
-	return &node
-}
-
 // orphanBlock represents a block that we don't yet have the parent for.  It
 // is a normal block plus an expiration time to prevent caching the orphan
 // forever.
 type orphanBlock struct {
 	block      *btcutil.Block
 	expiration time.Time
-}
-
-// removeChildNode deletes node from the provided slice of child block
-// nodes.  It ensures the final pointer reference is set to nil to prevent
-// potential memory leaks.  The original slice is returned unmodified if node
-// is invalid or not in the slice.
-//
-// This function MUST be called with the chain state lock held (for writes).
-func removeChildNode(children []*blockNode, node *blockNode) []*blockNode {
-	if node == nil {
-		return children
-	}
-
-	// An indexing for loop is intentionally used over a range here as range
-	// does not reevaluate the slice on each iteration nor does it adjust
-	// the index for the modified slice.
-	for i := 0; i < len(children); i++ {
-		if children[i].hash.IsEqual(node.hash) {
-			copy(children[i:], children[i+1:])
-			children[len(children)-1] = nil
-			return children[:len(children)-1]
-		}
-	}
-	return children
 }
 
 // BestState houses information about the current best block and other info
@@ -128,13 +42,13 @@ func removeChildNode(children []*blockNode, node *blockNode) []*blockNode {
 // However, the returned snapshot must be treated as immutable since it is
 // shared by all callers.
 type BestState struct {
-	Hash       *chainhash.Hash // The hash of the block.
-	Height     int32           // The height of the block.
-	Bits       uint32          // The difficulty bits of the block.
-	BlockSize  uint64          // The size of the block.
-	NumTxns    uint64          // The number of txns in the block.
-	TotalTxns  uint64          // The total number of txns in the chain.
-	MedianTime time.Time       // Median time as per calcPastMedianTime.
+	Hash       chainhash.Hash // The hash of the block.
+	Height     int32          // The height of the block.
+	Bits       uint32         // The difficulty bits of the block.
+	BlockSize  uint64         // The size of the block.
+	NumTxns    uint64         // The number of txns in the block.
+	TotalTxns  uint64         // The total number of txns in the chain.
+	MedianTime time.Time      // Median time as per CalcPastMedianTime.
 }
 
 // newBestState returns a new best stats instance for the given parameters.
@@ -158,6 +72,7 @@ type BlockChain struct {
 	// The following fields are set when the instance is created and can't
 	// be changed afterwards, so there is no need to protect them with a
 	// separate mutex.
+	checkpoints         []chaincfg.Checkpoint
 	checkpointsByHeight map[int32]*chaincfg.Checkpoint
 	db                  database.DB
 	chainParams         *chaincfg.Params
@@ -188,14 +103,12 @@ type BlockChain struct {
 
 	// These fields are configuration parameters that can be toggled at
 	// runtime.  They are protected by the chain lock.
-	noVerify      bool
-	noCheckpoints bool
+	noVerify bool
 
-	// These fields are related to the memory block index.  They are
-	// protected by the chain lock.
+	// These fields are related to the memory block index.  The best node
+	// is protected by the chain lock and the index has its own locks.
 	bestNode *blockNode
-	index    map[chainhash.Hash]*blockNode
-	depNodes map[chainhash.Hash][]*blockNode
+	index    *blockIndex
 
 	// These fields are related to handling of orphan blocks.  They are
 	// protected by a combination of the chain lock and the orphan lock.
@@ -203,7 +116,6 @@ type BlockChain struct {
 	orphans      map[chainhash.Hash]*orphanBlock
 	prevOrphans  map[chainhash.Hash][]*orphanBlock
 	oldestOrphan *orphanBlock
-	blockCache   map[chainhash.Hash]*btcutil.Block
 
 	// These fields are related to checkpoint handling.  They are protected
 	// by the chain lock.
@@ -223,6 +135,34 @@ type BlockChain struct {
 	// chain state can be quickly reconstructed on load.
 	stateLock     sync.RWMutex
 	stateSnapshot *BestState
+
+	// The following caches are used to efficiently keep track of the
+	// current deployment threshold state of each rule change deployment.
+	//
+	// This information is stored in the database so it can be quickly
+	// reconstructed on load.
+	//
+	// warningCaches caches the current deployment threshold state for blocks
+	// in each of the **possible** deployments.  This is used in order to
+	// detect when new unrecognized rule changes are being voted on and/or
+	// have been activated such as will be the case when older versions of
+	// the software are being used
+	//
+	// deploymentCaches caches the current deployment threshold state for
+	// blocks in each of the actively defined deployments.
+	warningCaches    []thresholdStateCache
+	deploymentCaches []thresholdStateCache
+
+	// The following fields are used to determine if certain warnings have
+	// already been shown.
+	//
+	// unknownRulesWarned refers to warnings due to unknown rules being
+	// activated.
+	//
+	// unknownVersionsWarned refers to warnings due to unknown versions
+	// being mined.
+	unknownRulesWarned    bool
+	unknownVersionsWarned bool
 }
 
 // DisableVerify provides a mechanism to disable transaction script validation
@@ -385,298 +325,162 @@ func (b *BlockChain) addOrphanBlock(block *btcutil.Block) {
 	return
 }
 
-// loadBlockNode loads the block identified by hash from the block database,
-// creates a block node from it, and updates the memory block chain accordingly.
-// It is used mainly to dynamically load previous blocks from the database as
-// they are needed to avoid needing to put the entire block chain in memory.
+// SequenceLock represents the converted relative lock-time in seconds, and
+// absolute block-height for a transaction input's relative lock-times.
+// According to SequenceLock, after the referenced input has been confirmed
+// within a block, a transaction spending that input can be included into a
+// block either after 'seconds' (according to past median time), or once the
+// 'BlockHeight' has been reached.
+type SequenceLock struct {
+	Seconds     int64
+	BlockHeight int32
+}
+
+// CalcSequenceLock computes a relative lock-time SequenceLock for the passed
+// transaction using the passed UtxoViewpoint to obtain the past median time
+// for blocks in which the referenced inputs of the transactions were included
+// within. The generated SequenceLock lock can be used in conjunction with a
+// block height, and adjusted median block time to determine if all the inputs
+// referenced within a transaction have reached sufficient maturity allowing
+// the candidate transaction to be included in a block.
+//
+// This function is safe for concurrent access.
+func (b *BlockChain) CalcSequenceLock(tx *btcutil.Tx, utxoView *UtxoViewpoint,
+	mempool bool) (*SequenceLock, error) {
+
+	b.chainLock.Lock()
+	defer b.chainLock.Unlock()
+
+	return b.calcSequenceLock(tx, utxoView, mempool)
+}
+
+// calcSequenceLock computes the relative lock-times for the passed
+// transaction. See the exported version, CalcSequenceLock for further details.
 //
 // This function MUST be called with the chain state lock held (for writes).
-// The database transaction may be read-only.
-func (b *BlockChain) loadBlockNode(dbTx database.Tx, hash *chainhash.Hash) (*blockNode, error) {
-	// Load the block header and height from the db.
-	blockHeader, err := dbFetchHeaderByHash(dbTx, hash)
-	if err != nil {
-		return nil, err
+func (b *BlockChain) calcSequenceLock(tx *btcutil.Tx, utxoView *UtxoViewpoint,
+	mempool bool) (*SequenceLock, error) {
+
+	mTx := tx.MsgTx()
+
+	// A value of -1 for each relative lock type represents a relative time
+	// lock value that will allow a transaction to be included in a block
+	// at any given height or time. This value is returned as the relative
+	// lock time in the case that BIP 68 is disabled, or has not yet been
+	// activated.
+	sequenceLock := &SequenceLock{Seconds: -1, BlockHeight: -1}
+
+	// If the transaction's version is less than 2, and BIP 68 has not yet
+	// been activated then sequence locks are disabled. Additionally,
+	// sequence locks don't apply to coinbase transactions Therefore, we
+	// return sequence lock values of -1 indicating that this transaction
+	// can be included within a block at any given height or time.
+	// TODO(roasbeef): check version bits state or pass as param
+	// * true should be replaced with a version bits state check
+	sequenceLockActive := mTx.Version >= 2 && (mempool || true)
+	if !sequenceLockActive || IsCoinBase(tx) {
+		return sequenceLock, nil
 	}
-	blockHeight, err := dbFetchHeightByHash(dbTx, hash)
-	if err != nil {
-		return nil, err
-	}
 
-	// Create the new block node for the block and set the work.
-	node := newBlockNode(blockHeader, hash, blockHeight)
-	node.inMainChain = true
+	// Grab the next height to use for inputs present in the mempool.
+	nextHeight := b.BestSnapshot().Height + 1
 
-	// Add the node to the chain.
-	// There are a few possibilities here:
-	//  1) This node is a child of an existing block node
-	//  2) This node is the parent of one or more nodes
-	//  3) Neither 1 or 2 is true which implies it's an orphan block and
-	//     therefore is an error to insert into the chain
-	prevHash := &blockHeader.PrevBlock
-	if parentNode, ok := b.index[*prevHash]; ok {
-		// Case 1 -- This node is a child of an existing block node.
-		// Update the node's work sum with the sum of the parent node's
-		// work sum and this node's work, append the node as a child of
-		// the parent node and set this node's parent to the parent
-		// node.
-		node.workSum = node.workSum.Add(parentNode.workSum, node.workSum)
-		parentNode.children = append(parentNode.children, node)
-		node.parent = parentNode
-
-	} else if childNodes, ok := b.depNodes[*hash]; ok {
-		// Case 2 -- This node is the parent of one or more nodes.
-		// Update the node's work sum by subtracting this node's work
-		// from the sum of its first child, and connect the node to all
-		// of its children.
-		node.workSum.Sub(childNodes[0].workSum, node.workSum)
-		for _, childNode := range childNodes {
-			childNode.parent = node
-			node.children = append(node.children, childNode)
+	for txInIndex, txIn := range mTx.TxIn {
+		utxo := utxoView.LookupEntry(&txIn.PreviousOutPoint.Hash)
+		if utxo == nil {
+			str := fmt.Sprintf("unable to find unspent output "+
+				"%v referenced from transaction %s:%d",
+				txIn.PreviousOutPoint, tx.Hash(), txInIndex)
+			return sequenceLock, ruleError(ErrMissingTx, str)
 		}
 
-	} else {
-		// Case 3 -- The node doesn't have a parent and is not the
-		// parent of another node.  This means an arbitrary orphan block
-		// is trying to be loaded which is not allowed.
-		str := "loadBlockNode: attempt to insert orphan block %v"
-		return nil, AssertError(fmt.Sprintf(str, hash))
-	}
+		// If the input height is set to the mempool height, then we
+		// assume the transaction makes it into the next block when
+		// evaluating its sequence blocks.
+		inputHeight := utxo.BlockHeight()
+		if inputHeight == 0x7fffffff {
+			inputHeight = nextHeight
+		}
 
-	// Add the new node to the indices for faster lookups.
-	b.index[*hash] = node
-	b.depNodes[*prevHash] = append(b.depNodes[*prevHash], node)
+		// Given a sequence number, we apply the relative time lock
+		// mask in order to obtain the time lock delta required before
+		// this input can be spent.
+		sequenceNum := txIn.Sequence
+		relativeLock := int64(sequenceNum & wire.SequenceLockTimeMask)
 
-	return node, nil
-}
+		switch {
+		// Relative time locks are disabled for this input, so we can
+		// skip any further calculation.
+		case sequenceNum&wire.SequenceLockTimeDisabled == wire.SequenceLockTimeDisabled:
+			continue
+		case sequenceNum&wire.SequenceLockTimeIsSeconds == wire.SequenceLockTimeIsSeconds:
+			// This input requires a relative time lock expressed
+			// in seconds before it can be spent. Therefore, we
+			// need to query for the block prior to the one in
+			// which this input was included within so we can
+			// compute the past median time for the block prior to
+			// the one which included this referenced output.
+			// TODO: caching should be added to keep this speedy
+			inputDepth := uint32(b.bestNode.height-inputHeight) + 1
+			blockNode, err := b.index.RelativeNode(b.bestNode,
+				inputDepth)
+			if err != nil {
+				return sequenceLock, err
+			}
 
-// getPrevNodeFromBlock returns a block node for the block previous to the
-// passed block (the passed block's parent).  When it is already in the memory
-// block chain, it simply returns it.  Otherwise, it loads the previous block
-// header from the block database, creates a new block node from it, and returns
-// it.  The returned node will be nil if the genesis block is passed.
-//
-// This function MUST be called with the chain state lock held (for writes).
-func (b *BlockChain) getPrevNodeFromBlock(block *btcutil.Block) (*blockNode, error) {
-	// Genesis block.
-	prevHash := &block.MsgBlock().Header.PrevBlock
-	if prevHash.IsEqual(zeroHash) {
-		return nil, nil
-	}
+			// With all the necessary block headers loaded into
+			// memory, we can now finally calculate the MTP of the
+			// block prior to the one which included the output
+			// being spent.
+			medianTime, err := b.index.CalcPastMedianTime(blockNode)
+			if err != nil {
+				return sequenceLock, err
+			}
 
-	// Return the existing previous block node if it's already there.
-	if bn, ok := b.index[*prevHash]; ok {
-		return bn, nil
-	}
-
-	// Dynamically load the previous block from the block database, create
-	// a new block node for it, and update the memory chain accordingly.
-	var prevBlockNode *blockNode
-	err := b.db.View(func(dbTx database.Tx) error {
-		var err error
-		prevBlockNode, err = b.loadBlockNode(dbTx, prevHash)
-		return err
-	})
-	return prevBlockNode, err
-}
-
-// getPrevNodeFromNode returns a block node for the block previous to the
-// passed block node (the passed block node's parent).  When the node is already
-// connected to a parent, it simply returns it.  Otherwise, it loads the
-// associated block from the database to obtain the previous hash and uses that
-// to dynamically create a new block node and return it.  The memory block
-// chain is updated accordingly.  The returned node will be nil if the genesis
-// block is passed.
-//
-// This function MUST be called with the chain state lock held (for writes).
-func (b *BlockChain) getPrevNodeFromNode(node *blockNode) (*blockNode, error) {
-	// Return the existing previous block node if it's already there.
-	if node.parent != nil {
-		return node.parent, nil
-	}
-
-	// Genesis block.
-	if node.hash.IsEqual(b.chainParams.GenesisHash) {
-		return nil, nil
-	}
-
-	// Dynamically load the previous block from the block database, create
-	// a new block node for it, and update the memory chain accordingly.
-	var prevBlockNode *blockNode
-	err := b.db.View(func(dbTx database.Tx) error {
-		var err error
-		prevBlockNode, err = b.loadBlockNode(dbTx, node.parentHash)
-		return err
-	})
-	return prevBlockNode, err
-}
-
-// removeBlockNode removes the passed block node from the memory chain by
-// unlinking all of its children and removing it from the the node and
-// dependency indices.
-//
-// This function MUST be called with the chain state lock held (for writes).
-func (b *BlockChain) removeBlockNode(node *blockNode) error {
-	if node.parent != nil {
-		return AssertError(fmt.Sprintf("removeBlockNode must be "+
-			"called with a node at the front of the chain - node %v",
-			node.hash))
-	}
-
-	// Remove the node from the node index.
-	delete(b.index, *node.hash)
-
-	// Unlink all of the node's children.
-	for _, child := range node.children {
-		child.parent = nil
-	}
-	node.children = nil
-
-	// Remove the reference from the dependency index.
-	prevHash := node.parentHash
-	if children, ok := b.depNodes[*prevHash]; ok {
-		// Find the node amongst the children of the
-		// dependencies for the parent hash and remove it.
-		b.depNodes[*prevHash] = removeChildNode(children, node)
-
-		// Remove the map entry altogether if there are no
-		// longer any nodes which depend on the parent hash.
-		if len(b.depNodes[*prevHash]) == 0 {
-			delete(b.depNodes, *prevHash)
+			// Time based relative time-locks as defined by BIP 68
+			// have a time granularity of RelativeLockSeconds, so
+			// we shift left by this amount to convert to the
+			// proper relative time-lock. We also subtract one from
+			// the relative lock to maintain the original lockTime
+			// semantics.
+			timeLockSeconds := (relativeLock << wire.SequenceLockTimeGranularity) - 1
+			timeLock := medianTime.Unix() + timeLockSeconds
+			if timeLock > sequenceLock.Seconds {
+				sequenceLock.Seconds = timeLock
+			}
+		default:
+			// The relative lock-time for this input is expressed
+			// in blocks so we calculate the relative offset from
+			// the input's height as its converted absolute
+			// lock-time. We subtract one from the relative lock in
+			// order to maintain the original lockTime semantics.
+			blockHeight := inputHeight + int32(relativeLock-1)
+			if blockHeight > sequenceLock.BlockHeight {
+				sequenceLock.BlockHeight = blockHeight
+			}
 		}
 	}
 
-	return nil
+	return sequenceLock, nil
 }
 
-// pruneBlockNodes removes references to old block nodes which are no longer
-// needed so they may be garbage collected.  In order to validate block rules
-// and choose the best chain, only a portion of the nodes which form the block
-// chain are needed in memory.  This function walks the chain backwards from the
-// current best chain to find any nodes before the first needed block node.
-//
-// This function MUST be called with the chain state lock held (for writes).
-func (b *BlockChain) pruneBlockNodes() error {
-	// Walk the chain backwards to find what should be the new root node.
-	// Intentionally use node.parent instead of getPrevNodeFromNode since
-	// the latter loads the node and the goal is to find nodes still in
-	// memory that can be pruned.
-	newRootNode := b.bestNode
-	for i := int32(0); i < b.minMemoryNodes-1 && newRootNode != nil; i++ {
-		newRootNode = newRootNode.parent
+// LockTimeToSequence converts the passed relative locktime to a sequence
+// number in accordance to BIP-68.
+// See: https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki
+//  * (Compatibility)
+func LockTimeToSequence(isSeconds bool, locktime uint32) uint32 {
+	// If we're expressing the relative lock time in blocks, then the
+	// corresponding sequence number is simply the desired input age.
+	if !isSeconds {
+		return locktime
 	}
 
-	// Nothing to do if there are not enough nodes.
-	if newRootNode == nil || newRootNode.parent == nil {
-		return nil
-	}
-
-	// Push the nodes to delete on a list in reverse order since it's easier
-	// to prune them going forwards than it is backwards.  This will
-	// typically end up being a single node since pruning is currently done
-	// just before each new node is created.  However, that might be tuned
-	// later to only prune at intervals, so the code needs to account for
-	// the possibility of multiple nodes.
-	deleteNodes := list.New()
-	for node := newRootNode.parent; node != nil; node = node.parent {
-		deleteNodes.PushFront(node)
-	}
-
-	// Loop through each node to prune, unlink its children, remove it from
-	// the dependency index, and remove it from the node index.
-	for e := deleteNodes.Front(); e != nil; e = e.Next() {
-		node := e.Value.(*blockNode)
-		err := b.removeBlockNode(node)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// isMajorityVersion determines if a previous number of blocks in the chain
-// starting with startNode are at least the minimum passed version.
-//
-// This function MUST be called with the chain state lock held (for writes).
-func (b *BlockChain) isMajorityVersion(minVer int32, startNode *blockNode, numRequired uint64) bool {
-	numFound := uint64(0)
-	iterNode := startNode
-	for i := uint64(0); i < b.chainParams.BlockUpgradeNumToCheck &&
-		numFound < numRequired && iterNode != nil; i++ {
-		// This node has a version that is at least the minimum version.
-		if iterNode.version >= minVer {
-			numFound++
-		}
-
-		// Get the previous block node.  This function is used over
-		// simply accessing iterNode.parent directly as it will
-		// dynamically create previous block nodes as needed.  This
-		// helps allow only the pieces of the chain that are needed
-		// to remain in memory.
-		var err error
-		iterNode, err = b.getPrevNodeFromNode(iterNode)
-		if err != nil {
-			break
-		}
-	}
-
-	return numFound >= numRequired
-}
-
-// calcPastMedianTime calculates the median time of the previous few blocks
-// prior to, and including, the passed block node.  It is primarily used to
-// validate new blocks have sane timestamps.
-//
-// This function MUST be called with the chain state lock held (for writes).
-func (b *BlockChain) calcPastMedianTime(startNode *blockNode) (time.Time, error) {
-	// Genesis block.
-	if startNode == nil {
-		return b.chainParams.GenesisBlock.Header.Timestamp, nil
-	}
-
-	// Create a slice of the previous few block timestamps used to calculate
-	// the median per the number defined by the constant medianTimeBlocks.
-	timestamps := make([]time.Time, medianTimeBlocks)
-	numNodes := 0
-	iterNode := startNode
-	for i := 0; i < medianTimeBlocks && iterNode != nil; i++ {
-		timestamps[i] = iterNode.timestamp
-		numNodes++
-
-		// Get the previous block node.  This function is used over
-		// simply accessing iterNode.parent directly as it will
-		// dynamically create previous block nodes as needed.  This
-		// helps allow only the pieces of the chain that are needed
-		// to remain in memory.
-		var err error
-		iterNode, err = b.getPrevNodeFromNode(iterNode)
-		if err != nil {
-			log.Errorf("getPrevNodeFromNode: %v", err)
-			return time.Time{}, err
-		}
-	}
-
-	// Prune the slice to the actual number of available timestamps which
-	// will be fewer than desired near the beginning of the block chain
-	// and sort them.
-	timestamps = timestamps[:numNodes]
-	sort.Sort(timeSorter(timestamps))
-
-	// NOTE: bitcoind incorrectly calculates the median for even numbers of
-	// blocks.  A true median averages the middle two elements for a set
-	// with an even number of elements in it.   Since the constant for the
-	// previous number of blocks to be used is odd, this is only an issue
-	// for a few blocks near the beginning of the chain.  I suspect this is
-	// an optimization even though the result is slightly wrong for a few
-	// of the first blocks since after the first few blocks, there will
-	// always be an odd number of blocks in the set per the constant.
-	//
-	// This code follows suit to ensure the same rules are used as bitcoind
-	// however, be aware that should the medianTimeBlocks constant ever be
-	// changed to an even number, this code will be wrong.
-	medianTimestamp := timestamps[numNodes/2]
-	return medianTimestamp, nil
+	// Set the 22nd bit which indicates the lock time is in seconds, then
+	// shift the locktime over by 9 since the time granularity is in
+	// 512-second intervals (2^9). This results in a max lock-time of
+	// 33,553,920 seconds, or 1.1 years.
+	return wire.SequenceLockTimeIsSeconds |
+		locktime>>wire.SequenceLockTimeGranularity
 }
 
 // getReorganizeNodes finds the fork point between the main chain and the passed
@@ -718,7 +522,7 @@ func (b *BlockChain) getReorganizeNodes(node *blockNode) (*list.List, *list.List
 	// common ancestor adding each block to the list of nodes to detach from
 	// the main chain.
 	for n := b.bestNode; n != nil && n.parent != nil; n = n.parent {
-		if n.hash.IsEqual(ancestor.hash) {
+		if n.hash.IsEqual(&ancestor.hash) {
 			break
 		}
 		detachNodes.PushBack(n)
@@ -755,7 +559,7 @@ func dbMaybeStoreBlock(dbTx database.Tx, block *btcutil.Block) error {
 func (b *BlockChain) connectBlock(node *blockNode, block *btcutil.Block, view *UtxoViewpoint, stxos []spentTxOut) error {
 	// Make sure it's extending the end of the best chain.
 	prevHash := &block.MsgBlock().Header.PrevBlock
-	if !prevHash.IsEqual(b.bestNode.hash) {
+	if !prevHash.IsEqual(&b.bestNode.hash) {
 		return AssertError("connectBlock must be called with a block " +
 			"that extends the main chain")
 	}
@@ -766,8 +570,24 @@ func (b *BlockChain) connectBlock(node *blockNode, block *btcutil.Block, view *U
 			"spent transaction out information")
 	}
 
+	// No warnings about unknown rules or versions until the chain is
+	// current.
+	if b.isCurrent() {
+		// Warn if any unknown new rules are either about to activate or
+		// have already been activated.
+		if err := b.warnUnknownRuleActivations(node); err != nil {
+			return err
+		}
+
+		// Warn if a high enough percentage of the last blocks have
+		// unexpected versions.
+		if err := b.warnUnknownVersions(node); err != nil {
+			return err
+		}
+	}
+
 	// Calculate the median time for the block.
-	medianTime, err := b.calcPastMedianTime(node)
+	medianTime, err := b.index.CalcPastMedianTime(node)
 	if err != nil {
 		return err
 	}
@@ -812,12 +632,6 @@ func (b *BlockChain) connectBlock(node *blockNode, block *btcutil.Block, view *U
 			return err
 		}
 
-		// Insert the block into the database if it's not already there.
-		err = dbMaybeStoreBlock(dbTx, block)
-		if err != nil {
-			return err
-		}
-
 		// Allow the index manager to call each of the currently active
 		// optional indexes with the block being connected so they can
 		// update themselves accordingly.
@@ -828,21 +642,24 @@ func (b *BlockChain) connectBlock(node *blockNode, block *btcutil.Block, view *U
 			}
 		}
 
-		return nil
+		// Update the cached threshold states in the database as needed.
+		return b.putThresholdCaches(dbTx)
 	})
 	if err != nil {
 		return err
 	}
 
+	// Mark all modified entries in the threshold caches as flushed now that
+	// they have been committed to the database.
+	b.markThresholdCachesFlushed()
+
 	// Prune fully spent entries and mark all entries in the view unmodified
 	// now that the modifications have been committed to the database.
 	view.commit()
 
-	// Add the new node to the memory main chain indices for faster
-	// lookups.
+	// Add the new node to the memory main chain indices for faster lookups.
 	node.inMainChain = true
-	b.index[*node.hash] = node
-	b.depNodes[*prevHash] = append(b.depNodes[*prevHash], node)
+	b.index.AddNode(node)
 
 	// This node is now the end of the best chain.
 	b.bestNode = node
@@ -872,7 +689,7 @@ func (b *BlockChain) connectBlock(node *blockNode, block *btcutil.Block, view *U
 // This function MUST be called with the chain state lock held (for writes).
 func (b *BlockChain) disconnectBlock(node *blockNode, block *btcutil.Block, view *UtxoViewpoint) error {
 	// Make sure the node being disconnected is the end of the best chain.
-	if !node.hash.IsEqual(b.bestNode.hash) {
+	if !node.hash.IsEqual(&b.bestNode.hash) {
 		return AssertError("disconnectBlock must be called with the " +
 			"block at the end of the main chain")
 	}
@@ -881,13 +698,13 @@ func (b *BlockChain) disconnectBlock(node *blockNode, block *btcutil.Block, view
 	// accessing node.parent directly as it will dynamically create previous
 	// block nodes as needed.  This helps allow only the pieces of the chain
 	// that are needed to remain in memory.
-	prevNode, err := b.getPrevNodeFromNode(node)
+	prevNode, err := b.index.PrevNodeFromNode(node)
 	if err != nil {
 		return err
 	}
 
 	// Calculate the median time for the previous block.
-	medianTime, err := b.calcPastMedianTime(prevNode)
+	medianTime, err := b.index.CalcPastMedianTime(prevNode)
 	if err != nil {
 		return err
 	}
@@ -896,7 +713,7 @@ func (b *BlockChain) disconnectBlock(node *blockNode, block *btcutil.Block, view
 	var prevBlock *btcutil.Block
 	err = b.db.View(func(dbTx database.Tx) error {
 		var err error
-		prevBlock, err = dbFetchBlockByHash(dbTx, prevNode.hash)
+		prevBlock, err = dbFetchBlockByHash(dbTx, &prevNode.hash)
 		return err
 	})
 	if err != nil {
@@ -963,9 +780,8 @@ func (b *BlockChain) disconnectBlock(node *blockNode, block *btcutil.Block, view
 	// now that the modifications have been committed to the database.
 	view.commit()
 
-	// Put block in the side chain cache.
+	// Mark block as being in a side chain.
 	node.inMainChain = false
-	b.blockCache[*node.hash] = block
 
 	// This node's parent is now the end of the best chain.
 	b.bestNode = node.parent
@@ -1013,15 +829,6 @@ func countSpentOutputs(block *btcutil.Block) int {
 //
 // This function MUST be called with the chain state lock held (for writes).
 func (b *BlockChain) reorganizeChain(detachNodes, attachNodes *list.List, flags BehaviorFlags) error {
-	// Ensure all of the needed side chain blocks are in the cache.
-	for e := attachNodes.Front(); e != nil; e = e.Next() {
-		n := e.Value.(*blockNode)
-		if _, exists := b.blockCache[*n.hash]; !exists {
-			return AssertError(fmt.Sprintf("block %v is missing "+
-				"from the side chain block cache", n.hash))
-		}
-	}
-
 	// All of the blocks to detach and related spend journal entries needed
 	// to unspend transaction outputs in the blocks being disconnected must
 	// be loaded from the database during the reorg check phase below and
@@ -1029,21 +836,25 @@ func (b *BlockChain) reorganizeChain(detachNodes, attachNodes *list.List, flags 
 	// Rather than doing two loads, cache the loaded data into these slices.
 	detachBlocks := make([]*btcutil.Block, 0, detachNodes.Len())
 	detachSpentTxOuts := make([][]spentTxOut, 0, detachNodes.Len())
+	attachBlocks := make([]*btcutil.Block, 0, attachNodes.Len())
 
 	// Disconnect all of the blocks back to the point of the fork.  This
 	// entails loading the blocks and their associated spent txos from the
 	// database and using that information to unspend all of the spent txos
 	// and remove the utxos created by the blocks.
 	view := NewUtxoViewpoint()
-	view.SetBestHash(b.bestNode.hash)
+	view.SetBestHash(&b.bestNode.hash)
 	for e := detachNodes.Front(); e != nil; e = e.Next() {
 		n := e.Value.(*blockNode)
 		var block *btcutil.Block
 		err := b.db.View(func(dbTx database.Tx) error {
 			var err error
-			block, err = dbFetchBlockByHash(dbTx, n.hash)
+			block, err = dbFetchBlockByHash(dbTx, &n.hash)
 			return err
 		})
+		if err != nil {
+			return err
+		}
 
 		// Load all of the utxos referenced by the block that aren't
 		// already in the view.
@@ -1087,13 +898,35 @@ func (b *BlockChain) reorganizeChain(detachNodes, attachNodes *list.List, flags 
 	// issues before ever modifying the chain.
 	for e := attachNodes.Front(); e != nil; e = e.Next() {
 		n := e.Value.(*blockNode)
-		block := b.blockCache[*n.hash]
+		var block *btcutil.Block
+		err := b.db.View(func(dbTx database.Tx) error {
+			// NOTE: This block is not in the main chain, so the
+			// block has to be loaded directly from the database
+			// instead of using the dbFetchBlockByHash function.
+			blockBytes, err := dbTx.FetchBlock(&n.hash)
+			if err != nil {
+				return err
+			}
+
+			block, err = btcutil.NewBlockFromBytes(blockBytes)
+			if err != nil {
+				return err
+			}
+			block.SetHeight(n.height)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Store the loaded block for later.
+		attachBlocks = append(attachBlocks, block)
 
 		// Notice the spent txout details are not requested here and
 		// thus will not be generated.  This is done because the state
 		// is not being immediately written to the database, so it is
 		// not needed.
-		err := b.checkConnectBlock(n, block, view, nil)
+		err = b.checkConnectBlock(n, block, view, nil)
 		if err != nil {
 			return err
 		}
@@ -1111,7 +944,7 @@ func (b *BlockChain) reorganizeChain(detachNodes, attachNodes *list.List, flags 
 	// view to be valid from the viewpoint of each block being connected or
 	// disconnected.
 	view = NewUtxoViewpoint()
-	view.SetBestHash(b.bestNode.hash)
+	view.SetBestHash(&b.bestNode.hash)
 
 	// Disconnect blocks from the main chain.
 	for i, e := 0, detachNodes.Front(); e != nil; i, e = i+1, e.Next() {
@@ -1140,9 +973,9 @@ func (b *BlockChain) reorganizeChain(detachNodes, attachNodes *list.List, flags 
 	}
 
 	// Connect the new best chain blocks.
-	for e := attachNodes.Front(); e != nil; e = e.Next() {
+	for i, e := 0, attachNodes.Front(); e != nil; i, e = i+1, e.Next() {
 		n := e.Value.(*blockNode)
-		block := b.blockCache[*n.hash]
+		block := attachBlocks[i]
 
 		// Load all of the utxos referenced by the block that aren't
 		// already in the view.
@@ -1166,12 +999,11 @@ func (b *BlockChain) reorganizeChain(detachNodes, attachNodes *list.List, flags 
 		if err != nil {
 			return err
 		}
-		delete(b.blockCache, *n.hash)
 	}
 
 	// Log the point where the chain forked.
 	firstAttachNode := attachNodes.Front().Value.(*blockNode)
-	forkNode, err := b.getPrevNodeFromNode(firstAttachNode)
+	forkNode, err := b.index.PrevNodeFromNode(firstAttachNode)
 	if err == nil {
 		log.Infof("REORGANIZE: Chain forks at %v", forkNode.hash)
 	}
@@ -1208,12 +1040,12 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 
 	// We are extending the main (best) chain with a new block.  This is the
 	// most common case.
-	if node.parentHash.IsEqual(b.bestNode.hash) {
+	if node.parentHash.IsEqual(&b.bestNode.hash) {
 		// Perform several checks to verify the block can be connected
 		// to the main chain without violating any rules and without
 		// actually connecting the block.
 		view := NewUtxoViewpoint()
-		view.SetBestHash(node.parentHash)
+		view.SetBestHash(&node.parentHash)
 		stxos := make([]spentTxOut, 0, countSpentOutputs(block))
 		if !fastAdd {
 			err := b.checkConnectBlock(node, block, view, &stxos)
@@ -1261,29 +1093,27 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 	}
 
 	// We're extending (or creating) a side chain which may or may not
-	// become the main chain, but in either case we need the block stored
-	// for future processing, so add the block to the side chain holding
-	// cache.
-	if !dryRun {
-		log.Debugf("Adding block %v to side chain cache", node.hash)
-	}
-	b.blockCache[*node.hash] = block
-	b.index[*node.hash] = node
+	// become the main chain, but in either case the entry is needed in the
+	// index for future processing.
+	b.index.Lock()
+	b.index.index[node.hash] = node
+	b.index.Unlock()
 
 	// Connect the parent node to this node.
 	node.inMainChain = false
 	node.parent.children = append(node.parent.children, node)
 
-	// Remove the block from the side chain cache and disconnect it from the
-	// parent node when the function returns when running in dry run mode.
+	// Disconnect it from the parent node when the function returns when
+	// running in dry run mode.
 	if dryRun {
 		defer func() {
 			children := node.parent.children
 			children = removeChildNode(children, node)
 			node.parent.children = children
 
-			delete(b.index, *node.hash)
-			delete(b.blockCache, *node.hash)
+			b.index.Lock()
+			delete(b.index.index, node.hash)
+			b.index.Unlock()
 		}()
 	}
 
@@ -1304,7 +1134,7 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 		}
 
 		// Log information about how the block is forking the chain.
-		if fork.hash.IsEqual(node.parent.hash) {
+		if fork.hash.IsEqual(&node.parent.hash) {
 			log.Infof("FORK: Block %v forks the chain at height %d"+
 				"/block %v, but does not cause a reorganize",
 				node.hash, fork.height, fork.hash)
@@ -1339,6 +1169,30 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 	return true, nil
 }
 
+// isCurrent returns whether or not the chain believes it is current.  Several
+// factors are used to guess, but the key factors that allow the chain to
+// believe it is current are:
+//  - Latest block height is after the latest checkpoint (if enabled)
+//  - Latest block has a timestamp newer than 24 hours ago
+//
+// This function MUST be called with the chain state lock held (for reads).
+func (b *BlockChain) isCurrent() bool {
+	// Not current if the latest main (best) chain height is before the
+	// latest known good checkpoint (when checkpoints are enabled).
+	checkpoint := b.LatestCheckpoint()
+	if checkpoint != nil && b.bestNode.height < checkpoint.Height {
+		return false
+	}
+
+	// Not current if the latest best block has a timestamp before 24 hours
+	// ago.
+	//
+	// The chain appears to be current if none of the checks reported
+	// otherwise.
+	minus24Hours := b.timeSource.AdjustedTime().Add(-24 * time.Hour).Unix()
+	return b.bestNode.timestamp >= minus24Hours
+}
+
 // IsCurrent returns whether or not the chain believes it is current.  Several
 // factors are used to guess, but the key factors that allow the chain to
 // believe it is current are:
@@ -1350,23 +1204,7 @@ func (b *BlockChain) IsCurrent() bool {
 	b.chainLock.RLock()
 	defer b.chainLock.RUnlock()
 
-	// Not current if the latest main (best) chain height is before the
-	// latest known good checkpoint (when checkpoints are enabled).
-	checkpoint := b.latestCheckpoint()
-	if checkpoint != nil && b.bestNode.height < checkpoint.Height {
-		return false
-	}
-
-	// Not current if the latest best block has a timestamp before 24 hours
-	// ago.
-	minus24Hours := b.timeSource.AdjustedTime().Add(-24 * time.Hour)
-	if b.bestNode.timestamp.Before(minus24Hours) {
-		return false
-	}
-
-	// The chain appears to be current if the above checks did not report
-	// otherwise.
-	return true
+	return b.isCurrent()
 }
 
 // BestSnapshot returns information about the current best chain block and
@@ -1379,6 +1217,27 @@ func (b *BlockChain) BestSnapshot() *BestState {
 	snapshot := b.stateSnapshot
 	b.stateLock.RUnlock()
 	return snapshot
+}
+
+// FetchHeader returns the block header identified by the given hash or an error
+// if it doesn't exist.
+func (b *BlockChain) FetchHeader(hash *chainhash.Hash) (wire.BlockHeader, error) {
+	// Reconstruct the header from the block index if possible.
+	if node := b.index.LookupNode(hash); node != nil {
+		return node.Header(), nil
+	}
+
+	// Fall back to loading it from the database.
+	var header *wire.BlockHeader
+	err := b.db.View(func(dbTx database.Tx) error {
+		var err error
+		header, err = dbFetchHeaderByHash(dbTx, hash)
+		return err
+	})
+	if err != nil {
+		return wire.BlockHeader{}, err
+	}
+	return *header, nil
 }
 
 // IndexManager provides a generic interface that the is called when blocks are
@@ -1411,6 +1270,14 @@ type Config struct {
 	//
 	// This field is required.
 	ChainParams *chaincfg.Params
+
+	// Checkpoints hold caller-defined checkpoints that should be added to
+	// the default checkpoints in ChainParams.  Checkpoints must be sorted
+	// by height.
+	//
+	// This field can be nil if the caller does not wish to specify any
+	// checkpoints.
+	Checkpoints []chaincfg.Checkpoint
 
 	// TimeSource defines the median time source to use for things such as
 	// block processing and determining whether or not the chain is current.
@@ -1455,22 +1322,34 @@ func New(config *Config) (*BlockChain, error) {
 	if config.ChainParams == nil {
 		return nil, AssertError("blockchain.New chain parameters nil")
 	}
+	if config.TimeSource == nil {
+		return nil, AssertError("blockchain.New timesource is nil")
+	}
 
-	// Generate a checkpoint by height map from the provided checkpoints.
-	params := config.ChainParams
+	// Generate a checkpoint by height map from the provided checkpoints
+	// and assert the provided checkpoints are sorted by height as required.
 	var checkpointsByHeight map[int32]*chaincfg.Checkpoint
-	if len(params.Checkpoints) > 0 {
+	var prevCheckpointHeight int32
+	if len(config.Checkpoints) > 0 {
 		checkpointsByHeight = make(map[int32]*chaincfg.Checkpoint)
-		for i := range params.Checkpoints {
-			checkpoint := &params.Checkpoints[i]
+		for i := range config.Checkpoints {
+			checkpoint := &config.Checkpoints[i]
+			if checkpoint.Height <= prevCheckpointHeight {
+				return nil, AssertError("blockchain.New " +
+					"checkpoints are not sorted by height")
+			}
+
 			checkpointsByHeight[checkpoint.Height] = checkpoint
+			prevCheckpointHeight = checkpoint.Height
 		}
 	}
 
-	targetTimespan := int64(params.TargetTimespan)
-	targetTimePerBlock := int64(params.TargetTimePerBlock)
+	params := config.ChainParams
+	targetTimespan := int64(params.TargetTimespan / time.Second)
+	targetTimePerBlock := int64(params.TargetTimePerBlock / time.Second)
 	adjustmentFactor := params.RetargetAdjustmentFactor
 	b := BlockChain{
+		checkpoints:         config.Checkpoints,
 		checkpointsByHeight: checkpointsByHeight,
 		db:                  config.DB,
 		chainParams:         params,
@@ -1481,13 +1360,11 @@ func New(config *Config) (*BlockChain, error) {
 		minRetargetTimespan: targetTimespan / adjustmentFactor,
 		maxRetargetTimespan: targetTimespan * adjustmentFactor,
 		blocksPerRetarget:   int32(targetTimespan / targetTimePerBlock),
-		minMemoryNodes:      int32(targetTimespan / targetTimePerBlock),
-		bestNode:            nil,
-		index:               make(map[chainhash.Hash]*blockNode),
-		depNodes:            make(map[chainhash.Hash][]*blockNode),
+		index:               newBlockIndex(config.DB, params),
 		orphans:             make(map[chainhash.Hash]*orphanBlock),
 		prevOrphans:         make(map[chainhash.Hash][]*orphanBlock),
-		blockCache:          make(map[chainhash.Hash]*btcutil.Block),
+		warningCaches:       newThresholdCaches(vbNumBits),
+		deploymentCaches:    newThresholdCaches(chaincfg.DefinedDeployments),
 	}
 
 	// Initialize the chain state from the passed database.  When the db
@@ -1503,6 +1380,14 @@ func New(config *Config) (*BlockChain, error) {
 		if err := config.IndexManager.Init(&b); err != nil {
 			return nil, err
 		}
+	}
+
+	// Initialize rule change threshold state caches from the passed
+	// database.  When the db does not yet contains any cached information
+	// for a given threshold cache, the threshold states will be calculated
+	// using the chain state.
+	if err := b.initThresholdCaches(); err != nil {
+		return nil, err
 	}
 
 	log.Infof("Chain state (height %d, hash %v, totaltx %d, work %v)",

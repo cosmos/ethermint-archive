@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2016 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -116,6 +116,23 @@ func IsCoinBaseTx(msgTx *wire.MsgTx) bool {
 // level util transaction as opposed to a raw wire transaction.
 func IsCoinBase(tx *btcutil.Tx) bool {
 	return IsCoinBaseTx(tx.MsgTx())
+}
+
+// SequenceLockActive determines if a transaction's sequence locks have been
+// met, meaning that all the inputs of a given transaction have reached a
+// height or time sufficient for their relative lock-time maturity.
+func SequenceLockActive(sequenceLock *SequenceLock, blockHeight int32,
+	medianTimePast time.Time) bool {
+
+	// If either the seconds, or height relative-lock time has not yet
+	// reached, then the transaction is not yet mature according to its
+	// sequence locks.
+	if sequenceLock.Seconds >= medianTimePast.Unix() ||
+		sequenceLock.BlockHeight >= blockHeight {
+		return false
+	}
+
+	return true
 }
 
 // IsFinalizedTransaction determines whether or not a transaction is finalized.
@@ -654,9 +671,9 @@ func (b *BlockChain) checkBlockHeaderContext(header *wire.BlockHeader, prevNode 
 
 		// Ensure the timestamp for the block header is after the
 		// median time of the last several blocks (medianTimeBlocks).
-		medianTime, err := b.calcPastMedianTime(prevNode)
+		medianTime, err := b.index.CalcPastMedianTime(prevNode)
 		if err != nil {
-			log.Errorf("calcPastMedianTime: %v", err)
+			log.Errorf("CalcPastMedianTime: %v", err)
 			return err
 		}
 		if !header.Timestamp.After(medianTime) {
@@ -693,36 +710,17 @@ func (b *BlockChain) checkBlockHeaderContext(header *wire.BlockHeader, prevNode 
 		return ruleError(ErrForkTooOld, str)
 	}
 
-	if !fastAdd {
-		// Reject version 3 blocks once a majority of the network has
-		// upgraded.  This is part of BIP0065.
-		if header.Version < 4 && b.isMajorityVersion(4, prevNode,
-			b.chainParams.BlockRejectNumRequired) {
+	// Reject outdated block versions once a majority of the network
+	// has upgraded.  These were originally voted on by BIP0034,
+	// BIP0065, and BIP0066.
+	params := b.chainParams
+	if header.Version < 2 && blockHeight >= params.BIP0034Height ||
+		header.Version < 3 && blockHeight >= params.BIP0066Height ||
+		header.Version < 4 && blockHeight >= params.BIP0065Height {
 
-			str := "new blocks with version %d are no longer valid"
-			str = fmt.Sprintf(str, header.Version)
-			return ruleError(ErrBlockVersionTooOld, str)
-		}
-
-		// Reject version 2 blocks once a majority of the network has
-		// upgraded.  This is part of BIP0066.
-		if header.Version < 3 && b.isMajorityVersion(3, prevNode,
-			b.chainParams.BlockRejectNumRequired) {
-
-			str := "new blocks with version %d are no longer valid"
-			str = fmt.Sprintf(str, header.Version)
-			return ruleError(ErrBlockVersionTooOld, str)
-		}
-
-		// Reject version 1 blocks once a majority of the network has
-		// upgraded.  This is part of BIP0034.
-		if header.Version < 2 && b.isMajorityVersion(2, prevNode,
-			b.chainParams.BlockRejectNumRequired) {
-
-			str := "new blocks with version %d are no longer valid"
-			str = fmt.Sprintf(str, header.Version)
-			return ruleError(ErrBlockVersionTooOld, str)
-		}
+		str := "new blocks with version %d are no longer valid"
+		str = fmt.Sprintf(str, header.Version)
+		return ruleError(ErrBlockVersionTooOld, str)
 	}
 
 	return nil
@@ -774,8 +772,7 @@ func (b *BlockChain) checkBlockContext(block *btcutil.Block, prevNode *blockNode
 		// once a majority of the network has upgraded.  This is part of
 		// BIP0034.
 		if ShouldHaveSerializedBlockHeight(header) &&
-			b.isMajorityVersion(serializedHeightVersion, prevNode,
-				b.chainParams.BlockEnforceNumRequired) {
+			blockHeight >= b.chainParams.BIP0034Height {
 
 			coinbaseTx := block.Transactions()[0]
 			err := checkSerializedHeight(coinbaseTx, blockHeight)
@@ -858,7 +855,7 @@ func CheckTransactionInputs(tx *btcutil.Tx, txHeight int32, utxoView *UtxoViewpo
 		// Ensure the transaction is not spending coins which have not
 		// yet reached the required coinbase maturity.
 		if utxoEntry.IsCoinBase() {
-			originHeight := int32(utxoEntry.BlockHeight())
+			originHeight := utxoEntry.BlockHeight()
 			blocksSincePrev := txHeight - originHeight
 			coinbaseMaturity := int32(chainParams.CoinbaseMaturity)
 			if blocksSincePrev < coinbaseMaturity {
@@ -971,7 +968,7 @@ func (b *BlockChain) checkConnectBlock(node *blockNode, block *btcutil.Block, vi
 	}
 
 	// Ensure the view is for the node being checked.
-	if !view.BestHash().IsEqual(node.parentHash) {
+	if !view.BestHash().IsEqual(&node.parentHash) {
 		return AssertError(fmt.Sprintf("inconsistent view when "+
 			"checking block connection: best hash is %v instead "+
 			"of expected %v", view.BestHash(), node.hash))
@@ -982,11 +979,18 @@ func (b *BlockChain) checkConnectBlock(node *blockNode, block *btcutil.Block, vi
 	// spent.  See the documentation for checkBIP0030 for more details.
 	//
 	// There are two blocks in the chain which violate this rule, so the
-	// check must be skipped for those blocks. The isBIP0030Node function is
-	// used to determine if this block is one of the two blocks that must be
-	// skipped.
-	enforceBIP0030 := !isBIP0030Node(node)
-	if enforceBIP0030 {
+	// check must be skipped for those blocks.  The isBIP0030Node function
+	// is used to determine if this block is one of the two blocks that must
+	// be skipped.
+	//
+	// In addition, as of BIP0034, duplicate coinbases are no longer
+	// possible due to its requirement for including the block height in the
+	// coinbase and thus it is no longer possible to create transactions
+	// that 'overwrite' older ones.  Therefore, only enforce the rule if
+	// BIP0034 is not yet active.  This is a useful optimization because the
+	// BIP0030 check is expensive since it involves a ton of cache misses in
+	// the utxoset.
+	if !isBIP0030Node(node) && (node.height < b.chainParams.BIP0034Height) {
 		err := b.checkBIP0030(node, block, view)
 		if err != nil {
 			return err
@@ -1007,7 +1011,7 @@ func (b *BlockChain) checkConnectBlock(node *blockNode, block *btcutil.Block, vi
 	// "standard" type.  The rules for this BIP only apply to transactions
 	// after the timestamp defined by txscript.Bip16Activation.  See
 	// https://en.bitcoin.it/wiki/BIP_0016 for more details.
-	enforceBIP0016 := node.timestamp.After(txscript.Bip16Activation)
+	enforceBIP0016 := node.timestamp >= txscript.Bip16Activation.Unix()
 
 	// The number of signature operations must be less than the maximum
 	// allowed per block.  Note that the preliminary sanity checks on a
@@ -1103,20 +1107,10 @@ func (b *BlockChain) checkConnectBlock(node *blockNode, block *btcutil.Block, vi
 	// will therefore be detected by the next checkpoint).  This is a huge
 	// optimization because running the scripts is the most time consuming
 	// portion of block handling.
-	checkpoint := b.latestCheckpoint()
+	checkpoint := b.LatestCheckpoint()
 	runScripts := !b.noVerify
 	if checkpoint != nil && node.height <= checkpoint.Height {
 		runScripts = false
-	}
-
-	// Get the previous block node.  This function is used over simply
-	// accessing node.parent directly as it will dynamically create previous
-	// block nodes as needed.  This helps allow only the pieces of the chain
-	// that are needed to remain in memory.
-	prevNode, err := b.getPrevNodeFromNode(node)
-	if err != nil {
-		log.Errorf("getPrevNodeFromNode: %v", err)
-		return err
 	}
 
 	// Blocks created after the BIP0016 activation time need to have the
@@ -1126,22 +1120,16 @@ func (b *BlockChain) checkConnectBlock(node *blockNode, block *btcutil.Block, vi
 		scriptFlags |= txscript.ScriptBip16
 	}
 
-	// Enforce DER signatures for block versions 3+ once the majority of the
-	// network has upgraded to the enforcement threshold.  This is part of
-	// BIP0066.
+	// Enforce DER signatures for block versions 3+ once the historical
+	// activation threshold has been reached.  This is part of BIP0066.
 	blockHeader := &block.MsgBlock().Header
-	if blockHeader.Version >= 3 && b.isMajorityVersion(3, prevNode,
-		b.chainParams.BlockEnforceNumRequired) {
-
+	if blockHeader.Version >= 3 && node.height >= b.chainParams.BIP0066Height {
 		scriptFlags |= txscript.ScriptVerifyDERSignatures
 	}
 
-	// Enforce CHECKLOCKTIMEVERIFY for block versions 4+ once the majority
-	// of the network has upgraded to the enforcement threshold.  This is
-	// part of BIP0065.
-	if blockHeader.Version >= 4 && b.isMajorityVersion(4, prevNode,
-		b.chainParams.BlockEnforceNumRequired) {
-
+	// Enforce CHECKLOCKTIMEVERIFY for block versions 4+ once the historical
+	// activation threshold has been reached.  This is part of BIP0065.
+	if blockHeader.Version >= 4 && node.height >= b.chainParams.BIP0065Height {
 		scriptFlags |= txscript.ScriptVerifyCheckLockTimeVerify
 	}
 
@@ -1158,7 +1146,7 @@ func (b *BlockChain) checkConnectBlock(node *blockNode, block *btcutil.Block, vi
 
 	// Update the best hash for view to include this block since all of its
 	// transactions have been connected.
-	view.SetBestHash(node.hash)
+	view.SetBestHash(&node.hash)
 
 	return nil
 }
@@ -1185,6 +1173,6 @@ func (b *BlockChain) CheckConnectBlock(block *btcutil.Block) error {
 	// Leave the spent txouts entry nil in the state since the information
 	// is not needed and thus extra work can be avoided.
 	view := NewUtxoViewpoint()
-	view.SetBestHash(prevNode.hash)
+	view.SetBestHash(&prevNode.hash)
 	return b.checkConnectBlock(newNode, block, view, nil)
 }

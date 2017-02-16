@@ -57,7 +57,7 @@ func callGas(gasTable params.GasTable, availableGas, base, callCost *big.Int) *b
 }
 
 // baseCheck checks for any stack error underflows
-func baseCheck(op OpCode, stack *stack, gas *big.Int) error {
+func baseCheck(op OpCode, stack *Stack, gas *big.Int) error {
 	// PUSH and DUP are a bit special. They all cost the same but we do want to have checking on stack push limit
 	// PUSH is also allowed to calculate the same price for all PUSHes
 	// DUP requirements are handled elsewhere (except for the stack limit check)

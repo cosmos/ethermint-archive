@@ -2,32 +2,36 @@ package ethereum
 
 import (
 	"bytes"
-	"encoding/hex"
+	"os"
+	"time"
 	"reflect"
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/pow"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	abciTypes "github.com/tendermint/abci/types"
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 // Backend handles the chain database and VM
 type Backend struct {
 	ethereum *eth.Ethereum
-	txSub    event.Subscription
 	client   *client.ClientURI
 	config   *eth.Config
 }
+
+const (
+	maxWaitForServerRetries = 10
+)
 
 // New creates a new Backend
 func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) {
@@ -35,7 +39,7 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) 
 	if err != nil {
 		return nil, err
 	}
-	setFakePow(ethereum)
+	// setFakePow(ethereum)
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
 	ethBackend := &Backend{
 		ethereum: ethereum,
@@ -47,6 +51,23 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) 
 	return ethBackend, nil
 }
 
+func waitForServer(s *Backend) error {
+	// wait for Tendermint to open the socket and run http endpoint
+	var result core_types.TMResult
+	retriesCount := 0
+	for result == nil {
+		_, err := s.client.Call("status", map[string]interface{}{}, &result)
+		if err != nil {
+			glog.V(logger.Info).Infof("Waiting for tendermint endpoint to start: %s", err)
+		}
+		if retriesCount += 1; retriesCount >= maxWaitForServerRetries {
+			return abciTypes.ErrInternalError
+		}
+		time.Sleep(time.Second)
+	}
+	return nil
+}
+
 // APIs returns the collection of RPC services the ethereum package offers.
 func (s *Backend) APIs() []rpc.API {
 	apis := s.Ethereum().APIs()
@@ -55,12 +76,15 @@ func (s *Backend) APIs() []rpc.API {
 		if v.Namespace == "net" {
 			continue
 		}
-		if txPoolAPI, ok := v.Service.(*eth.PublicTransactionPoolAPI); ok {
-			s.setFakeTxPool(txPoolAPI)
-			go s.txBroadcastLoop()
+		if v.Namespace == "miner" {
+			continue
+		}
+		if _, ok := v.Service.(*eth.PublicMinerAPI); ok {
+			continue
 		}
 		retApis = append(retApis, v)
 	}
+	go s.txBroadcastLoop()
 	return retApis
 }
 
@@ -98,11 +122,22 @@ func (s *Backend) Config() *eth.Config {
 // Transactions sent via the go-ethereum rpc need to be routed to tendermint
 
 // listen for txs and forward to tendermint
+// TODO: some way to exit this (it runs in a go-routine)
 func (s *Backend) txBroadcastLoop() {
-	for obj := range s.txSub.Chan() {
+	minerWorkerUnsubscribe(s.ethereum)
+	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
+
+	if err := waitForServer(s); err != nil {
+		// timeouted when waiting for tendermint communication failed
+		glog.V(logger.Error).Infof("Failed to run tendermint HTTP endpoint, err=%s", err)
+		os.Exit(1)
+	}
+
+	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
-		err := s.BroadcastTx(event.Tx)
-		glog.V(logger.Info).Infof("Broadcast, err=%s", err)
+		if err := s.BroadcastTx(event.Tx); err != nil {
+			glog.V(logger.Error).Infof("Broadcast, err=%s", err)
+		}
 	}
 }
 
@@ -114,7 +149,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 		return err
 	}
 	params := map[string]interface{}{
-		"tx": hex.EncodeToString(buf.Bytes()),
+		"tx": buf.Bytes(),
 	}
 	_, err := s.client.Call("broadcast_tx_sync", params, &result)
 	return err
@@ -125,6 +160,27 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 // and does not expose many of the fields that we need to overwrite.
 // So the quickest way forward is to use `unsafe` to overwrite those fields.
 
+func minerWorkerUnsubscribe(ethereum *eth.Ethereum) {
+	pointerVal := reflect.ValueOf(ethereum)
+	val := reflect.Indirect(pointerVal)
+	member := val.FieldByName("miner")
+	val = reflect.Indirect(member)
+	member = val.FieldByName("worker")
+
+	ptrToWorker := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToWorker := (**interface{})(ptrToWorker)
+
+	val = reflect.Indirect(member)
+	member = val.FieldByName("events")
+
+	ptrToEvents := unsafe.Pointer(member.UnsafeAddr())
+	realPtrToEvents := (*event.Subscription)(ptrToEvents)
+
+	(*realPtrToEvents).Unsubscribe()
+	*realPtrToWorker = nil
+}
+
+/*
 func setFakePow(ethereum *eth.Ethereum) {
 	powToSet := pow.PoW(core.FakePow{})
 	pointerVal := reflect.ValueOf(ethereum.BlockChain())
@@ -134,8 +190,10 @@ func setFakePow(ethereum *eth.Ethereum) {
 	realPtrToPow := (*pow.PoW)(ptrToPow)
 	*realPtrToPow = powToSet
 }
+*/
 
-func (s *Backend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+/*
+func (s *Backend) setFakeTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
 	mux := new(event.TypeMux)
 	s.txSub = mux.Subscribe(core.TxPreEvent{})
 	txPool := core.NewTxPool(s.Config().ChainConfig, mux, s.Ethereum().BlockChain().State, s.Ethereum().BlockChain().GasLimit)
@@ -148,7 +206,7 @@ func (s *Backend) setFakeTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	*realPtrToTxPool = txPool
 }
 
-func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
+func (s *Backend) setFakeMuxTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
 	mux := new(event.TypeMux)
 	s.txSub = mux.Subscribe(core.TxPreEvent{})
 	pointerVal := reflect.ValueOf(txPoolAPI)
@@ -163,3 +221,4 @@ func (s *Backend) setFakeMuxTxPool(txPoolAPI *eth.PublicTransactionPoolAPI) {
 	realPtrToEventMux := (**event.TypeMux)(ptrToEventMux)
 	*realPtrToEventMux = mux
 }
+*/

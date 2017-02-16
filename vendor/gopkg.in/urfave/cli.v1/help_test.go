@@ -141,6 +141,23 @@ func Test_helpCommand_Action_ErrorIfNoTopic(t *testing.T) {
 	}
 }
 
+func Test_helpCommand_InHelpOutput(t *testing.T) {
+	app := NewApp()
+	output := &bytes.Buffer{}
+	app.Writer = output
+	app.Run([]string{"test", "--help"})
+
+	s := output.String()
+
+	if strings.Contains(s, "\nCOMMANDS:\nGLOBAL OPTIONS:\n") {
+		t.Fatalf("empty COMMANDS section detected: %q", s)
+	}
+
+	if !strings.Contains(s, "help, h") {
+		t.Fatalf("missing \"help, h\": %q", s)
+	}
+}
+
 func Test_helpSubcommand_Action_ErrorIfNoTopic(t *testing.T) {
 	app := NewApp()
 
@@ -166,6 +183,76 @@ func Test_helpSubcommand_Action_ErrorIfNoTopic(t *testing.T) {
 
 	if exitErr.exitCode != 3 {
 		t.Fatalf("expected exit value = 3, got %d instead", exitErr.exitCode)
+	}
+}
+
+func TestShowAppHelp_CommandAliases(t *testing.T) {
+	app := &App{
+		Commands: []Command{
+			{
+				Name:    "frobbly",
+				Aliases: []string{"fr", "frob"},
+				Action: func(ctx *Context) error {
+					return nil
+				},
+			},
+		},
+	}
+
+	output := &bytes.Buffer{}
+	app.Writer = output
+	app.Run([]string{"foo", "--help"})
+
+	if !strings.Contains(output.String(), "frobbly, fr, frob") {
+		t.Errorf("expected output to include all command aliases; got: %q", output.String())
+	}
+}
+
+func TestShowCommandHelp_CommandAliases(t *testing.T) {
+	app := &App{
+		Commands: []Command{
+			{
+				Name:    "frobbly",
+				Aliases: []string{"fr", "frob", "bork"},
+				Action: func(ctx *Context) error {
+					return nil
+				},
+			},
+		},
+	}
+
+	output := &bytes.Buffer{}
+	app.Writer = output
+	app.Run([]string{"foo", "help", "fr"})
+
+	if !strings.Contains(output.String(), "frobbly") {
+		t.Errorf("expected output to include command name; got: %q", output.String())
+	}
+
+	if strings.Contains(output.String(), "bork") {
+		t.Errorf("expected output to exclude command aliases; got: %q", output.String())
+	}
+}
+
+func TestShowSubcommandHelp_CommandAliases(t *testing.T) {
+	app := &App{
+		Commands: []Command{
+			{
+				Name:    "frobbly",
+				Aliases: []string{"fr", "frob", "bork"},
+				Action: func(ctx *Context) error {
+					return nil
+				},
+			},
+		},
+	}
+
+	output := &bytes.Buffer{}
+	app.Writer = output
+	app.Run([]string{"foo", "help"})
+
+	if !strings.Contains(output.String(), "frobbly, fr, frob, bork") {
+		t.Errorf("expected output to include all command aliases; got: %q", output.String())
 	}
 }
 

@@ -41,16 +41,10 @@ func TestMessage(t *testing.T) {
 
 	// MsgVersion.
 	addrYou := &net.TCPAddr{IP: net.ParseIP("192.168.0.1"), Port: 8333}
-	you, err := NewNetAddress(addrYou, SFNodeNetwork)
-	if err != nil {
-		t.Errorf("NewNetAddress: %v", err)
-	}
+	you := NewNetAddress(addrYou, SFNodeNetwork)
 	you.Timestamp = time.Time{} // Version message has zero value timestamp.
 	addrMe := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8333}
-	me, err := NewNetAddress(addrMe, SFNodeNetwork)
-	if err != nil {
-		t.Errorf("NewNetAddress: %v", err)
-	}
+	me := NewNetAddress(addrMe, SFNodeNetwork)
 	me.Timestamp = time.Time{} // Version message has zero value timestamp.
 	msgVersion := NewMsgVersion(me, you, 123123, 0)
 
@@ -62,7 +56,7 @@ func TestMessage(t *testing.T) {
 	msgInv := NewMsgInv()
 	msgGetData := NewMsgGetData()
 	msgNotFound := NewMsgNotFound()
-	msgTx := NewMsgTx()
+	msgTx := NewMsgTx(1)
 	msgPing := NewMsgPing(123123)
 	msgPong := NewMsgPong(123123)
 	msgGetHeaders := NewMsgGetHeaders()
@@ -72,7 +66,7 @@ func TestMessage(t *testing.T) {
 	msgFilterAdd := NewMsgFilterAdd([]byte{0x01})
 	msgFilterClear := NewMsgFilterClear()
 	msgFilterLoad := NewMsgFilterLoad([]byte{0x01}, 10, 0, BloomUpdateNone)
-	bh := NewBlockHeader(&chainhash.Hash{}, &chainhash.Hash{}, 0, 0)
+	bh := NewBlockHeader(1, &chainhash.Hash{}, &chainhash.Hash{}, 0, 0)
 	msgMerkleBlock := NewMsgMerkleBlock(bh)
 	msgReject := NewMsgReject("block", RejectDuplicate, "duplicate block")
 

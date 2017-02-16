@@ -31,30 +31,37 @@ import (
 
 var (
 	walletCommand = cli.Command{
-		Name:  "wallet",
-		Usage: "ethereum presale wallet",
-		Subcommands: []cli.Command{
-			{
-				Action: importWallet,
-				Name:   "import",
-				Usage:  "import ethereum presale wallet",
-			},
-		},
+		Name:      "wallet",
+		Usage:     "Manage Ethereum presale wallets",
+		ArgsUsage: "",
+		Category:  "ACCOUNT COMMANDS",
 		Description: `
-
-    get wallet import /path/to/my/presale.wallet
+    geth wallet import /path/to/my/presale.wallet
 
 will prompt for your password and imports your ether presale account.
 It can be used non-interactively with the --password option taking a
 passwordfile as argument containing the wallet password in plaintext.
 
-`}
+`,
+		Subcommands: []cli.Command{
+			{
+				Action:    importWallet,
+				Name:      "import",
+				Usage:     "Import Ethereum presale wallet",
+				ArgsUsage: "<keyFile>",
+				Description: `
+TODO: Please write this
+`,
+			},
+		},
+	}
 	accountCommand = cli.Command{
-		Action: accountList,
-		Name:   "account",
-		Usage:  "manage accounts",
+		Action:    accountList,
+		Name:      "account",
+		Usage:     "Manage accounts",
+		ArgsUsage: "",
+		Category:  "ACCOUNT COMMANDS",
 		Description: `
-
 Manage accounts lets you create new accounts, list all existing accounts,
 import a private key into a new account.
 
@@ -86,17 +93,21 @@ And finally. DO NOT FORGET YOUR PASSWORD.
 `,
 		Subcommands: []cli.Command{
 			{
-				Action: accountList,
-				Name:   "list",
-				Usage:  "print account addresses",
+				Action:    accountList,
+				Name:      "list",
+				Usage:     "Print account addresses",
+				ArgsUsage: " ",
+				Description: `
+TODO: Please write this
+`,
 			},
 			{
-				Action: accountCreate,
-				Name:   "new",
-				Usage:  "create a new account",
+				Action:    accountCreate,
+				Name:      "new",
+				Usage:     "Create a new account",
+				ArgsUsage: " ",
 				Description: `
-
-    ethereum account new
+    geth account new
 
 Creates a new account. Prints the address.
 
@@ -106,19 +117,19 @@ You must remember this passphrase to unlock your account in the future.
 
 For non-interactive use the passphrase can be specified with the --password flag:
 
-    ethereum --password <passwordfile> account new
+    geth --password <passwordfile> account new
 
 Note, this is meant to be used for testing only, it is a bad idea to save your
 password to file or expose in any other way.
-					`,
+`,
 			},
 			{
-				Action: accountUpdate,
-				Name:   "update",
-				Usage:  "update an existing account",
+				Action:    accountUpdate,
+				Name:      "update",
+				Usage:     "Update an existing account",
+				ArgsUsage: "<address>",
 				Description: `
-
-    ethereum account update <address>
+    geth account update <address>
 
 Update an existing account.
 
@@ -130,19 +141,19 @@ format to the newest format or change the password for an account.
 
 For non-interactive use the passphrase can be specified with the --password flag:
 
-    ethereum --password <passwordfile> account update <address>
+    geth --password <passwordfile> account update <address>
 
 Since only one password can be given, only format update can be performed,
 changing your password is only possible interactively.
-					`,
+`,
 			},
 			{
-				Action: accountImport,
-				Name:   "import",
-				Usage:  "import a private key into a new account",
+				Action:    accountImport,
+				Name:      "import",
+				Usage:     "Import a private key into a new account",
+				ArgsUsage: "<keyFile>",
 				Description: `
-
-    ethereum account import <keyfile>
+    geth account import <keyfile>
 
 Imports an unencrypted private key from <keyfile> and creates a new account.
 Prints the address.
@@ -155,21 +166,21 @@ You must remember this passphrase to unlock your account in the future.
 
 For non-interactive use the passphrase can be specified with the -password flag:
 
-    ethereum --password <passwordfile> account import <keyfile>
+    geth --password <passwordfile> account import <keyfile>
 
 Note:
 As you can directly copy your encrypted accounts to another ethereum instance,
 this import mechanism is not needed when you transfer an account between
 nodes.
-					`,
+`,
 			},
 		},
 	}
 )
 
 func accountList(ctx *cli.Context) error {
-	accman := utils.MakeAccountManager(ctx)
-	for i, acct := range accman.Accounts() {
+	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
+	for i, acct := range stack.AccountManager().Accounts() {
 		fmt.Printf("Account #%d: {%x} %s\n", i, acct.Address, acct.File)
 	}
 	return nil
@@ -261,10 +272,10 @@ func ambiguousAddrRecovery(am *accounts.Manager, err *accounts.AmbiguousAddrErro
 
 // accountCreate creates a new account into the keystore defined by the CLI flags.
 func accountCreate(ctx *cli.Context) error {
-	accman := utils.MakeAccountManager(ctx)
+	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
 	password := getPassPhrase("Your new account is locked with a password. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))
 
-	account, err := accman.NewAccount(password)
+	account, err := stack.AccountManager().NewAccount(password)
 	if err != nil {
 		utils.Fatalf("Failed to create account: %v", err)
 	}
@@ -278,11 +289,10 @@ func accountUpdate(ctx *cli.Context) error {
 	if len(ctx.Args()) == 0 {
 		utils.Fatalf("No accounts specified to update")
 	}
-	accman := utils.MakeAccountManager(ctx)
-
-	account, oldPassword := unlockAccount(ctx, accman, ctx.Args().First(), 0, nil)
+	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
+	account, oldPassword := unlockAccount(ctx, stack.AccountManager(), ctx.Args().First(), 0, nil)
 	newPassword := getPassPhrase("Please give a new password. Do not forget this password.", true, 0, nil)
-	if err := accman.Update(account, oldPassword, newPassword); err != nil {
+	if err := stack.AccountManager().Update(account, oldPassword, newPassword); err != nil {
 		utils.Fatalf("Could not update the account: %v", err)
 	}
 	return nil
@@ -298,10 +308,9 @@ func importWallet(ctx *cli.Context) error {
 		utils.Fatalf("Could not read wallet file: %v", err)
 	}
 
-	accman := utils.MakeAccountManager(ctx)
+	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
 	passphrase := getPassPhrase("", false, 0, utils.MakePasswordList(ctx))
-
-	acct, err := accman.ImportPreSaleKey(keyJson, passphrase)
+	acct, err := stack.AccountManager().ImportPreSaleKey(keyJson, passphrase)
 	if err != nil {
 		utils.Fatalf("%v", err)
 	}
@@ -316,11 +325,11 @@ func accountImport(ctx *cli.Context) error {
 	}
 	key, err := crypto.LoadECDSA(keyfile)
 	if err != nil {
-		utils.Fatalf("keyfile must be given as argument")
+		utils.Fatalf("Failed to load the private key: %v", err)
 	}
-	accman := utils.MakeAccountManager(ctx)
+	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
 	passphrase := getPassPhrase("Your new account is locked with a password. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))
-	acct, err := accman.ImportECDSA(key, passphrase)
+	acct, err := stack.AccountManager().ImportECDSA(key, passphrase)
 	if err != nil {
 		utils.Fatalf("Could not create the account: %v", err)
 	}

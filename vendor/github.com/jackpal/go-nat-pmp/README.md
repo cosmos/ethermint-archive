@@ -8,6 +8,9 @@ NAT-PMP is supported by Apple brand routers and open source routers like Tomato 
 
 See http://tools.ietf.org/html/draft-cheshire-nat-pmp-03
 
+
+[![Build Status](https://travis-ci.org/jackpal/go-nat-pmp.svg)](https://travis-ci.org/jackpal/go-nat-pmp)
+
 Get the package
 ---------------
 
@@ -16,7 +19,15 @@ Get the package
 Usage
 -----
 
-    import natpmp "github.com/jackpal/go-nat-pmp"
+    import (
+        "github.com/jackpal/gateway"
+        natpmp "github.com/jackpal/go-nat-pmp"
+    )
+
+    gatewayIP, err = gateway.DiscoverGateway()
+    if err != nil {
+        return
+    }
 
     client := natpmp.NewClient(gatewayIP)
     response, err := client.GetExternalAddress()
@@ -24,13 +35,6 @@ Usage
         return
     }
     print("External IP address:", response.ExternalIPAddress)
-
-Notes
------
-
-There doesn't seem to be an easy way to programmatically determine the address of the default gateway.
-(Linux and OSX have a "routes" kernel API that can be examined to get this information, but there is
-no Go package for getting this information.)
 
 Clients
 -------

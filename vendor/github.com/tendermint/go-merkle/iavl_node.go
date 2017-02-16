@@ -366,8 +366,9 @@ func (node *IAVLNode) getRightNode(t *IAVLTree) *IAVLNode {
 }
 
 // NOTE: overwrites node
+// TODO: optimize balance & rotate
 func (node *IAVLNode) rotateRight(t *IAVLTree) *IAVLNode {
-	// node = node._copy()
+	node = node._copy()
 	l := node.getLeftNode(t)
 	removeOrphan(t, l)
 	_l := l._copy()
@@ -383,8 +384,9 @@ func (node *IAVLNode) rotateRight(t *IAVLTree) *IAVLNode {
 }
 
 // NOTE: overwrites node
+// TODO: optimize balance & rotate
 func (node *IAVLNode) rotateLeft(t *IAVLTree) *IAVLNode {
-	// node = node._copy()
+	node = node._copy()
 	r := node.getRightNode(t)
 	removeOrphan(t, r)
 	_r := r._copy()
@@ -410,6 +412,7 @@ func (node *IAVLNode) calcBalance(t *IAVLTree) int {
 }
 
 // NOTE: assumes that node can be modified
+// TODO: optimize balance & rotate
 func (node *IAVLNode) balance(t *IAVLTree) (newSelf *IAVLNode) {
 	if node.persisted {
 		panic("Unexpected balance() call on persisted node")
@@ -447,22 +450,51 @@ func (node *IAVLNode) balance(t *IAVLTree) (newSelf *IAVLNode) {
 	return node
 }
 
-func (node *IAVLNode) traverse(t *IAVLTree, cb func(*IAVLNode) bool) bool {
-	stop := cb(node)
+// traverse is a wrapper over traverseInRange when we want the whole tree
+func (node *IAVLNode) traverse(t *IAVLTree, ascending bool, cb func(*IAVLNode) bool) bool {
+	return node.traverseInRange(t, nil, nil, ascending, cb)
+}
+
+func (node *IAVLNode) traverseInRange(t *IAVLTree, start, end []byte, ascending bool, cb func(*IAVLNode) bool) bool {
+	afterStart := (start == nil || bytes.Compare(start, node.key) <= 0)
+	beforeEnd := (end == nil || bytes.Compare(node.key, end) <= 0)
+
+	stop := false
+	if afterStart && beforeEnd {
+		// IterateRange ignores this if not leaf
+		stop = cb(node)
+	}
 	if stop {
 		return stop
 	}
+
 	if node.height > 0 {
-		stop = node.getLeftNode(t).traverse(t, cb)
-		if stop {
-			return stop
-		}
-		stop = node.getRightNode(t).traverse(t, cb)
-		if stop {
-			return stop
+		if ascending {
+			// check lower nodes, then higher
+			if afterStart {
+				stop = node.getLeftNode(t).traverseInRange(t, start, end, ascending, cb)
+			}
+			if stop {
+				return stop
+			}
+			if beforeEnd {
+				stop = node.getRightNode(t).traverseInRange(t, start, end, ascending, cb)
+			}
+		} else {
+			// check the higher nodes first
+			if beforeEnd {
+				stop = node.getRightNode(t).traverseInRange(t, start, end, ascending, cb)
+			}
+			if stop {
+				return stop
+			}
+			if afterStart {
+				stop = node.getLeftNode(t).traverseInRange(t, start, end, ascending, cb)
+			}
 		}
 	}
-	return false
+
+	return stop
 }
 
 // Only used in testing...

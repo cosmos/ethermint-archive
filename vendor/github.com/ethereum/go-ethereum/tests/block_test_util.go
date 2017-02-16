@@ -31,10 +31,12 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -165,13 +167,13 @@ func runBlockTest(homesteadBlock, daoForkBlock, gasPriceFork *big.Int, test *Blo
 		return fmt.Errorf("InsertPreState: %v", err)
 	}
 
-	core.WriteTd(db, test.Genesis.Hash(), test.Genesis.Difficulty())
+	core.WriteTd(db, test.Genesis.Hash(), 0, test.Genesis.Difficulty())
 	core.WriteBlock(db, test.Genesis)
 	core.WriteCanonicalHash(db, test.Genesis.Hash(), test.Genesis.NumberU64())
 	core.WriteHeadBlockHash(db, test.Genesis.Hash())
 	evmux := new(event.TypeMux)
-	config := &core.ChainConfig{HomesteadBlock: homesteadBlock, DAOForkBlock: daoForkBlock, DAOForkSupport: true, HomesteadGasRepriceBlock: gasPriceFork}
-	chain, err := core.NewBlockChain(db, config, ethash.NewShared(), evmux)
+	config := &params.ChainConfig{HomesteadBlock: homesteadBlock, DAOForkBlock: daoForkBlock, DAOForkSupport: true, EIP150Block: gasPriceFork}
+	chain, err := core.NewBlockChain(db, config, ethash.NewShared(), evmux, vm.Config{})
 	if err != nil {
 		return err
 	}
@@ -228,7 +230,7 @@ func (t *BlockTest) InsertPreState(db ethdb.Database) (*state.StateDB, error) {
 		}
 	}
 
-	root, err := statedb.Commit()
+	root, err := statedb.Commit(false)
 	if err != nil {
 		return nil, fmt.Errorf("error writing state: %v", err)
 	}
@@ -413,7 +415,7 @@ func (test *BlockTest) ValidateImportedHeaders(cm *core.BlockChain, validBlocks 
 	// block-by-block, so we can only validate imported headers after
 	// all blocks have been processed by ChainManager, as they may not
 	// be part of the longest chain until last block is imported.
-	for b := cm.CurrentBlock(); b != nil && b.NumberU64() != 0; b = cm.GetBlock(b.Header().ParentHash) {
+	for b := cm.CurrentBlock(); b != nil && b.NumberU64() != 0; b = cm.GetBlockByHash(b.Header().ParentHash) {
 		bHash := common.Bytes2Hex(b.Hash().Bytes()) // hex without 0x prefix
 		if err := validateHeader(bmap[bHash].BlockHeader, b.Header()); err != nil {
 			return fmt.Errorf("Imported block header validation failed: %v", err)
@@ -551,9 +553,7 @@ func LoadBlockTests(file string) (map[string]*BlockTest, error) {
 // Nothing to see here, please move along...
 func prepInt(base int, s string) string {
 	if base == 16 {
-		if strings.HasPrefix(s, "0x") {
-			s = s[2:]
-		}
+		s = strings.TrimPrefix(s, "0x")
 		if len(s) == 0 {
 			s = "00"
 		}

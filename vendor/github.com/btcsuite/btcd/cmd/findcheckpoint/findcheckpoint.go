@@ -153,6 +153,7 @@ func main() {
 	chain, err := blockchain.New(&blockchain.Config{
 		DB:          db,
 		ChainParams: activeNetParams,
+		TimeSource:  blockchain.NewMedianTime(),
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize chain: %v\n", err)
@@ -165,7 +166,7 @@ func main() {
 	fmt.Printf("Block database loaded with block height %d\n", best.Height)
 
 	// Find checkpoint candidates.
-	candidates, err := findCandidates(chain, best.Hash)
+	candidates, err := findCandidates(chain, &best.Hash)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to identify candidates:", err)
 		return

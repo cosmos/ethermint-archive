@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"sync"
 	"time"
@@ -23,15 +24,17 @@ import (
 //-----------------------------------------------------------------------------
 // Timeout Parameters
 
-// All in milliseconds
+// TimeoutParams holds timeouts and deltas for each round step.
+// All timeouts and deltas in milliseconds.
 type TimeoutParams struct {
-	Propose0       int
-	ProposeDelta   int
-	Prevote0       int
-	PrevoteDelta   int
-	Precommit0     int
-	PrecommitDelta int
-	Commit0        int
+	Propose0          int
+	ProposeDelta      int
+	Prevote0          int
+	PrevoteDelta      int
+	Precommit0        int
+	PrecommitDelta    int
+	Commit0           int
+	SkipTimeoutCommit bool
 }
 
 // Wait this long for a proposal
@@ -54,16 +57,17 @@ func (tp *TimeoutParams) Commit(t time.Time) time.Time {
 	return t.Add(time.Duration(tp.Commit0) * time.Millisecond)
 }
 
-// Initialize parameters from config
+// InitTimeoutParamsFromConfig initializes parameters from config
 func InitTimeoutParamsFromConfig(config cfg.Config) *TimeoutParams {
 	return &TimeoutParams{
-		Propose0:       config.GetInt("timeout_propose"),
-		ProposeDelta:   config.GetInt("timeout_propose_delta"),
-		Prevote0:       config.GetInt("timeout_prevote"),
-		PrevoteDelta:   config.GetInt("timeout_prevote_delta"),
-		Precommit0:     config.GetInt("timeout_precommit"),
-		PrecommitDelta: config.GetInt("timeout_precommit_delta"),
-		Commit0:        config.GetInt("timeout_commit"),
+		Propose0:          config.GetInt("timeout_propose"),
+		ProposeDelta:      config.GetInt("timeout_propose_delta"),
+		Prevote0:          config.GetInt("timeout_prevote"),
+		PrevoteDelta:      config.GetInt("timeout_prevote_delta"),
+		Precommit0:        config.GetInt("timeout_precommit"),
+		PrecommitDelta:    config.GetInt("timeout_precommit_delta"),
+		Commit0:           config.GetInt("timeout_commit"),
+		SkipTimeoutCommit: config.GetBool("skip_timeout_commit"),
 	}
 }
 
@@ -189,8 +193,7 @@ func (rs *RoundState) StringShort() string {
 //-----------------------------------------------------------------------------
 
 var (
-	msgQueueSize       = 1000
-	tickTockBufferSize = 10
+	msgQueueSize = 1000
 )
 
 // msgs from the reactor which may update the state
@@ -232,12 +235,10 @@ type ConsensusState struct {
 	RoundState
 	state *sm.State // State until height-1.
 
-	peerMsgQueue     chan msgInfo     // serializes msgs affecting state (proposals, block parts, votes)
-	internalMsgQueue chan msgInfo     // like peerMsgQueue but for our own proposals, parts, votes
-	timeoutTicker    *time.Ticker     // ticker for timeouts
-	tickChan         chan timeoutInfo // start the timeoutTicker in the timeoutRoutine
-	tockChan         chan timeoutInfo // timeouts are relayed on tockChan to the receiveRoutine
-	timeoutParams    *TimeoutParams   // parameters and functions for timeout intervals
+	peerMsgQueue     chan msgInfo   // serializes msgs affecting state (proposals, block parts, votes)
+	internalMsgQueue chan msgInfo   // like peerMsgQueue but for our own proposals, parts, votes
+	timeoutTicker    TimeoutTicker  // ticker for timeouts
+	timeoutParams    *TimeoutParams // parameters and functions for timeout intervals
 
 	evsw types.EventSwitch
 
@@ -250,6 +251,8 @@ type ConsensusState struct {
 	decideProposal func(height, round int)
 	doPrevote      func(height, round int)
 	setProposal    func(proposal *types.Proposal) error
+
+	done chan struct{}
 }
 
 func NewConsensusState(config cfg.Config, state *sm.State, proxyAppConn proxy.AppConnConsensus, blockStore *bc.BlockStore, mempool *mempl.Mempool) *ConsensusState {
@@ -260,10 +263,9 @@ func NewConsensusState(config cfg.Config, state *sm.State, proxyAppConn proxy.Ap
 		mempool:          mempool,
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
-		timeoutTicker:    new(time.Ticker),
-		tickChan:         make(chan timeoutInfo, tickTockBufferSize),
-		tockChan:         make(chan timeoutInfo, tickTockBufferSize),
+		timeoutTicker:    NewTimeoutTicker(),
 		timeoutParams:    InitTimeoutParamsFromConfig(config),
+		done:             make(chan struct{}),
 	}
 	// set function defaults (may be overwritten before calling Start)
 	cs.decideProposal = cs.defaultDecideProposal
@@ -321,6 +323,13 @@ func (cs *ConsensusState) SetPrivValidator(priv PrivValidator) {
 	cs.privValidator = priv
 }
 
+// Set the local timer
+func (cs *ConsensusState) SetTimeoutTicker(timeoutTicker TimeoutTicker) {
+	cs.mtx.Lock()
+	defer cs.mtx.Unlock()
+	cs.timeoutTicker = timeoutTicker
+}
+
 func (cs *ConsensusState) LoadCommit(height int) *types.Commit {
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
@@ -345,12 +354,29 @@ func (cs *ConsensusState) OnStart() error {
 		return err
 	}
 
+	// If the latest block was applied in the abci handshake,
+	// we may not have written the current height to the wal,
+	// so check here and write it if not found.
+	// TODO: remove this and run the handhsake/replay
+	// through the consensus state with a mock app
+	gr, found, err := cs.wal.group.Search("#HEIGHT: ", makeHeightSearchFunc(cs.Height))
+	if (err == io.EOF || !found) && cs.Step == RoundStepNewHeight {
+		log.Warn("Height not found in wal. Writing new height", "height", cs.Height)
+		rs := cs.RoundStateEvent()
+		cs.wal.Save(rs)
+	} else if err != nil {
+		return err
+	}
+	if gr != nil {
+		gr.Close()
+	}
+
 	// we need the timeoutRoutine for replay so
 	//  we don't block on the tick chan.
 	// NOTE: we will get a build up of garbage go routines
 	//  firing on the tockChan until the receiveRoutine is started
 	//  to deal with them (by that point, at most one will be valid)
-	go cs.timeoutRoutine()
+	cs.timeoutTicker.Start()
 
 	// we may have lost some votes if the process crashed
 	// reload from consensus log to catchup
@@ -372,17 +398,25 @@ func (cs *ConsensusState) OnStart() error {
 // timeoutRoutine: receive requests for timeouts on tickChan and fire timeouts on tockChan
 // receiveRoutine: serializes processing of proposoals, block parts, votes; coordinates state transitions
 func (cs *ConsensusState) startRoutines(maxSteps int) {
-	go cs.timeoutRoutine()
+	cs.timeoutTicker.Start()
 	go cs.receiveRoutine(maxSteps)
 }
 
 func (cs *ConsensusState) OnStop() {
 	cs.BaseService.OnStop()
 
+	cs.timeoutTicker.Stop()
+
 	// Make BaseService.Wait() wait until cs.wal.Wait()
 	if cs.wal != nil && cs.IsRunning() {
 		cs.wal.Wait()
 	}
+}
+
+// NOTE: be sure to Stop() the event switch and drain
+// any event channels or this may deadlock
+func (cs *ConsensusState) Wait() {
+	<-cs.done
 }
 
 // Open file to log all consensus messages and timeouts for deterministic accountability
@@ -466,17 +500,12 @@ func (cs *ConsensusState) updateRoundStep(round int, step RoundStepType) {
 func (cs *ConsensusState) scheduleRound0(rs *RoundState) {
 	//log.Info("scheduleRound0", "now", time.Now(), "startTime", cs.StartTime)
 	sleepDuration := rs.StartTime.Sub(time.Now())
-	if sleepDuration < time.Duration(0) {
-		sleepDuration = time.Duration(0)
-	}
 	cs.scheduleTimeout(sleepDuration, rs.Height, 0, RoundStepNewHeight)
 }
 
-// Attempt to schedule a timeout by sending timeoutInfo on the tickChan.
-// The timeoutRoutine is alwaya available to read from tickChan (it won't block).
-// The scheduling may fail if the timeoutRoutine has already scheduled a timeout for a later height/round/step.
+// Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
 func (cs *ConsensusState) scheduleTimeout(duration time.Duration, height, round int, step RoundStepType) {
-	cs.tickChan <- timeoutInfo{duration, height, round, step}
+	cs.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height, round, step})
 }
 
 // send a msg into the receiveRoutine regarding our own proposal, block part, or vote
@@ -562,7 +591,6 @@ func (cs *ConsensusState) updateToState(state *sm.State) {
 	} else {
 		cs.StartTime = cs.timeoutParams.Commit(cs.CommitTime)
 	}
-	cs.CommitTime = time.Time{}
 	cs.Validators = validators
 	cs.Proposal = nil
 	cs.ProposalBlock = nil
@@ -593,55 +621,6 @@ func (cs *ConsensusState) newStep() {
 
 //-----------------------------------------
 // the main go routines
-
-// the state machine sends on tickChan to start a new timer.
-// timers are interupted and replaced by new ticks from later steps
-// timeouts of 0 on the tickChan will be immediately relayed to the tockChan
-func (cs *ConsensusState) timeoutRoutine() {
-	log.Debug("Starting timeout routine")
-	var ti timeoutInfo
-	for {
-		select {
-		case newti := <-cs.tickChan:
-			log.Debug("Received tick", "old_ti", ti, "new_ti", newti)
-
-			// ignore tickers for old height/round/step
-			if newti.Height < ti.Height {
-				continue
-			} else if newti.Height == ti.Height {
-				if newti.Round < ti.Round {
-					continue
-				} else if newti.Round == ti.Round {
-					if ti.Step > 0 && newti.Step <= ti.Step {
-						continue
-					}
-				}
-			}
-
-			ti = newti
-
-			// if the newti has duration == 0, we relay to the tockChan immediately (no timeout)
-			if ti.Duration == time.Duration(0) {
-				go func(t timeoutInfo) { cs.tockChan <- t }(ti)
-				continue
-			}
-
-			log.Debug("Scheduling timeout", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
-			cs.timeoutTicker.Stop()
-			cs.timeoutTicker = time.NewTicker(ti.Duration)
-		case <-cs.timeoutTicker.C:
-			log.Info("Timed out", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
-			cs.timeoutTicker.Stop()
-			// go routine here gaurantees timeoutRoutine doesn't block.
-			// Determinism comes from playback in the receiveRoutine.
-			// We can eliminate it by merging the timeoutRoutine into receiveRoutine
-			//  and managing the timeouts ourselves with a millisecond ticker
-			go func(t timeoutInfo) { cs.tockChan <- t }(ti)
-		case <-cs.Quit:
-			return
-		}
-	}
-}
 
 // a nice idea but probably more trouble than its worth
 func (cs *ConsensusState) stopTimer() {
@@ -674,29 +653,23 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 			cs.wal.Save(mi)
 			// handles proposals, block parts, votes
 			cs.handleMsg(mi, rs)
-		case ti := <-cs.tockChan:
+		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
 			cs.wal.Save(ti)
 			// if the timeout is relevant to the rs
 			// go to the next step
 			cs.handleTimeout(ti, rs)
 		case <-cs.Quit:
 
-			// drain the internalMsgQueue in case we eg. signed a proposal but it didn't hit the wal
-		FLUSH:
-			for {
-				select {
-				case mi = <-cs.internalMsgQueue:
-					cs.wal.Save(mi)
-					cs.handleMsg(mi, rs)
-				default:
-					break FLUSH
-				}
-			}
+			// NOTE: the internalMsgQueue may have signed messages from our
+			// priv_val that haven't hit the WAL, but its ok because
+			// priv_val tracks LastSig
 
 			// close wal now that we're done writing to it
 			if cs.wal != nil {
 				cs.wal.Stop()
 			}
+
+			close(cs.done)
 			return
 		}
 	}
@@ -758,7 +731,7 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs RoundState) {
 	switch ti.Step {
 	case RoundStepNewHeight:
 		// NewRound event fired from enterNewRound.
-		// XXX: should we fire timeout here?
+		// XXX: should we fire timeout here (for timeout commit)?
 		cs.enterNewRound(ti.Height, 0)
 	case RoundStepPropose:
 		types.FireEventTimeoutPropose(cs.evsw, cs.RoundStateEvent())
@@ -1171,6 +1144,7 @@ func (cs *ConsensusState) enterCommit(height int, commitRound int) {
 		// keep cs.Round the same, commitRound points to the right Precommits set.
 		cs.updateRoundStep(cs.Round, RoundStepCommit)
 		cs.CommitRound = commitRound
+		cs.CommitTime = time.Now()
 		cs.newStep()
 
 		// Maybe finalize immediately.
@@ -1416,6 +1390,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerKey string) (added bool,
 	log.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "csHeight", cs.Height)
 
 	// A precommit for the previous height?
+	// These come in while we wait timeoutCommit
 	if vote.Height+1 == cs.Height {
 		if !(cs.Step == RoundStepNewHeight && vote.Type == types.VoteTypePrecommit) {
 			// TODO: give the reason ..
@@ -1426,7 +1401,15 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerKey string) (added bool,
 		if added {
 			log.Info(Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
 			types.FireEventVote(cs.evsw, types.EventDataVote{vote})
+
+			// if we can skip timeoutCommit and have all the votes now,
+			if cs.timeoutParams.SkipTimeoutCommit && cs.LastCommit.HasAll() {
+				// go straight to new round (skip timeout commit)
+				// cs.scheduleTimeout(time.Duration(0), cs.Height, 0, RoundStepNewHeight)
+				cs.enterNewRound(cs.Height, 0)
+			}
 		}
+
 		return
 	}
 
@@ -1482,12 +1465,19 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerKey string) (added bool,
 						cs.enterNewRound(height, vote.Round)
 						cs.enterPrecommit(height, vote.Round)
 						cs.enterCommit(height, vote.Round)
+
+						if cs.timeoutParams.SkipTimeoutCommit && precommits.HasAll() {
+							// if we have all the votes now,
+							// go straight to new round (skip timeout commit)
+							// cs.scheduleTimeout(time.Duration(0), cs.Height, 0, RoundStepNewHeight)
+							cs.enterNewRound(cs.Height, 0)
+						}
+
 					}
 				} else if cs.Round <= vote.Round && precommits.HasTwoThirdsAny() {
 					cs.enterNewRound(height, vote.Round)
 					cs.enterPrecommit(height, vote.Round)
 					cs.enterPrecommitWait(height, vote.Round)
-					//}()
 				}
 			default:
 				PanicSanity(Fmt("Unexpected vote type %X", vote.Type)) // Should not happen.

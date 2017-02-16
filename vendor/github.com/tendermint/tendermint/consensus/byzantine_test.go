@@ -9,7 +9,6 @@ import (
 
 	. "github.com/tendermint/go-common"
 	cfg "github.com/tendermint/go-config"
-	"github.com/tendermint/go-crypto"
 	"github.com/tendermint/go-events"
 	"github.com/tendermint/go-p2p"
 	"github.com/tendermint/tendermint/types"
@@ -29,9 +28,11 @@ func init() {
 // Byzantine validator refuses to prevote.
 // Heal partition and ensure A sees the commit
 func TestByzantine(t *testing.T) {
-	resetConfigTimeouts()
 	N := 4
-	css := randConsensusNet(N)
+	css := randConsensusNet(N, "consensus_byzantine_test", newMockTickerFunc(false), newCounter)
+
+	// give the byzantine validator a normal ticker
+	css[0].SetTimeoutTicker(NewTimeoutTicker())
 
 	switches := make([]*p2p.Switch, N)
 	for i := 0; i < N; i++ {
@@ -39,6 +40,15 @@ func TestByzantine(t *testing.T) {
 	}
 
 	reactors := make([]p2p.Reactor, N)
+	defer func() {
+		for _, r := range reactors {
+			if rr, ok := r.(*ByzantineReactor); ok {
+				rr.reactor.Switch.Stop()
+			} else {
+				r.(*ConsensusReactor).Switch.Stop()
+			}
+		}
+	}()
 	eventChans := make([]chan interface{}, N)
 	for i := 0; i < N; i++ {
 		if i == 0 {
@@ -59,7 +69,7 @@ func TestByzantine(t *testing.T) {
 		}
 		eventChans[i] = subscribeToEvent(eventSwitch, "tester", types.EventStringNewBlock(), 1)
 
-		conR := NewConsensusReactor(css[i], false)
+		conR := NewConsensusReactor(css[i], true) // so we dont start the consensus states
 		conR.SetEventSwitch(eventSwitch)
 
 		var conRI p2p.Reactor
@@ -81,6 +91,15 @@ func TestByzantine(t *testing.T) {
 		}
 		p2p.Connect2Switches(sws, i, j)
 	})
+
+	// start the state machines
+	byzR := reactors[0].(*ByzantineReactor)
+	s := byzR.reactor.conS.GetState()
+	byzR.reactor.SwitchToConsensus(s)
+	for i := 1; i < N; i++ {
+		cr := reactors[i].(*ConsensusReactor)
+		cr.SwitchToConsensus(cr.conS.GetState())
+	}
 
 	// byz proposer sends one block to peers[0]
 	// and the other block to peers[1] and peers[2].
@@ -260,7 +279,7 @@ func (privVal *ByzantinePrivValidator) SignVote(chainID string, vote *types.Vote
 	defer privVal.mtx.Unlock()
 
 	// Sign
-	vote.Signature = privVal.Sign(types.SignBytes(chainID, vote)).(crypto.SignatureEd25519)
+	vote.Signature = privVal.Sign(types.SignBytes(chainID, vote))
 	return nil
 }
 
@@ -269,7 +288,7 @@ func (privVal *ByzantinePrivValidator) SignProposal(chainID string, proposal *ty
 	defer privVal.mtx.Unlock()
 
 	// Sign
-	proposal.Signature = privVal.Sign(types.SignBytes(chainID, proposal)).(crypto.SignatureEd25519)
+	proposal.Signature = privVal.Sign(types.SignBytes(chainID, proposal))
 	return nil
 }
 

@@ -39,9 +39,7 @@ func TestReorganization(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error loading file: %v\n", err)
 		}
-		for _, block := range blockTmp {
-			blocks = append(blocks, block)
-		}
+		blocks = append(blocks, blockTmp...)
 	}
 
 	t.Logf("Number of blocks: %v\n", len(blocks))
@@ -54,9 +52,8 @@ func TestReorganization(t *testing.T) {
 	}
 	defer teardownFunc()
 
-	// Since we're not dealing with the real block chain, disable
-	// checkpoints and set the coinbase maturity to 1.
-	chain.DisableCheckpoints(true)
+	// Since we're not dealing with the real block chain set the coinbase
+	// maturity to 1.
 	chain.TstSetCoinbaseMaturity(1)
 
 	expectedOrphans := map[int]struct{}{5: {}, 6: {}}

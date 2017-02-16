@@ -1,3 +1,18 @@
+# Vendored Dependencies
+
+Dependencies are almost all vendored in at the standard Go `/vendor` path. This allows
+people to build go-ethereum using the standard toolchain without any particular package
+manager. It also plays nicely with `go get`, not requiring external code to be relied on.
+
+The one single dependent package missing from `vendor` is `golang.org/x/net/context`. As
+this is a package exposed via public library APIs, it must not be vendored as dependent
+code woulnd't be able to instantiate.
+
+To allow reproducible builds of go-ethereum nonetheless that don't need network access
+during build time to fetch `golang.org/x/net/context`, a version was copied into our repo
+at the very specific `/build/_vendor` path, which is added automatically by all CI build
+scripts and the makefile too.
+
 # Debian Packaging
 
 Tagged releases and develop branch commits are available as installable Debian packages
@@ -22,7 +37,7 @@ We want to build go-ethereum with the most recent version of Go, irrespective of
 version that is available in the main Ubuntu repository. In order to make this possible,
 our PPA depends on the ~gophers/ubuntu/archive PPA. Our source package build-depends on
 golang-1.7, which is co-installable alongside the regular golang package. PPA dependencies
-can be edited at https://launchpad.net/%7Elp-fjl/+archive/ubuntu/geth-ci-testing/+edit-dependencies
+can be edited at https://launchpad.net/%7Eethereum/+archive/ubuntu/ethereum/+edit-dependencies
 
 ## Building Packages Locally (for testing)
 

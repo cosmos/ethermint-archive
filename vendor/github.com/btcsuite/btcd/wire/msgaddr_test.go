@@ -39,11 +39,8 @@ func TestAddr(t *testing.T) {
 
 	// Ensure NetAddresses are added properly.
 	tcpAddr := &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8333}
-	na, err := NewNetAddress(tcpAddr, SFNodeNetwork)
-	if err != nil {
-		t.Errorf("NewNetAddress: %v", err)
-	}
-	err = msg.AddAddress(na)
+	na := NewNetAddress(tcpAddr, SFNodeNetwork)
+	err := msg.AddAddress(na)
 	if err != nil {
 		t.Errorf("AddAddress: %v", err)
 	}
@@ -103,7 +100,7 @@ func TestAddr(t *testing.T) {
 }
 
 // TestAddrWire tests the MsgAddr wire encode and decode for various numbers
-// of addreses and protocol versions.
+// of addresses and protocol versions.
 func TestAddrWire(t *testing.T) {
 	// A couple of NetAddresses to use for testing.
 	na := &NetAddress{

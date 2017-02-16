@@ -13,6 +13,9 @@ import (
 // dirEmpty returns whether or not the specified directory path is empty.
 func dirEmpty(dirPath string) (bool, error) {
 	f, err := os.Open(dirPath)
+	if err != nil {
+		return false, err
+	}
 	defer f.Close()
 
 	// Read the names of a max of one entry from the directory.  When the
@@ -98,12 +101,7 @@ func upgradeDBPaths() error {
 	upgradeDBPathNet(filepath.Join(oldDbRoot, "btcd_regtest.db"), "regtest")
 
 	// Remove the old db directory.
-	err := os.RemoveAll(oldDbRoot)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return os.RemoveAll(oldDbRoot)
 }
 
 // upgradeDataPaths moves the application data from its location prior to btcd

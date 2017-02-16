@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The btcsuite developers
+// Copyright (c) 2016-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -30,6 +30,10 @@ const (
 	maxPeerPort = 35000
 	minRPCPort  = maxPeerPort
 	maxRPCPort  = 60000
+
+	// BlockVersion is the default block version used when generating
+	// blocks.
+	BlockVersion = 4
 )
 
 var (
@@ -115,7 +119,7 @@ func New(activeNet *chaincfg.Params, handlers *btcrpcclient.NotificationHandlers
 			"of the supported chain networks")
 	}
 
-	harnessID := strconv.Itoa(int(numTestInstances))
+	harnessID := strconv.Itoa(numTestInstances)
 	nodeTestData, err := ioutil.TempDir("", "rpctest-"+harnessID)
 	if err != nil {
 		return nil, err
@@ -156,28 +160,28 @@ func New(activeNet *chaincfg.Params, handlers *btcrpcclient.NotificationHandlers
 		handlers = &btcrpcclient.NotificationHandlers{}
 	}
 
-	// If a handler for the OnBlockConnected/OnBlockDisconnected callback
-	// has already been set, then we create a wrapper callback which
-	// executes both the currently registered callback, and the mem
-	// wallet's callback.
-	if handlers.OnBlockConnected != nil {
-		obc := handlers.OnBlockConnected
-		handlers.OnBlockConnected = func(hash *chainhash.Hash, height int32, t time.Time) {
-			wallet.IngestBlock(hash, height, t)
-			obc(hash, height, t)
+	// If a handler for the OnFilteredBlock{Connected,Disconnected} callback
+	// callback has already been set, then create a wrapper callback which
+	// executes both the currently registered callback and the mem wallet's
+	// callback.
+	if handlers.OnFilteredBlockConnected != nil {
+		obc := handlers.OnFilteredBlockConnected
+		handlers.OnFilteredBlockConnected = func(height int32, header *wire.BlockHeader, filteredTxns []*btcutil.Tx) {
+			wallet.IngestBlock(height, header, filteredTxns)
+			obc(height, header, filteredTxns)
 		}
 	} else {
 		// Otherwise, we can claim the callback ourselves.
-		handlers.OnBlockConnected = wallet.IngestBlock
+		handlers.OnFilteredBlockConnected = wallet.IngestBlock
 	}
-	if handlers.OnBlockDisconnected != nil {
-		obd := handlers.OnBlockConnected
-		handlers.OnBlockDisconnected = func(hash *chainhash.Hash, height int32, t time.Time) {
-			wallet.UnwindBlock(hash, height, t)
-			obd(hash, height, t)
+	if handlers.OnFilteredBlockDisconnected != nil {
+		obd := handlers.OnFilteredBlockDisconnected
+		handlers.OnFilteredBlockDisconnected = func(height int32, header *wire.BlockHeader) {
+			wallet.UnwindBlock(height, header)
+			obd(height, header)
 		}
 	} else {
-		handlers.OnBlockDisconnected = wallet.UnwindBlock
+		handlers.OnFilteredBlockDisconnected = wallet.UnwindBlock
 	}
 
 	h := &Harness{
@@ -216,8 +220,15 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 
 	h.wallet.Start()
 
-	// Ensure the btcd properly dispatches our registered call-back for
-	// each new block. Otherwise, the memWallet won't function properly.
+	// Filter transactions that pay to the coinbase associated with the
+	// wallet.
+	filterAddrs := []btcutil.Address{h.wallet.coinbaseAddr}
+	if err := h.Node.LoadTxFilter(true, filterAddrs, nil); err != nil {
+		return err
+	}
+
+	// Ensure btcd properly dispatches our registered call-back for each new
+	// block. Otherwise, the memWallet won't function properly.
 	if err := h.Node.NotifyBlocks(); err != nil {
 		return err
 	}
@@ -240,26 +251,22 @@ func (h *Harness) SetUp(createTestChain bool, numMatureOutputs uint32) error {
 		return err
 	}
 	ticker := time.NewTicker(time.Millisecond * 100)
-out:
-	for {
-		select {
-		case <-ticker.C:
-			walletHeight := h.wallet.SyncedHeight()
-			if walletHeight == height {
-				break out
-			}
+	for range ticker.C {
+		walletHeight := h.wallet.SyncedHeight()
+		if walletHeight == height {
+			break
 		}
 	}
+	ticker.Stop()
 
 	return nil
 }
 
-// TearDown stops the running rpc test instance. All created processes are
+// tearDown stops the running rpc test instance.  All created processes are
 // killed, and temporary directories removed.
 //
-// NOTE: This method and SetUp should always be called from the same goroutine
-// as they are not concurrent safe.
-func (h *Harness) TearDown() error {
+// This function MUST be called with the harness state mutex held (for writes).
+func (h *Harness) tearDown() error {
 	if h.Node != nil {
 		h.Node.Shutdown()
 	}
@@ -275,6 +282,18 @@ func (h *Harness) TearDown() error {
 	delete(testInstances, h.testNodeDir)
 
 	return nil
+}
+
+// TearDown stops the running rpc test instance. All created processes are
+// killed, and temporary directories removed.
+//
+// NOTE: This method and SetUp should always be called from the same goroutine
+// as they are not concurrent safe.
+func (h *Harness) TearDown() error {
+	harnessStateMtx.Lock()
+	defer harnessStateMtx.Unlock()
+
+	return h.tearDown()
 }
 
 // connectRPCClient attempts to establish an RPC connection to the created btcd
@@ -380,7 +399,7 @@ func (h *Harness) GenerateAndSubmitBlock(txns []*btcutil.Tx, blockVersion int32,
 	defer h.Unlock()
 
 	if blockVersion == -1 {
-		blockVersion = wire.BlockVersion
+		blockVersion = BlockVersion
 	}
 
 	prevBlockHash, prevBlockHeight, err := h.Node.GetBestBlock()

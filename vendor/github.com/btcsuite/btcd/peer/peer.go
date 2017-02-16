@@ -196,9 +196,6 @@ type Config struct {
 	// reported.
 	NewestBlock HashFunc
 
-	// BestLocalAddress returns the best local address for a given address.
-	BestLocalAddress AddrFunc
-
 	// HostToNetAddress returns the netaddress for the given host. This can be
 	// nil in  which case the host will be parsed as an IP address.
 	HostToNetAddress HostToNetAddrFunc
@@ -405,8 +402,9 @@ type Peer struct {
 	userAgent            string
 	services             wire.ServiceFlag
 	versionKnown         bool
-	protocolVersion      uint32
-	sendHeadersPreferred bool // peer sent a sendheaders message
+	advertisedProtoVer   uint32 // protocol version advertised by remote
+	protocolVersion      uint32 // negotiated protocol version
+	sendHeadersPreferred bool   // peer sent a sendheaders message
 	versionSent          bool
 	verAckReceived       bool
 
@@ -456,7 +454,7 @@ func (p *Peer) UpdateLastBlockHeight(newHeight int32) {
 	p.statsMtx.Lock()
 	log.Tracef("Updating last block height of peer %v from %v to %v",
 		p.addr, p.lastBlock, newHeight)
-	p.lastBlock = int32(newHeight)
+	p.lastBlock = newHeight
 	p.statsMtx.Unlock()
 }
 
@@ -491,7 +489,7 @@ func (p *Peer) StatsSnapshot() *StatsSnap {
 	addr := p.addr
 	userAgent := p.userAgent
 	services := p.services
-	protocolVersion := p.protocolVersion
+	protocolVersion := p.advertisedProtoVer
 	p.flagsMtx.Unlock()
 
 	// Get a copy of all relevant flags and stats.
@@ -647,7 +645,7 @@ func (p *Peer) VerAckReceived() bool {
 	return verAckReceived
 }
 
-// ProtocolVersion returns the peer protocol version.
+// ProtocolVersion returns the negotiated peer protocol version.
 //
 // This function is safe for concurrent access.
 func (p *Peer) ProtocolVersion() uint32 {
@@ -688,7 +686,7 @@ func (p *Peer) LastRecv() time.Time {
 // This function is safe fo concurrent access.
 func (p *Peer) LocalAddr() net.Addr {
 	var localAddr net.Addr
-	if p.Connected() {
+	if atomic.LoadInt32(&p.connected) != 0 {
 		localAddr = p.conn.LocalAddr()
 	}
 	return localAddr
@@ -777,18 +775,21 @@ func (p *Peer) localVersionMsg() (*wire.MsgVersion, error) {
 		proxyaddress, _, err := net.SplitHostPort(p.cfg.Proxy)
 		// invalid proxy means poorly configured, be on the safe side.
 		if err != nil || p.na.IP.String() == proxyaddress {
-			theirNA = &wire.NetAddress{
-				Timestamp: time.Now(),
-				IP:        net.IP([]byte{0, 0, 0, 0}),
-			}
+			theirNA = wire.NewNetAddressIPPort(net.IP([]byte{0, 0, 0, 0}), 0, 0)
 		}
 	}
 
-	// TODO(tuxcanfly): In case BestLocalAddress is nil, ourNA defaults to
-	// remote NA, which is wrong. Need to fix this.
-	ourNA := p.na
-	if p.cfg.BestLocalAddress != nil {
-		ourNA = p.cfg.BestLocalAddress(p.na)
+	// Create a wire.NetAddress with only the services set to use as the
+	// "addrme" in the version message.
+	//
+	// Older nodes previously added the IP and port information to the
+	// address manager which proved to be unreliable as an inbound
+	// connection from a peer didn't necessarily mean the peer itself
+	// accepted inbound connections.
+	//
+	// Also, the timestamp is unused in the version message.
+	ourNA := &wire.NetAddress{
+		Services: p.cfg.Services,
 	}
 
 	// Generate a unique nonce for this peer so self connections can be
@@ -801,7 +802,7 @@ func (p *Peer) localVersionMsg() (*wire.MsgVersion, error) {
 	sentNonces.Add(nonce)
 
 	// Version message.
-	msg := wire.NewMsgVersion(ourNA, theirNA, nonce, int32(blockNum))
+	msg := wire.NewMsgVersion(ourNA, theirNA, nonce, blockNum)
 	msg.AddUserAgent(p.cfg.UserAgentName, p.cfg.UserAgentVersion)
 
 	// XXX: bitcoind appears to always enable the full node services flag
@@ -826,7 +827,7 @@ func (p *Peer) localVersionMsg() (*wire.MsgVersion, error) {
 	msg.Services = p.cfg.Services
 
 	// Advertise our max supported protocol version.
-	msg.ProtocolVersion = int32(p.ProtocolVersion())
+	msg.ProtocolVersion = int32(p.cfg.ProtocolVersion)
 
 	// Advertise if inv messages for transactions are desired.
 	msg.DisableRelayTx = p.cfg.DisableRelayTx
@@ -1026,7 +1027,8 @@ func (p *Peer) handleRemoteVersionMsg(msg *wire.MsgVersion) error {
 
 	// Negotiate the protocol version.
 	p.flagsMtx.Lock()
-	p.protocolVersion = minUint32(p.protocolVersion, uint32(msg.ProtocolVersion))
+	p.advertisedProtoVer = uint32(msg.ProtocolVersion)
+	p.protocolVersion = minUint32(p.protocolVersion, p.advertisedProtoVer)
 	p.versionKnown = true
 	log.Debugf("Negotiated protocol version %d for peer %s",
 		p.protocolVersion, p)
@@ -1068,7 +1070,7 @@ func (p *Peer) handlePongMsg(msg *wire.MsgPong) {
 	if p.ProtocolVersion() > wire.BIP0031Version {
 		p.statsMtx.Lock()
 		if p.lastPingNonce != 0 && msg.Nonce == p.lastPingNonce {
-			p.lastPingMicros = time.Now().Sub(p.lastPingTime).Nanoseconds()
+			p.lastPingMicros = time.Since(p.lastPingTime).Nanoseconds()
 			p.lastPingMicros /= 1000 // convert to usec.
 			p.lastPingNonce = 0
 		}
@@ -1225,8 +1227,9 @@ func (p *Peer) maybeAddDeadline(pendingResponses map[string]time.Time, msgCmd st
 		pendingResponses[wire.CmdInv] = deadline
 
 	case wire.CmdGetData:
-		// Expects a block, tx, or notfound message.
+		// Expects a block, merkleblock, tx, or notfound message.
 		pendingResponses[wire.CmdBlock] = deadline
+		pendingResponses[wire.CmdMerkleBlock] = deadline
 		pendingResponses[wire.CmdTx] = deadline
 		pendingResponses[wire.CmdNotFound] = deadline
 
@@ -1283,10 +1286,13 @@ out:
 				switch msgCmd := msg.message.Command(); msgCmd {
 				case wire.CmdBlock:
 					fallthrough
+				case wire.CmdMerkleBlock:
+					fallthrough
 				case wire.CmdTx:
 					fallthrough
 				case wire.CmdNotFound:
 					delete(pendingResponses, wire.CmdBlock)
+					delete(pendingResponses, wire.CmdMerkleBlock)
 					delete(pendingResponses, wire.CmdTx)
 					delete(pendingResponses, wire.CmdNotFound)
 
@@ -1317,7 +1323,7 @@ out:
 
 				// Extend active deadlines by the time it took
 				// to execute the callback.
-				duration := time.Now().Sub(handlersStartTime)
+				duration := time.Since(handlersStartTime)
 				deadlineOffset += duration
 				handlerActive = false
 
@@ -1417,7 +1423,9 @@ out:
 			// remote peer has not disconnected.
 			if p.shouldHandleReadError(err) {
 				errMsg := fmt.Sprintf("Can't read message from %s: %v", p, err)
-				log.Errorf(errMsg)
+				if err != io.ErrUnexpectedEOF {
+					log.Errorf(errMsg)
+				}
 
 				// Push a reject message for the malformed message and wait for
 				// the message to be sent before disconnecting.
@@ -1741,10 +1749,6 @@ func (p *Peer) shouldLogWriteError(err error) bool {
 // goroutine.  It uses a buffered channel to serialize output messages while
 // allowing the sender to continue running asynchronously.
 func (p *Peer) outHandler() {
-	// pingTicker is used to periodically send pings to the remote peer.
-	pingTicker := time.NewTicker(pingInterval)
-	defer pingTicker.Stop()
-
 out:
 	for {
 		select {
@@ -1785,14 +1789,6 @@ out:
 			}
 			p.sendDoneQueue <- struct{}{}
 
-		case <-pingTicker.C:
-			nonce, err := wire.RandomUint64()
-			if err != nil {
-				log.Errorf("Not sending ping to %s: %v", p, err)
-				continue
-			}
-			p.QueueMessage(wire.NewMsgPing(nonce), nil)
-
 		case <-p.quit:
 			break out
 		}
@@ -1818,6 +1814,28 @@ cleanup:
 	}
 	close(p.outQuit)
 	log.Tracef("Peer output handler done for %s", p)
+}
+
+// pingHandler periodically pings the peer.  It must be run as a goroutine.
+func (p *Peer) pingHandler() {
+	pingTicker := time.NewTicker(pingInterval)
+	defer pingTicker.Stop()
+
+out:
+	for {
+		select {
+		case <-pingTicker.C:
+			nonce, err := wire.RandomUint64()
+			if err != nil {
+				log.Errorf("Not sending ping to %s: %v", p, err)
+				continue
+			}
+			p.QueueMessage(wire.NewMsgPing(nonce), nil)
+
+		case <-p.quit:
+			break out
+		}
+	}
 }
 
 // QueueMessage adds the passed bitcoin message to the peer send queue.
@@ -1860,7 +1878,7 @@ func (p *Peer) QueueInventory(invVect *wire.InvVect) {
 	p.outputInvChan <- invVect
 }
 
-// AssociateConnection associates the given conn to the peer. Calling this
+// AssociateConnection associates the given conn to the peer.   Calling this
 // function when the peer is already connected will have no effect.
 func (p *Peer) AssociateConnection(conn net.Conn) {
 	// Already connected?
@@ -1888,7 +1906,7 @@ func (p *Peer) AssociateConnection(conn net.Conn) {
 
 	go func() {
 		if err := p.start(); err != nil {
-			log.Warnf("Cannot start peer %v: %v", p, err)
+			log.Debugf("Cannot start peer %v: %v", p, err)
 			p.Disconnect()
 		}
 	}()
@@ -1947,6 +1965,7 @@ func (p *Peer) start() error {
 	go p.inHandler()
 	go p.queueHandler()
 	go p.outHandler()
+	go p.pingHandler()
 
 	// Send our verack message now that the IO processing machinery has started.
 	p.QueueMessage(wire.NewMsgVerAck(), nil)
@@ -1965,7 +1984,6 @@ func (p *Peer) WaitForDisconnect() {
 // peer.  If the next message is not a version message or the version is not
 // acceptable then return an error.
 func (p *Peer) readRemoteVersionMsg() error {
-
 	// Read their version message.
 	msg, _, err := p.readMessage()
 	if err != nil {
@@ -1994,7 +2012,6 @@ func (p *Peer) readRemoteVersionMsg() error {
 
 // writeLocalVersionMsg writes our version message to the remote peer.
 func (p *Peer) writeLocalVersionMsg() error {
-
 	localVerMsg, err := p.localVersionMsg()
 	if err != nil {
 		return err
@@ -2014,7 +2031,6 @@ func (p *Peer) writeLocalVersionMsg() error {
 // then sends our version message. If the events do not occur in that order then
 // it returns an error.
 func (p *Peer) negotiateInboundProtocol() error {
-
 	if err := p.readRemoteVersionMsg(); err != nil {
 		return err
 	}
@@ -2026,7 +2042,6 @@ func (p *Peer) negotiateInboundProtocol() error {
 // version message from the peer.  If the events do not occur in that order then
 // it returns an error.
 func (p *Peer) negotiateOutboundProtocol() error {
-
 	if err := p.writeLocalVersionMsg(); err != nil {
 		return err
 	}
@@ -2037,12 +2052,12 @@ func (p *Peer) negotiateOutboundProtocol() error {
 // newPeerBase returns a new base bitcoin peer based on the inbound flag.  This
 // is used by the NewInboundPeer and NewOutboundPeer functions to perform base
 // setup needed by both types of peers.
-func newPeerBase(cfg *Config, inbound bool) *Peer {
-	// Default to the max supported protocol version.  Override to the
-	// version specified by the caller if configured.
-	protocolVersion := uint32(MaxProtocolVersion)
-	if cfg.ProtocolVersion != 0 {
-		protocolVersion = cfg.ProtocolVersion
+func newPeerBase(origCfg *Config, inbound bool) *Peer {
+	// Default to the max supported protocol version if not specified by the
+	// caller.
+	cfg := *origCfg // Copy to avoid mutating caller.
+	if cfg.ProtocolVersion == 0 {
+		cfg.ProtocolVersion = MaxProtocolVersion
 	}
 
 	// Set the chain parameters to testnet if the caller did not specify any.
@@ -2062,9 +2077,9 @@ func newPeerBase(cfg *Config, inbound bool) *Peer {
 		queueQuit:       make(chan struct{}),
 		outQuit:         make(chan struct{}),
 		quit:            make(chan struct{}),
-		cfg:             *cfg, // Copy so caller can't mutate.
+		cfg:             cfg, // Copy so caller can't mutate.
 		services:        cfg.Services,
-		protocolVersion: protocolVersion,
+		protocolVersion: cfg.ProtocolVersion,
 	}
 	return &p
 }

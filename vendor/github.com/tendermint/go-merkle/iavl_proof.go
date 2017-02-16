@@ -9,30 +9,40 @@ import (
 	"github.com/tendermint/go-wire"
 )
 
+const proofLimit = 1 << 16 // 64 KB
+
 type IAVLProof struct {
 	LeafNode   IAVLProofLeafNode
 	InnerNodes []IAVLProofInnerNode
 	RootHash   []byte
 }
 
-func (proof *IAVLProof) Verify(keyBytes, valueBytes, rootHash []byte) bool {
-	if !bytes.Equal(keyBytes, proof.LeafNode.KeyBytes) {
-		return false
-	}
-	if !bytes.Equal(valueBytes, proof.LeafNode.ValueBytes) {
-		return false
-	}
-	if !bytes.Equal(rootHash, proof.RootHash) {
-		return false
-	}
+func (proof *IAVLProof) Key() []byte {
+	return proof.LeafNode.KeyBytes
+}
+
+func (proof *IAVLProof) Value() []byte {
+	return proof.LeafNode.ValueBytes
+}
+
+func (proof *IAVLProof) Root() []byte {
+	return proof.RootHash
+}
+
+func (proof *IAVLProof) Valid() bool {
 	hash := proof.LeafNode.Hash()
-	// fmt.Printf("leaf hash: %X\n", hash)
 	for _, branch := range proof.InnerNodes {
 		hash = branch.Hash(hash)
-		// fmt.Printf("branch hash: %X\n", hash)
 	}
-	// fmt.Printf("root: %X, computed: %X\n", proof.RootHash, hash)
 	return bytes.Equal(proof.RootHash, hash)
+}
+
+// LoadProof will deserialize a IAVLProof from bytes
+func LoadProof(data []byte) (*IAVLProof, error) {
+	// TODO: make go-wire never panic
+	n, err := int(0), error(nil)
+	proof := wire.ReadBinary(&IAVLProof{}, bytes.NewBuffer(data), proofLimit, &n, &err).(*IAVLProof)
+	return proof, err
 }
 
 type IAVLProofInnerNode struct {
@@ -136,6 +146,10 @@ func (t *IAVLTree) ConstructProof(key []byte) *IAVLProof {
 	proof := &IAVLProof{
 		RootHash: t.root.hash,
 	}
-	t.root.constructProof(t, key, proof)
-	return proof
+	exists := t.root.constructProof(t, key, proof)
+	if exists {
+		return proof
+	} else {
+		return nil
+	}
 }

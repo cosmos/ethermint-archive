@@ -9,11 +9,8 @@ import (
 )
 
 func main() {
-
 	db := db.NewMemDB()
-	_, walDir := Tempdir("looper.wal.")
-	fmt.Println("WAL dir: ", walDir)
-	t := merkle.NewIAVLTree(0, walDir, db)
+	t := merkle.NewIAVLTree(0, db)
 	// 23000ns/op, 43000ops/s
 	// for i := 0; i < 10000000; i++ {
 	// for i := 0; i < 1000000; i++ {
