@@ -17,15 +17,20 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	abciTypes "github.com/tendermint/abci/types"
-	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/ethereum/go-ethereum/event"
 )
 
+// used by Backend to call tendermint rpc endpoints
+type Client interface {
+	// see tendermint/go-rpc/client/http_client.go:115 func (c *ClientURI) Call(...)
+	Call(method string, params map[string]interface{}, result interface{}) (interface{}, error)
+}
+
 // Backend handles the chain database and VM
 type Backend struct {
 	ethereum *eth.Ethereum
-	client   *client.ClientURI
+	client   Client
 	config   *eth.Config
 }
 
@@ -34,7 +39,7 @@ const (
 )
 
 // New creates a new Backend
-func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) {
+func NewBackend(ctx *node.ServiceContext, config *eth.Config, client Client) (*Backend, error) {
 	ethereum, err := eth.New(ctx, config)
 	if err != nil {
 		return nil, err
@@ -43,7 +48,7 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) 
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
 	ethBackend := &Backend{
 		ethereum: ethereum,
-		client:   client.NewClientURI("tcp://localhost:46657"),
+		client:   client,
 		config:   config,
 		//		client: client.NewClientURI(fmt.Sprintf("http://%s", ctx.String(TendermintCoreHostFlag.Name))),
 	}

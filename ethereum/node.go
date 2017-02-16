@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/tendermint/go-rpc/client"
 )
 
 var clientIdentifier = "geth" // Client identifier to advertise over the network
@@ -64,7 +66,7 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 	}
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return NewBackend(ctx, ethConf)
+		return NewBackend(ctx, ethConf, rpcclient.NewClientURI("tcp://localhost:46657"))
 	}); err != nil {
 		utils.Fatalf("Failed to register the TMSP application service: %v", err)
 	}
