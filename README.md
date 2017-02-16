@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=master)](https://travis-ci.org/tendermint/ethermint)
 
 ### Overview
-Ethereum as a TMSP application. 
+Ethereum as a [ABCI](https://github.com/tendermint/abci) application. 
 
 This means running an Ethereum EVM-based network that uses Tendermint consesnsus instead of proof-of-work.
 The way it's built makes it easy to use existing Ethereum tools (geth attach, web3) to interact with the node.
@@ -11,7 +11,7 @@ The way it's built makes it easy to use existing Ethereum tools (geth attach, we
 ### Docker image
 An easy way to get started is to use the docker image:
 ```
-docker run kobigurk/ethermint
+docker run tendermint/ethermint
 ```
 
 If you prefer instead to build locally, go to the `docker` directory and run `docker build -t ethermint .`.

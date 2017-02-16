@@ -1,5 +1,5 @@
-FROM golang
-MAINTAINER kobigurk@gmail.com
+FROM golang:1.6
+MAINTAINER ethan@tendermint.com
 
 RUN curl https://glide.sh/get | sh
 RUN go get github.com/tendermint/ethermint/cmd/ethermint
