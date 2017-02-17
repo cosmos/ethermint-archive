@@ -1,7 +1,7 @@
 package: github.com/tendermint/ethermint
 import:
 - package: github.com/ethereum/go-ethereum
-  version: v1.5.8
+  version: v1.5.9
   subpackages:
   - cmd/utils
   - common

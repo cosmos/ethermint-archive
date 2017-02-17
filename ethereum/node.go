@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -37,7 +38,8 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 	}
 
 	// Configure the Ethereum service
-	accman := stack.AccountManager()
+	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+
 	// jitEnabled := ctx.GlobalBool(utils.VMEnableJitFlag.Name)
 	ethConf := &eth.Config{
 		ChainConfig: utils.MakeChainConfig(ctx, stack),
@@ -45,7 +47,7 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 		DatabaseCache:   ctx.GlobalInt(utils.CacheFlag.Name),
 		DatabaseHandles: utils.MakeDatabaseHandles(),
 		NetworkId:       ctx.GlobalInt(utils.NetworkIdFlag.Name),
-		Etherbase:       utils.MakeEtherbase(accman, ctx),
+		Etherbase:       utils.MakeEtherbase(ks, ctx),
 		//EnableJit:               jitEnabled, // TODO
 		//ForceJit:                ctx.GlobalBool(utils.VMForceJitFlag.Name),
 		GasPrice:                common.String2Big(ctx.GlobalString(utils.GasPriceFlag.Name)),

@@ -1,5 +1,5 @@
-hash: 2565b86ae14efbec8bf9add5302ef4985cb7ce9072535522b2196e13d8b15685
-updated: 2017-02-09T13:12:38.042577085-05:00
+hash: 5fcf0a54458b0bc60b8d0059f639f7d97b5ad5729c42c7f547faa7a7e8adb9af
+updated: 2017-02-15T09:26:47.6927483+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -16,9 +16,11 @@ imports:
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
-  version: f58fb32283fe04cd1d416040c6692b4a7352d556
+  version: a07539fb88db7231d18db918ed7a6a4e32f97450
   subpackages:
   - accounts
+  - accounts/keystore
+  - accounts/usbwallet
   - cmd/utils
   - common
   - common/compiler
@@ -91,6 +93,10 @@ imports:
   version: 1fa385a6f45828c83361136b45b1a21a12139493
 - name: github.com/jmhodges/levigo
   version: c42d9e0ca023e2198120196f842701bb4c55d7b9
+- name: github.com/karalabe/gousb
+  version: ffa821b2e25aa1828ffca731f759a1ebfa410d73
+  subpackages:
+  - usb
 - name: github.com/mattn/go-colorable
   version: d228849504861217f796da67fae4f6e347643f15
 - name: github.com/mattn/go-isatty

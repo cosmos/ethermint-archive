@@ -18,7 +18,7 @@ If you prefer instead to build locally, go to the `docker` directory and run `do
 
 After running the container, you can attach to it:
 * First, find its ID using `docker ps` and use it to find its IP using `docker inspect CONTAINER_ID | grep IPAddress`. 
-* Use the IP address to attach with `geth attach rpc:http://CONTAINER_IP:8545`.
+* Use the IP address to attach with `geth attach http://CONTAINER_IP:8545`.
 
 ### Development and building locally
 You can build the `ethermint` executable by running `go install cmd/ethermint`. For vendored packages, Ethermint uses glide. 
