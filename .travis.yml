@@ -1,9 +1,12 @@
 language: go
-go:
-  - 1.7
-install: true
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      go: 1.7.5
+    - os: osx
+      go: 1.7.5
+
 script:
   - go install ./cmd/ethermint
-os:
-  - linux
-  - osx

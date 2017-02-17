@@ -174,7 +174,7 @@ func minerWorkerUnsubscribe(ethereum *eth.Ethereum) {
 	member = val.FieldByName("events")
 
 	ptrToEvents := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToEvents := (*event.Subscription)(ptrToEvents)
+	realPtrToEvents := (**event.TypeMuxSubscription)(ptrToEvents)
 
 	(*realPtrToEvents).Unsubscribe()
 	*realPtrToWorker = nil
