@@ -9,3 +9,4 @@ fast_sync = true
 db_backend = "leveldb"
 log_level = "notice"
 rpc_laddr = "tcp://0.0.0.0:46657"
+block_size = 700

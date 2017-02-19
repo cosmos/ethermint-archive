@@ -1,12 +1,31 @@
-language: go
+sudo: required
+services:
+  - docker
 
-matrix:
-  include:
-    - os: linux
-      dist: trusty
-      go: 1.7.5
-    - os: osx
-      go: 1.7.5
+env:
+  COMPOSE_VERSION: 1.11.1
+
+before_install:
+ - curl -L https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+ - chmod +x docker-compose
+ - sudo mv docker-compose /usr/local/bin
 
 script:
-  - go install ./cmd/ethermint
+  - docker build -t docker.ethermint -f .travis.dockerfile .
+  - mkdir dummy
+  - docker run -it --rm -v $TRAVIS_BUILD_DIR/dummy:/data docker.ethermint init /go/src/github.com/tendermint/ethermint/dev/genesis.json
+  - cp -r $TRAVIS_BUILD_DIR/dummy/chaindata $TRAVIS_BUILD_DIR/test/p2p/mach1/
+  - cp -r $TRAVIS_BUILD_DIR/dummy/chaindata $TRAVIS_BUILD_DIR/test/p2p/mach2/
+  - cp -r $TRAVIS_BUILD_DIR/dummy/chaindata $TRAVIS_BUILD_DIR/test/p2p/mach3/
+  - cp -r $TRAVIS_BUILD_DIR/dummy/chaindata $TRAVIS_BUILD_DIR/test/p2p/mach4/
+  - cp -r $TRAVIS_BUILD_DIR/dummy/chaindata $TRAVIS_BUILD_DIR/test/p2p/gateway/
+  - cd test/contract
+  - docker build -t docker.contract .
+  - cd ../p2p
+  - docker-compose up -d mach1 mach2 mach3 mach4 gateway
+  - docker-compose logs --tail 100
+  - docker-compose run contract node deploy.js
+  - docker-compose run contract node main.js
+  - docker-compose stop
+  - docker-compose logs --tail 100
+  - docker-compose rm -f
