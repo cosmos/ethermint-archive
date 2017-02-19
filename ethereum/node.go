@@ -30,6 +30,8 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 		WSPort:      ctx.GlobalInt(utils.WSPortFlag.Name),
 		WSOrigins:   ctx.GlobalString(utils.WSAllowedOriginsFlag.Name),
 		WSModules:   utils.MakeRPCModules(ctx.GlobalString(utils.WSApiFlag.Name)),
+		NoDiscovery: true,
+		MaxPeers: 0,
 	}
 	// Assemble and return the protocol stack
 	stack, err := node.New(stackConf)
