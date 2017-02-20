@@ -1,29 +1,28 @@
-.PHONY: get_deps build all list_deps install
-
-all: get_deps install test
-
 TMROOT = $${TMROOT:-$$HOME/.tendermint}
-define NEWLINE
+PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 
+install: get_vendor_deps
+	@go install ./cmd/ethermint
 
-endef
-NOVENDOR = go list github.com/tendermint/ethermint/... | grep -v /vendor/
+test:
+	@echo "--> Running go test"
+	@go test `${PACKAGES}`
 
-install: get_deps
-	go install github.com/tendermint/ethermint/cmd/ethermint
-
-test: build
-	go test `${NOVENDOR}`
-	
-test_race: build
-	go test -race `${NOVENDOR}`
+test_race:
+	@echo "--> Running go test --race"
+	@go test -race `${PACKAGES}`
 
 get_deps:
-	go get -d `${NOVENDOR}`
-	go list -f '{{join .TestImports "\n"}}' github.com/tendermint/ethermint/... | \
+	@go get -d `${PACKAGES}`
+	@go list -f '{{join .TestImports "\n"}}' ./... | \
 		grep -v /vendor/ | sort | uniq | \
 		xargs go get
 
 get_vendor_deps:
 	go get github.com/Masterminds/glide
-	glide install --strip-vendor
+	@echo "--> Running glide install"
+	@glide install --strip-vendor
+
+all: install test
+
+.PHONY: get_deps get_vendor_deps install test test_race
