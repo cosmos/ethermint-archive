@@ -101,6 +101,7 @@ type TxPool struct {
 
 	wg   sync.WaitGroup // for shutdown sync
 	quit chan struct{}
+	dispatcher chan struct{}
 
 	homestead bool
 }
@@ -121,6 +122,7 @@ func NewTxPool(config *params.ChainConfig, eventMux *event.TypeMux, currentState
 		localTx:      newTxSet(),
 		events:       eventMux.Subscribe(ChainHeadEvent{}, GasPriceChanged{}, RemovedTransactionEvent{}),
 		quit:         make(chan struct{}),
+		dispatcher:   make(chan struct{}),
 	}
 
 	pool.resetState()
@@ -128,6 +130,7 @@ func NewTxPool(config *params.ChainConfig, eventMux *event.TypeMux, currentState
 	pool.wg.Add(2)
 	go pool.eventLoop()
 	go pool.expirationLoop()
+	go pool.eventDispatcherLoop()
 
 	return pool
 }
@@ -156,6 +159,31 @@ func (pool *TxPool) eventLoop() {
 			pool.mu.Unlock()
 		case RemovedTransactionEvent:
 			pool.AddBatch(ev.Txs)
+		}
+	}
+}
+
+func (pool *TxPool) nofityDispatcher() {
+	select {
+	case pool.dispatcher <- struct{}{}:
+
+	default:
+
+	}
+}
+
+func (pool *TxPool) eventDispatcherLoop() {
+	defer pool.wg.Done()
+
+	for {
+		select {
+		case <-pool.dispatcher:
+			pool.mu.Lock()
+			state, err := pool.currentState()
+			if err == nil {
+				pool.promoteExecutables(state)
+			}
+			pool.mu.Unlock()
 		}
 	}
 }
@@ -394,7 +422,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
 	pool.beats[addr] = time.Now()
 	pool.pendingState.SetNonce(addr, tx.Nonce()+1)
-	go pool.eventMux.Post(TxPreEvent{tx})
+	pool.eventMux.Post(TxPreEvent{tx})
 }
 
 // Add queues a single transaction in the pool if it is valid.
@@ -406,12 +434,7 @@ func (pool *TxPool) Add(tx *types.Transaction) error {
 		return err
 	}
 
-	state, err := pool.currentState()
-	if err != nil {
-		return err
-	}
-
-	pool.promoteExecutables(state)
+	pool.nofityDispatcher()
 
 	return nil
 }
@@ -427,12 +450,7 @@ func (pool *TxPool) AddBatch(txs []*types.Transaction) error {
 		}
 	}
 
-	state, err := pool.currentState()
-	if err != nil {
-		return err
-	}
-
-	pool.promoteExecutables(state)
+	pool.nofityDispatcher()
 
 	return nil
 }

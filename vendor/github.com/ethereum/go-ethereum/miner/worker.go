@@ -240,26 +240,30 @@ func (self *worker) unregister(agent Agent) {
 
 func (self *worker) update() {
 	for event := range self.events.Chan() {
-		// A real event arrived, process interesting content
-		switch ev := event.Data.(type) {
-		case core.ChainHeadEvent:
-			self.commitNewWork()
-		case core.ChainSideEvent:
-			self.uncleMu.Lock()
-			self.possibleUncles[ev.Block.Hash()] = ev.Block
-			self.uncleMu.Unlock()
-		case core.TxPreEvent:
-			// Apply transaction to the pending state if we're not mining
-			if atomic.LoadInt32(&self.mining) == 0 {
-				self.currentMu.Lock()
+		go self.async_update(event)
+	}
+}
 
-				acc, _ := types.Sender(self.current.signer, ev.Tx)
-				txs := map[common.Address]types.Transactions{acc: {ev.Tx}}
-				txset := types.NewTransactionsByPriceAndNonce(txs)
+func (self *worker) async_update(event *event.TypeMuxEvent) {
+	// A real event arrived, process interesting content
+	switch ev := event.Data.(type) {
+	case core.ChainHeadEvent:
+		self.commitNewWork()
+	case core.ChainSideEvent:
+		self.uncleMu.Lock()
+		self.possibleUncles[ev.Block.Hash()] = ev.Block
+		self.uncleMu.Unlock()
+	case core.TxPreEvent:
+		// Apply transaction to the pending state if we're not mining
+		if atomic.LoadInt32(&self.mining) == 0 {
+			self.currentMu.Lock()
 
-				self.current.commitTransactions(self.mux, txset, self.gasPrice, self.chain)
-				self.currentMu.Unlock()
-			}
+			acc, _ := types.Sender(self.current.signer, ev.Tx)
+			txs := map[common.Address]types.Transactions{acc: {ev.Tx}}
+			txset := types.NewTransactionsByPriceAndNonce(txs)
+
+			self.current.commitTransactions(self.mux, txset, self.gasPrice, self.chain)
+			self.currentMu.Unlock()
 		}
 	}
 }
