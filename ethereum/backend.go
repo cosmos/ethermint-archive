@@ -124,7 +124,7 @@ func (s *Backend) Config() *eth.Config {
 // listen for txs and forward to tendermint
 // TODO: some way to exit this (it runs in a go-routine)
 func (s *Backend) txBroadcastLoop() {
-	minerWorkerUnsubscribe(s.ethereum)
+	// minerWorkerUnsubscribe(s.ethereum)
 	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 
 	if err := waitForServer(s); err != nil {
