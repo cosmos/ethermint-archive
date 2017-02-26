@@ -3,11 +3,13 @@ package ethereum
 import (
 	"bytes"
 	"os"
+	"sync"
 	"time"
-	"reflect"
-	"unsafe"
+	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/logger"
@@ -19,15 +21,39 @@ import (
 	abciTypes "github.com/tendermint/abci/types"
 	client "github.com/tendermint/go-rpc/client"
 	core_types "github.com/tendermint/tendermint/rpc/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	emtTypes "github.com/tendermint/ethermint/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 )
+
+// Intermediate state of a block, updated with each DeliverTx and reset on Commit
+type work struct {
+	header *ethTypes.Header
+	parent *ethTypes.Block
+	state  *state.StateDB
+
+	txIndex      int
+	transactions []*ethTypes.Transaction
+	receipts     ethTypes.Receipts
+	allLogs      []*ethTypes.Log
+
+	totalUsedGas *big.Int
+	gp           *core.GasPool
+}
+
+type pending struct {
+	commitMutex *sync.Mutex
+	work        *work
+}
 
 // Backend handles the chain database and VM
 type Backend struct {
-	ethereum *eth.Ethereum
-	client   *client.ClientURI
-	config   *eth.Config
+	ethereum    *eth.Ethereum
+	pending	    *pending
+	client      *client.ClientURI
+	config      *eth.Config
 }
+
 
 const (
 	maxWaitForServerRetries = 10
@@ -35,14 +61,16 @@ const (
 
 // New creates a new Backend
 func NewBackend(ctx *node.ServiceContext, config *eth.Config) (*Backend, error) {
-	ethereum, err := eth.New(ctx, config)
+	p := &pending{commitMutex: &sync.Mutex{}}
+
+	ethereum, err := eth.New(ctx, config, p)
 	if err != nil {
 		return nil, err
 	}
-	// setFakePow(ethereum)
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
 	ethBackend := &Backend{
 		ethereum: ethereum,
+		pending:  p,
 		client:   client.NewClientURI("tcp://localhost:46657"),
 		config:   config,
 		//		client: client.NewClientURI(fmt.Sprintf("http://%s", ctx.String(TendermintCoreHostFlag.Name))),
@@ -67,6 +95,8 @@ func waitForServer(s *Backend) error {
 	}
 	return nil
 }
+
+//----------------------------------------------------------------------
 
 // APIs returns the collection of RPC services the ethereum package offers.
 func (s *Backend) APIs() []rpc.API {
@@ -124,7 +154,6 @@ func (s *Backend) Config() *eth.Config {
 // listen for txs and forward to tendermint
 // TODO: some way to exit this (it runs in a go-routine)
 func (s *Backend) txBroadcastLoop() {
-	// minerWorkerUnsubscribe(s.ethereum)
 	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 
 	if err := waitForServer(s); err != nil {
@@ -156,69 +185,198 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 }
 
 //----------------------------------------------------------------------
-// NOTE: go-ethereum uses a monolithic Ethereum struct
-// and does not expose many of the fields that we need to overwrite.
-// So the quickest way forward is to use `unsafe` to overwrite those fields.
 
-func minerWorkerUnsubscribe(ethereum *eth.Ethereum) {
-	pointerVal := reflect.ValueOf(ethereum)
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("miner")
-	val = reflect.Indirect(member)
-	member = val.FieldByName("worker")
+func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
+	s.commitMutex.Lock()
+	defer s.commitMutex.Unlock()
 
-	ptrToWorker := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToWorker := (**interface{})(ptrToWorker)
-
-	val = reflect.Indirect(member)
-	member = val.FieldByName("events")
-
-	ptrToEvents := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToEvents := (**event.TypeMuxSubscription)(ptrToEvents)
-
-	(*realPtrToEvents).Unsubscribe()
-	*realPtrToWorker = nil
+	return ethTypes.NewBlock(
+		s.work.header,
+		s.work.transactions,
+		nil,
+		s.work.receipts,
+	), s.work.state.Copy()
 }
 
-/*
-func setFakePow(ethereum *eth.Ethereum) {
-	powToSet := pow.PoW(core.FakePow{})
-	pointerVal := reflect.ValueOf(ethereum.BlockChain())
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("pow")
-	ptrToPow := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToPow := (*pow.PoW)(ptrToPow)
-	*realPtrToPow = powToSet
-}
-*/
+func (s *pending) PendingBlock() *ethTypes.Block {
+	s.commitMutex.Lock()
+	defer s.commitMutex.Unlock()
 
-/*
-func (s *Backend) setFakeTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
-	mux := new(event.TypeMux)
-	s.txSub = mux.Subscribe(core.TxPreEvent{})
-	txPool := core.NewTxPool(s.Config().ChainConfig, mux, s.Ethereum().BlockChain().State, s.Ethereum().BlockChain().GasLimit)
-	txPool.Pending()
-	pointerVal := reflect.ValueOf(txPoolAPI)
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("txPool")
-	ptrToTxPool := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
-	*realPtrToTxPool = txPool
+	return ethTypes.NewBlock(
+		s.work.header,
+		s.work.transactions,
+		nil,
+		s.work.receipts,
+	)
 }
 
-func (s *Backend) setFakeMuxTxPool(txPoolAPI *ethapi.PublicTransactionPoolAPI) {
-	mux := new(event.TypeMux)
-	s.txSub = mux.Subscribe(core.TxPreEvent{})
-	pointerVal := reflect.ValueOf(txPoolAPI)
-	val := reflect.Indirect(pointerVal)
-	member := val.FieldByName("txPool")
-	ptrToTxPool := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToTxPool := (**core.TxPool)(ptrToTxPool)
-	pointerVal = reflect.ValueOf(*realPtrToTxPool)
-	val = reflect.Indirect(pointerVal)
-	member = val.FieldByName("eventMux")
-	ptrToEventMux := unsafe.Pointer(member.UnsafeAddr())
-	realPtrToEventMux := (**event.TypeMux)(ptrToEventMux)
-	*realPtrToEventMux = mux
+//----------------------------------------------------------------------
+
+func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
+	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, tx)
 }
-*/
+
+func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, tx *ethTypes.Transaction) error {
+	p.commitMutex.Lock()
+	defer p.commitMutex.Unlock()
+
+	blockHash := common.Hash{}
+	return p.work.deliverTx(blockchain, config, blockHash, tx)
+}
+
+func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockHash common.Hash, tx *ethTypes.Transaction) error {
+	w.state.StartRecord(tx.Hash(), blockHash, w.txIndex)
+	receipt, _, err := core.ApplyTransaction(
+		config.ChainConfig,
+		blockchain,
+		w.gp,
+		w.state,
+		w.header,
+		tx,
+		w.totalUsedGas,
+		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
+	)
+	if err != nil {
+		return err
+		glog.V(logger.Debug).Infof("DeliverTx error: %v", err)
+		return abciTypes.ErrInternalError
+	}
+
+	logs := w.state.GetLogs(tx.Hash())
+
+	w.txIndex += 1
+
+	w.transactions = append(w.transactions, tx)
+	w.receipts = append(w.receipts, receipt)
+	w.allLogs = append(w.allLogs, logs...)
+
+	return err
+}
+
+//----------------------------------------------------------------------
+
+func (b *Backend) AccumulateRewards(strategy *emtTypes.Strategy) {
+	b.pending.accumulateRewards(strategy)
+}
+
+func (p *pending) accumulateRewards(strategy *emtTypes.Strategy) {
+	p.commitMutex.Lock()
+	defer p.commitMutex.Unlock()
+
+	p.work.accumulateRewards(strategy)
+}
+
+func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
+	core.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
+	w.header.GasUsed = w.totalUsedGas
+}
+
+//----------------------------------------------------------------------
+
+func (b *Backend) Commit(receiver common.Address) (common.Hash, error) {
+	return b.pending.commit(b.ethereum.BlockChain(), receiver)
+}
+
+func (p *pending) commit(blockchain *core.BlockChain, receiver common.Address) (common.Hash, error) {
+	p.commitMutex.Lock()
+	defer p.commitMutex.Unlock()
+
+	blockHash, err := p.work.commit(blockchain)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	work, err := p.resetWork(blockchain, receiver)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	p.work = work
+	return blockHash, err
+}
+
+func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
+	// commit ethereum state and update the header
+	hashArray, err := w.state.Commit(false) // XXX: ugh hardforks
+	if err != nil {
+		return common.Hash{}, err
+	}
+	w.header.Root = hashArray
+
+	// tag logs with state root
+	// NOTE: BlockHash ?
+	for _, log := range w.allLogs {
+		log.BlockHash = hashArray
+	}
+
+	// create block object and compute final commit hash (hash of the ethereum block)
+	block := ethTypes.NewBlock(w.header, w.transactions, nil, w.receipts)
+	blockHash := block.Hash()
+
+	// save the block to disk
+	glog.V(logger.Debug).Infof("Committing block with state hash %X and root hash %X", hashArray, blockHash)
+	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
+	if err != nil {
+		glog.V(logger.Debug).Infof("Error inserting ethereum block in chain: %v", err)
+		return common.Hash{}, err
+	}
+	return blockHash, err
+}
+
+//----------------------------------------------------------------------
+
+func (b *Backend) ResetWork(receiver common.Address) error {
+	work, err := b.pending.resetWork(b.ethereum.BlockChain(), receiver)
+	b.pending.work = work
+	return err
+}
+
+func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address) (*work, error) {
+	state, err := blockchain.State()
+	if err != nil {
+		return nil, err
+	}
+
+	currentBlock := blockchain.CurrentBlock()
+	ethHeader := newBlockHeader(receiver, currentBlock)
+
+	return &work{
+		header:       ethHeader,
+		parent:       currentBlock,
+		state:        state,
+		txIndex:      0,
+		totalUsedGas: big.NewInt(0),
+		gp:           new(core.GasPool).AddGas(ethHeader.GasLimit),
+	}, nil
+}
+
+//----------------------------------------------------------------------
+
+func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
+	b.pending.updateHeaderWithTimeInfo(b.Config().ChainConfig, tmHeader.Time)
+}
+
+func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64) {
+	p.commitMutex.Lock()
+	defer p.commitMutex.Unlock()
+
+	p.work.updateHeaderWithTimeInfo(config, parentTime)
+}
+
+func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64) {
+	lastBlock := w.parent
+	w.header.Time = new(big.Int).SetUint64(parentTime)
+	w.header.Difficulty = core.CalcDifficulty(config, parentTime,
+		lastBlock.Time().Uint64(), lastBlock.Number(), lastBlock.Difficulty())
+}
+
+//----------------------------------------------------------------------
+
+func newBlockHeader(receiver common.Address, prevBlock *ethTypes.Block) *ethTypes.Header {
+	return &ethTypes.Header{
+		Number:     prevBlock.Number().Add(prevBlock.Number(), big.NewInt(1)),
+		ParentHash: prevBlock.Hash(),
+		GasLimit:   core.CalcGasLimit(prevBlock),
+		Coinbase:   receiver,
+	}
+}

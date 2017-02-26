@@ -84,7 +84,9 @@ type PublicMinerAPI struct {
 // NewPublicMinerAPI create a new PublicMinerAPI instance.
 func NewPublicMinerAPI(e *Ethereum) *PublicMinerAPI {
 	agent := miner.NewRemoteAgent(e.Pow())
-	e.Miner().Register(agent)
+	if e.Miner() != nil {
+		e.Miner().Register(agent)
+	}
 
 	return &PublicMinerAPI{e, agent}
 }
