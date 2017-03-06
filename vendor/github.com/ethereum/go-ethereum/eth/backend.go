@@ -149,7 +149,7 @@ func (s *Ethereum) AddLesServer(ls LesServer) {
 
 // New creates a new Ethereum object (including the
 // initialisation of the common Ethereum object)
-func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
+func New(ctx *node.ServiceContext, config *Config, pending miner.Pending) (*Ethereum, error) {
 	chainDb, err := CreateDB(ctx, config, "chaindata")
 	if err != nil {
 		return nil, err
@@ -238,9 +238,13 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.FastSync, config.NetworkId, maxPeers, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
 		return nil, err
 	}
-	eth.miner = miner.New(eth, eth.chainConfig, eth.EventMux(), eth.pow)
-	eth.miner.SetGasPrice(config.GasPrice)
-	eth.miner.SetExtra(config.ExtraData)
+
+	if pending == nil {
+		eth.miner = miner.New(eth, eth.chainConfig, eth.EventMux(), eth.pow)
+		eth.miner.SetGasPrice(config.GasPrice)
+		eth.miner.SetExtra(config.ExtraData)
+		pending = eth.miner
+	}
 
 	gpoParams := &gasprice.GpoParams{
 		GpoMinGasPrice:          config.GpoMinGasPrice,
@@ -251,7 +255,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		GpobaseCorrectionFactor: config.GpobaseCorrectionFactor,
 	}
 	gpo := gasprice.NewGasPriceOracle(eth.blockchain, chainDb, eth.eventMux, gpoParams)
-	eth.ApiBackend = &EthApiBackend{eth, gpo}
+	eth.ApiBackend = &EthApiBackend{eth, gpo, pending}
 
 	return eth, nil
 }

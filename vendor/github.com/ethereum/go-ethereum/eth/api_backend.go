@@ -33,12 +33,14 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/net/context"
+	"github.com/ethereum/go-ethereum/miner"
 )
 
 // EthApiBackend implements ethapi.Backend for full nodes
 type EthApiBackend struct {
 	eth *Ethereum
 	gpo *gasprice.GasPriceOracle
+	pending miner.Pending
 }
 
 func (b *EthApiBackend) ChainConfig() *params.ChainConfig {
@@ -56,7 +58,7 @@ func (b *EthApiBackend) SetHead(number uint64) {
 func (b *EthApiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block := b.eth.miner.PendingBlock()
+		block := b.pending.PendingBlock()
 		return block.Header(), nil
 	}
 	// Otherwise resolve and return the block
@@ -69,7 +71,7 @@ func (b *EthApiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNum
 func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block := b.eth.miner.PendingBlock()
+		block := b.pending.PendingBlock()
 		return block, nil
 	}
 	// Otherwise resolve and return the block
@@ -82,7 +84,7 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 func (b *EthApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (ethapi.State, *types.Header, error) {
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, state := b.eth.miner.Pending()
+		block, state := b.pending.Pending()
 		return EthApiState{state}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state
