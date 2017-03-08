@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
@@ -46,7 +46,7 @@ func (mockclient *MockClient) Call(method string, params map[string]interface{},
 		*tmresult = &core_types.ResultBroadcastTx{}
 		return tmresult, nil
 	}
-	return tmresult, abciTypes.ErrInternalError
+	return nil, abciTypes.ErrInternalError
 }
 
 func TestBumpingNonces(t *testing.T) {
@@ -91,7 +91,7 @@ func TestBumpingNonces(t *testing.T) {
 	// replays should fail - we're checking if the transaction got through earlier, by replaying the nonce
 	assert.Equal(t, app.CheckTx(encodedtx), abciTypes.ErrInternalError)
 	// ...on both interfaces of the app
-	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx1), errors.New("Nonce too low"))
+	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx1), core.ErrNonce)
 
 	// second transaction is sent via geth RPC, or at least pretending to be so
 	// with a correct nonce this time, it should pass

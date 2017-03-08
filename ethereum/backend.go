@@ -2,10 +2,10 @@ package ethereum
 
 import (
 	"bytes"
+	"math/big"
 	"os"
 	"sync"
 	"time"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -18,14 +18,15 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	abciTypes "github.com/tendermint/abci/types"
-	core_types "github.com/tendermint/tendermint/rpc/core/types"
-	emtTypes "github.com/tendermint/ethermint/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+	abciTypes "github.com/tendermint/abci/types"
+	emtTypes "github.com/tendermint/ethermint/types"
+	core_types "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 // used by Backend to call tendermint rpc endpoints
+// TODO: replace with HttpClient https://github.com/tendermint/go-rpc/issues/8
 type Client interface {
 	// see tendermint/go-rpc/client/http_client.go:115 func (c *ClientURI) Call(...)
 	Call(method string, params map[string]interface{}, result interface{}) (interface{}, error)
@@ -53,12 +54,11 @@ type pending struct {
 
 // Backend handles the chain database and VM
 type Backend struct {
-	ethereum    *eth.Ethereum
-	pending	    *pending
-	client      Client
-	config      *eth.Config
+	ethereum *eth.Ethereum
+	pending  *pending
+	client   Client
+	config   *eth.Config
 }
-
 
 const (
 	maxWaitForServerRetries = 10

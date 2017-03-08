@@ -1,0 +1,19 @@
+---
+machine:
+  environment:
+    GOPATH: "$HOME/.go_project"
+    PROJECT_PARENT_PATH: "$GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME"
+    PROJECT_PATH: "$PROJECT_PARENT_PATH/$CIRCLE_PROJECT_REPONAME"
+  hosts:
+    localhost: 127.0.0.1
+
+dependencies:
+  override:
+    - mkdir -p "$PROJECT_PARENT_PATH"
+    - ln -sf "$HOME/$CIRCLE_PROJECT_REPONAME/" "$PROJECT_PATH"
+  post:
+    - go version
+
+test:
+  override:
+    - make test
