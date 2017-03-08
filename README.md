@@ -1,6 +1,6 @@
 ## Ethermint 
 
-[![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=master)](https://travis-ci.org/tendermint/ethermint)
+[![Build Status](https://circleci.com/gh/tendermint/tendermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/tendermint/tree/master) 
 
 ### Overview
 Ethereum as a [ABCI](https://github.com/tendermint/abci) application. 
