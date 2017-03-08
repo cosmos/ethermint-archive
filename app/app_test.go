@@ -32,17 +32,19 @@ import (
 // implements backend.Client, used for rpc calls to tendermint
 // TODO: consider using gomock or something
 type MockClient struct {
-	Broadcast_tx_sync_called bool
+	sentBroadcastTx chan struct{} // fires when we call broadcast_tx_sync
 }
 
-func (mockclient *MockClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
+func NewMockClient() *MockClient { return &MockClient{make(chan struct{})} }
+
+func (mc *MockClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
 	tmresult := result.(*core_types.TMResult)
 	switch method {
 	case "status":
 		*tmresult = &core_types.ResultStatus{}
 		return tmresult, nil
 	case "broadcast_tx_sync":
-		mockclient.Broadcast_tx_sync_called = true
+		close(mc.sentBroadcastTx)
 		*tmresult = &core_types.ResultBroadcastTx{}
 		return tmresult, nil
 	}
@@ -65,7 +67,7 @@ func TestBumpingNonces(t *testing.T) {
 	defer os.RemoveAll(tempDatadir)
 
 	// used to intercept rpc calls to tendermint
-	mockclient := &MockClient{}
+	mockclient := NewMockClient()
 
 	backend, app, err := makeTestApp(tempDatadir, addr, mockclient)
 	if err != nil {
@@ -104,13 +106,11 @@ func TestBumpingNonces(t *testing.T) {
 
 	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
 
-	start := time.Now()
-	for !mockclient.Broadcast_tx_sync_called {
-		time.Sleep(200 * time.Millisecond)
-		if time.Since(start) > 5*time.Second {
-			assert.Fail(t, "Timeout waiting for transaction on the tendermint rpc")
-			break
-		}
+	ticker := time.NewTicker(5 * time.Second)
+	select {
+	case <-ticker.C:
+		assert.Fail(t, "Timeout waiting for transaction on the tendermint rpc")
+	case <-mockclient.sentBroadcastTx:
 	}
 }
 
