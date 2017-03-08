@@ -15,5 +15,6 @@ checkout:
 test:
   override:
     - "go version"
+    - "echo $REPO && ls $REPO"
     - "cd $REPO && go install ./cmd/ethermint"
     - "cd $REPO && make test_race"
