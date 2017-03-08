@@ -67,7 +67,7 @@ func TestBumpingNonces(t *testing.T) {
 	// used to intercept rpc calls to tendermint
 	mockclient := &MockClient{}
 
-	app, err := makeTestApp(tempDatadir, addr, mockclient)
+	backend, app, err := makeTestApp(tempDatadir, addr, mockclient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestBumpingNonces(t *testing.T) {
 	// replays should fail - we're checking if the transaction got through earlier, by replaying the nonce
 	assert.Equal(t, app.CheckTx(encodedtx), abciTypes.ErrInternalError)
 	// ...on both interfaces of the app
-	assert.Equal(t, app.Backend().Ethereum().ApiBackend.SendTx(ctx, tx1), errors.New("Nonce too low"))
+	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx1), errors.New("Nonce too low"))
 
 	// second transaction is sent via geth RPC, or at least pretending to be so
 	// with a correct nonce this time, it should pass
@@ -102,7 +102,7 @@ func TestBumpingNonces(t *testing.T) {
 		key,
 	)
 
-	assert.Equal(t, app.Backend().Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
+	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
 
 	start := time.Now()
 	for !mockclient.Broadcast_tx_sync_called {
@@ -115,19 +115,21 @@ func TestBumpingNonces(t *testing.T) {
 }
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
-func makeTestApp(tempDatadir string, addr common.Address, mockclient *MockClient) (*app.EthermintApplication, error) {
+func makeTestApp(tempDatadir string, addr common.Address, mockclient *MockClient) (*ethereum.Backend, *app.EthermintApplication, error) {
 	stack, err := makeTestSystemNode(tempDatadir, addr, mockclient)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	utils.StartNode(stack)
 
 	var backend *ethereum.Backend
 	if err = stack.Service(&backend); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return app.NewEthermintApplication(backend, nil, nil)
+	app, err := app.NewEthermintApplication(backend, nil, nil)
+
+	return backend, app, err
 }
 
 func makeTestGenesis(addr common.Address) (string, error) {
