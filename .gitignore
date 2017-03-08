@@ -1,3 +1,5 @@
 cmd/ethermint/ethermint
 data
 dev/data
+*.swp
+*.swo
