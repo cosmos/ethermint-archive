@@ -1,0 +1,39 @@
+{
+	"app_hash": "",
+	"chain_id": "chain-nXGbYm",
+	"genesis_time": "2017-02-19T14:05:22.804Z",
+	"validators": [
+		{
+			"amount": 1,
+			"name": "mach1",
+			"pub_key": [
+				1,
+				"7625B17EBB974C655A04C8D7A9C0A463F9926BD1965B04C1244230E8B8AA3757"
+			]
+		},
+		{
+			"amount": 1,
+			"name": "mach2",
+			"pub_key": [
+				1,
+				"6F9219D35E73BD79B53D38D77318C297A607825C968A185E09AE29DCF0E30BD3"
+			]
+		},
+		{
+			"amount": 1,
+			"name": "mach3",
+			"pub_key": [
+				1,
+				"8D8734C3F1D52B02F31C547A835BC77F3C80369056FFE4EA418E53DD194ACB10"
+			]
+		},
+		{
+			"amount": 1,
+			"name": "mach4",
+			"pub_key": [
+				1,
+				"DD722BFE9A111D3E2AD18EF103A5D6E636EF94BCF3BC68A2212F6AF2CDD1B132"
+			]
+		}
+	]
+}

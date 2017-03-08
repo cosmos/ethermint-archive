@@ -1,0 +1,54 @@
+version: '2.1'
+
+services:
+  mach1:
+    container_name: mach1
+    image: docker.ethermint
+    volumes:
+    - ./mach1:/data
+    command: --seeds "mach2:46656,mach3:46656,mach4:46656" --targetgaslimit 134217728 --ipcdisable --log_level error
+
+  mach2:
+    container_name: mach2
+    image: docker.ethermint
+    volumes:
+    - ./mach2:/data
+    command: --seeds "mach1:46656,mach3:46656,mach4:46656" --targetgaslimit 134217728 --ipcdisable --log_level error
+
+  mach3:
+    container_name: mach3
+    image: docker.ethermint
+    volumes:
+    - ./mach3:/data
+    command: --seeds "mach1:46656,mach2:46656,mach4:46656" --targetgaslimit 134217728 --ipcdisable --log_level error
+
+  mach4:
+    container_name: mach4
+    image: docker.ethermint
+    volumes:
+    - ./mach4:/data
+    command: --seeds "mach1:46656,mach2:46656,mach3:46656" --targetgaslimit 134217728 --ipcdisable --log_level error
+
+  gateway:
+    depends_on:
+      - mach1
+      - mach2
+      - mach3
+      - mach4
+    container_name: gateway
+    image: docker.ethermint
+    ports:
+      - 8545:8545
+    volumes:
+    - ./gateway:/data
+    command: --seeds "mach1:46656,mach2:46656,mach3:46656,mach4:46656" --targetgaslimit 134217728 --ipcdisable --rpc --rpcaddr "0.0.0.0" --rpccorsdomain "*" --rpcapi "db,eth,web3,personal,admin,txpool" --log_level error
+
+  contract:
+    depends_on:
+      - gateway
+    container_name: contract
+    image: docker.contract
+    environment:
+      - "NODE_CONFIG={\"provider\": \"http://gateway:8545\"}"
+    command: node main.js
+
