@@ -1,5 +1,5 @@
-hash: 5fcf0a54458b0bc60b8d0059f639f7d97b5ad5729c42c7f547faa7a7e8adb9af
-updated: 2017-02-15T09:26:47.6927483+02:00
+hash: c5139b79be22ebf1bd63a11c2a2af52587dbb0523e87ceee94284ab5ebb7ad59
+updated: 2017-03-08T17:24:59.768184579-05:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -16,7 +16,8 @@ imports:
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
-  version: a07539fb88db7231d18db918ed7a6a4e32f97450
+  version: 627508bf4df160a98277d27c23690e2e7e08c261
+  repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
   - accounts/keystore
@@ -281,4 +282,16 @@ imports:
   - base64vlq
 - name: gopkg.in/urfave/cli.v1
   version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
-testImports: []
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert
