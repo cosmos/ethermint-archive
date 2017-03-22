@@ -21,7 +21,7 @@ After running the container, you can attach to it:
 * Use the IP address to attach with `geth attach http://CONTAINER_IP:8545`.
 
 ### Install
-You can build the `ethermint` executable by running `go install cmd/ethermint`. For vendored packages, Ethermint uses glide. 
+You can build the `ethermint` executable by running `go install ./cmd/ethermint`. For vendored packages, Ethermint uses glide. 
 
 ### Initialization
 
