@@ -15,7 +15,7 @@ test:
 
 test_race:
 	@echo "--> Running go test --race"
-	@go test -v -race $(PACKAGES)
+	@go test -race $(PACKAGES)
 
 get_deps:
 	@echo "--> Running go get"
