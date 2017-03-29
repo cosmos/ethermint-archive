@@ -7,7 +7,6 @@ RUN mkdir /ethermint && \
 RUN groupadd -r ethermint && useradd -r -g ethermint ethermint
 
 RUN chown ethermint /var/run
-USER ethermint
 
 RUN mkdir -p /app
 WORKDIR /app
