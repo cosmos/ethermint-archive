@@ -1,18 +1,32 @@
-FROM golang:1.6
+FROM golang:latest
 MAINTAINER ethan@tendermint.com
 
-RUN curl https://glide.sh/get | sh
-RUN go get github.com/tendermint/ethermint/cmd/ethermint
+RUN mkdir /ethermint && \
+    chmod 777 /ethermint
 
-RUN mkdir /ethermint && chmod 777 /ethermint
-RUN useradd -ms /bin/bash ethermint
+RUN groupadd -r ethermint && useradd -r -g ethermint ethermint
+
 RUN chown ethermint /var/run
-USER ethermint 
+
+RUN mkdir -p /app
+WORKDIR /app
+COPY ethermint /app/ethermint
+RUN ls -la /app
 
 RUN mkdir -p /ethermint/setup
-COPY genesis.json /ethermint/setup/
-RUN ethermint -datadir /ethermint/data init /ethermint/setup/genesis.json
-COPY keystore /ethermint/data/keystore
-EXPOSE 8545
+COPY docker/genesis.json /ethermint/setup/
+RUN /app/ethermint -datadir /ethermint/data init /ethermint/setup/genesis.json
+COPY docker/keystore /ethermint/data/keystore
 
-CMD ["ethermint", "-datadir", "/ethermint/data"]
+EXPOSE 8545
+EXPOSE 8546
+
+EXPOSE 46656
+EXPOSE 46657
+EXPOSE 46658
+
+EXPOSE 30303
+
+ENTRYPOINT ["./ethermint"]
+
+CMD ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0"]
