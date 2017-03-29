@@ -1,7 +1,7 @@
 GOTOOLS = \
-					github.com/mitchellh/gox \
 					github.com/Masterminds/glide
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
+
 TMROOT = $${TMROOT:-$$HOME/.tendermint}
 
 all: get_deps install test
@@ -31,4 +31,12 @@ get_vendor_deps: tools
 	@echo "--> Running glide install"
 	@glide install --strip-vendor
 
-.PHONY: all install test test_race get_deps get_vendor_deps tools
+build-docker:
+	rm -f ./ethermint
+	docker run -it --rm -v "$(PWD):/go/src/github.com/tendermint/ethermint" -w "/go/src/github.com/tendermint/ethermint" golang:latest go build ./cmd/ethermint
+	docker build -t "tendermint/ethermint" -f docker/Dockerfile .
+
+clean:
+	rm -f ./ethermint
+
+.PHONY: all install test test_race get_deps get_vendor_deps tools build-docker clean
