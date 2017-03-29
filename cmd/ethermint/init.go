@@ -3,23 +3,23 @@ package main
 import (
 	"os"
 
-	. "github.com/tendermint/go-common"
+	cmn "github.com/tendermint/go-common"
 	"github.com/tendermint/tendermint/types"
 )
 
 func init_files() {
 	// if no priv val, make it
 	privValFile := config.GetString("priv_validator_file")
-	if _, err := os.Stat(privValFile); err != nil {
+	if _, err := os.Stat(privValFile); os.IsNotExist(err) {
 		privValidator := types.GenPrivValidator()
 		privValidator.SetFile(privValFile)
 		privValidator.Save()
 
 		// if no genesis, make it using the priv val
 		genFile := config.GetString("genesis_file")
-		if _, err := os.Stat(genFile); err != nil {
+		if _, err := os.Stat(genFile); os.IsNotExist(err) {
 			genDoc := types.GenesisDoc{
-				ChainID: Fmt("test-chain-%v", RandStr(6)),
+				ChainID: cmn.Fmt("test-chain-%v", cmn.RandStr(6)),
 			}
 			genDoc.Validators = []types.GenesisValidator{types.GenesisValidator{
 				PubKey: privValidator.PubKey,
