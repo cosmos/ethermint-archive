@@ -5,6 +5,52 @@ import (
 	"os"
 
 	cfg "github.com/tendermint/go-config"
+	"gopkg.in/urfave/cli.v1"
+)
+
+var (
+	NodeLaddrFlag = cli.StringFlag{
+		Name:  "node_laddr",
+		Value: "tcp://0.0.0.0:46656",
+		Usage: "Node listen address. (0.0.0.0:0 means any interface, any port)",
+	}
+	LogLevelFlag = cli.StringFlag{
+		Name:  "log_level",
+		Value: "info",
+		Usage: "Tendermint Log level",
+	}
+	SeedsFlag = cli.StringFlag{
+		Name:  "seeds",
+		Value: "",
+		Usage: "Comma delimited host:port seed nodes",
+	}
+	NoFastSyncFlag = cli.BoolFlag{
+		Name:  "no_fast_sync",
+		Usage: "Disable fast blockchain syncing",
+	}
+	SkipUpnpFlag = cli.BoolFlag{
+		Name:  "skip_upnp",
+		Usage: "Skip UPNP configuration",
+	}
+	RpcLaddrFlag = cli.StringFlag{
+		Name:  "rpc_laddr",
+		Value: "tcp://0.0.0.0:46657",
+		Usage: "RPC listen address. Port required",
+	}
+	AddrFlag = cli.StringFlag{
+		Name:  "addr",
+		Value: "tcp://0.0.0.0:46658",
+		Usage: "TMSP app listen address",
+	}
+	AbciFlag = cli.StringFlag{
+		Name:  "abci",
+		Value: "socket",
+		Usage: "socket | grpc",
+	}
+	VerbosityFlag = cli.IntFlag{
+		Name:  "verbosity",
+		Usage: "sets the verbosity level",
+	}
 )
 
 func parseFlags(config cfg.Config, args []string) {

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"gopkg.in/urfave/cli.v1"
-	// "log"
 	"os"
 	"os/user"
 	"path"
@@ -71,9 +70,6 @@ func init() {
 		// logger.Flush()
 		return nil
 	}
-
-	// logger.AddLogSystem(logger.NewStdLogSystem(os.Stdout, log.LstdFlags, logger.DebugLevel))
-	glog.SetToStderr(true)
 }
 
 func main() {
@@ -134,6 +130,10 @@ func abciEthereumAction(ctx *cli.Context) error {
 	utils.StartNode(stack)
 	addr := ctx.GlobalString("addr")
 	abci := ctx.GlobalString("abci")
+
+	//set verbosity level for go-ethereum
+	glog.SetToStderr(true)
+	glog.SetV(ctx.GlobalInt(VerbosityFlag.Name))
 
 	var backend *ethereum.Backend
 	if err := stack.Service(&backend); err != nil {
@@ -276,44 +276,17 @@ func newCliApp(version, usage string) *cli.App {
 		utils.GpobaseStepDownFlag,
 		utils.GpobaseStepUpFlag,
 		utils.GpobaseCorrectionFactorFlag,
-		cli.StringFlag{
-			Name:  "node_laddr",
-			Value: "tcp://0.0.0.0:46656",
-			Usage: "Node listen address. (0.0.0.0:0 means any interface, any port)",
-		},
-		cli.StringFlag{
-			Name:  "log_level",
-			Value: "info",
-			Usage: "Tendermint Log level",
-		},
-		cli.StringFlag{
-			Name:  "seeds",
-			Value: "",
-			Usage: "Comma delimited host:port seed nodes",
-		},
-		cli.BoolFlag{
-			Name:  "no_fast_sync",
-			Usage: "Disable fast blockchain syncing",
-		},
-		cli.BoolFlag{
-			Name:  "skip_upnp",
-			Usage: "Skip UPNP configuration",
-		},
-		cli.StringFlag{
-			Name:  "rpc_laddr",
-			Value: "tcp://0.0.0.0:46657",
-			Usage: "RPC listen address. Port required",
-		},
-		cli.StringFlag{
-			Name:  "addr",
-			Value: "tcp://0.0.0.0:46658",
-			Usage: "TMSP app listen address",
-		},
-		cli.StringFlag{
-			Name:  "abci",
-			Value: "socket",
-			Usage: "socket | grpc",
-		},
+
+		//ethermint flags
+		NodeLaddrFlag,
+		LogLevelFlag,
+		SeedsFlag,
+		NoFastSyncFlag,
+		SkipUpnpFlag,
+		RpcLaddrFlag,
+		AddrFlag,
+		AbciFlag,
+		VerbosityFlag,
 	}
 	return app
 }
