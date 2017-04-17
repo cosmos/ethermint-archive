@@ -9,6 +9,11 @@ define NEWLINE
 endef
 NOVENDOR = go list github.com/tendermint/ethermint/... | grep -v /vendor/
 
+build:
+	rm -rf ./ethermint
+	go build --ldflags '-extldflags "-static"' \
+		--ldflags "-X main.gitCommit `git rev-parse HEAD`" ./cmd/ethermint/
+
 install: get_deps
 	go install github.com/tendermint/ethermint/cmd/ethermint
 

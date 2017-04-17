@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"gopkg.in/urfave/cli.v1"
 	// "log"
 	"os"
 	"os/user"
@@ -25,6 +24,8 @@ import (
 	tmlog "github.com/tendermint/go-logger"
 	tmcfg "github.com/tendermint/tendermint/config/tendermint"
 	tendermintNode "github.com/tendermint/tendermint/node"
+	"gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -47,6 +48,7 @@ const (
 var (
 	verString string // Combined textual representation of all the version components
 	cliApp    *cli.App
+	gitCommit = "" // Git SHA1 commit hash of the release (set via linker flags)
 	// mainLogger = logger.NewLogger("main")
 )
 
@@ -55,6 +57,10 @@ func init() {
 	if versionMeta != "" {
 		verString += "-" + versionMeta
 	}
+	if gitCommit != "" {
+		verString += "-" + gitCommit[:8]
+	}
+	verString += " Ethereum/" + params.Version
 	cliApp = newCliApp(verString, "the ethermint command line interface")
 	cliApp.Action = abciEthereumAction
 	cliApp.Commands = []cli.Command{
