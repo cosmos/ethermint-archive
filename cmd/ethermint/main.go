@@ -117,7 +117,11 @@ func getTendermintConfig(ctx *cli.Context) cfg.Config {
 	os.Setenv("TMROOT", datadir)
 	config = tmcfg.GetConfig("")
 	config.Set("node_laddr", ctx.GlobalString("node_laddr"))
-	config.Set("seeds", ctx.GlobalString("seeds"))
+	//set seeds only if it is not empty
+	//otherwise it overwrite value from config.toml file
+	if ctx.GlobalString("seeds") != "" {
+		config.Set("seeds", ctx.GlobalString("seeds"))
+	}
 	config.Set("fast_sync", ctx.GlobalBool("no_fast_sync"))
 	config.Set("skip_upnp", ctx.GlobalBool("skip_upnp"))
 	config.Set("rpc_laddr", ctx.GlobalString("rpc_laddr"))
