@@ -44,7 +44,7 @@ The password to this key is `1234`
 
 ### Run
 
-Now just run `ethermint`.  You should see Tendermint blocks start streaming by.
+Now just run `ethermint --datadir ~/.ethermint`.  You should see Tendermint blocks start streaming by.
 In another window, run `geth attach ~/.ethermint/geth.ipc` to drop into a web3 console for
 your ethermint node:
 
