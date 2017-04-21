@@ -6,6 +6,11 @@ TMROOT = $${TMROOT:-$$HOME/.tendermint}
 
 all: get_deps install test
 
+build:
+	rm -rf ./ethermint
+	go build --ldflags '-extldflags "-static"' \
+		--ldflags "-X main.gitCommit=`git rev-parse HEAD`" ./cmd/ethermint/
+
 install: get_deps
 	@go install ./cmd/ethermint
 
