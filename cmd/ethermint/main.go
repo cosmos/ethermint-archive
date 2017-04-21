@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-  
-  "gopkg.in/urfave/cli.v1"
+
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/core"
@@ -20,13 +20,12 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
 	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/tendermint/abci/server"
 	cfg "github.com/tendermint/go-config"
 	tmlog "github.com/tendermint/go-logger"
 	tmcfg "github.com/tendermint/tendermint/config/tendermint"
 	tendermintNode "github.com/tendermint/tendermint/node"
-	"gopkg.in/urfave/cli.v1"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
