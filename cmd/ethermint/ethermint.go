@@ -8,8 +8,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/logger/glog"
+
 	"github.com/tendermint/ethermint/app"
 	"github.com/tendermint/ethermint/ethereum"
+	"github.com/tendermint/ethermint/version"
 	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
 	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
 
@@ -18,7 +20,7 @@ import (
 )
 
 func ethermintCmd(ctx *cli.Context) error {
-	stack := ethereum.MakeSystemNode(clientIdentifier, verString, ctx)
+	stack := ethereum.MakeSystemNode(clientIdentifier, version.Version, ctx)
 	utils.StartNode(stack)
 	addr := ctx.GlobalString("addr")
 	abci := ctx.GlobalString("abci")

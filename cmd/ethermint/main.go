@@ -10,58 +10,40 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/tendermint/ethermint/version"
 
 	cfg "github.com/tendermint/go-config"
 )
 
-var (
-	config cfg.Config
-
-	DataDirFlag = utils.DirectoryFlag{
-		Name:  "datadir",
-		Usage: "Data directory for the databases and keystore",
-		Value: utils.DirectoryString{DefaultDataDir()},
-	}
-)
-
 const (
-	clientIdentifier = "Ethermint" // Client identifier to advertise over the network
-	versionMajor     = 0           // Major version component of the current release
-	versionMinor     = 1           // Minor version component of the current release
-	versionPatch     = 0           // Patch version component of the current release
-	versionMeta      = "unstable"  // Version metadata to append to the version string
+	// Client identifier to advertise over the network
+	clientIdentifier = "Ethermint"
 )
 
 var (
-	verString string // Combined textual representation of all the version components
-	gitCommit = ""   // Git SHA1 commit hash of the release (set via linker flags)
-
-	// mainLogger = logger.NewLogger("main")
+	// tendermint config
+	config cfg.Config
 )
-
-func init() {
-	verString = fmt.Sprintf("%d.%d.%d", versionMajor, versionMinor, versionPatch)
-	if versionMeta != "" {
-		verString += "-" + versionMeta
-	}
-	if gitCommit != "" {
-		verString += "-" + gitCommit[:8]
-	}
-	verString += " Ethereum/" + params.Version
-}
 
 func main() {
 	glog.V(logger.Info).Infof("Starting ethermint")
 
-	cliApp := newCliApp(verString, "the ethermint command line interface")
+	cliApp := newCliApp(version.Version, "the ethermint command line interface")
 	cliApp.Action = ethermintCmd
 	cliApp.Commands = []cli.Command{
 		{
 			Action:      initCmd,
 			Name:        "init",
 			Usage:       "init genesis.json",
-			Description: "",
+			Description: "Initialize the files",
+		},
+
+		{
+			Action:      versionCmd,
+			Name:        "version",
+			Usage:       "",
+			Description: "Print the version",
 		},
 	}
 	cliApp.HideVersion = true // we have a command to print the version
@@ -94,7 +76,6 @@ func newCliApp(version, usage string) *cli.App {
 		utils.UnlockedAccountFlag,
 		utils.PasswordFileFlag,
 		utils.BootnodesFlag,
-		DataDirFlag,
 		utils.KeyStoreDirFlag,
 		// utils.BlockchainVersionFlag,
 		utils.CacheFlag,
@@ -138,6 +119,8 @@ func newCliApp(version, usage string) *cli.App {
 		utils.GpobaseStepDownFlag,
 		utils.GpobaseStepUpFlag,
 		utils.GpobaseCorrectionFactorFlag,
+		VerbosityFlag, // not exposed by go-ethereum
+		DataDirFlag,   // so we control defaults
 
 		//ethermint flags
 		MonikerFlag,
@@ -149,7 +132,11 @@ func newCliApp(version, usage string) *cli.App {
 		RpcLaddrFlag,
 		AddrFlag,
 		AbciFlag,
-		VerbosityFlag,
 	}
 	return app
+}
+
+func versionCmd(ctx *cli.Context) error {
+	fmt.Println(version.Version)
+	return nil
 }

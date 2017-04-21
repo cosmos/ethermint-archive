@@ -9,7 +9,7 @@ all: get_deps install test
 build:
 	rm -rf ./ethermint
 	go build --ldflags '-extldflags "-static"' \
-		--ldflags "-X main.gitCommit=`git rev-parse HEAD`" ./cmd/ethermint/
+		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"  -o $(GOPATH)/bin/ethermint ./cmd/ethermint/
 
 install: get_deps
 	@go install ./cmd/ethermint

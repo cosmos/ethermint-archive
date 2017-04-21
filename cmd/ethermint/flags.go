@@ -2,9 +2,30 @@ package main
 
 import (
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/ethereum/go-ethereum/cmd/utils"
 )
 
 var (
+	// ----------------------------
+	// go-ethereum flags
+
+	// So we can control the DefaultDir
+	DataDirFlag = utils.DirectoryFlag{
+		Name:  "datadir",
+		Usage: "Data directory for the databases and keystore",
+		Value: utils.DirectoryString{DefaultDataDir()},
+	}
+
+	// Not exposed by go-ethereum
+	VerbosityFlag = cli.IntFlag{
+		Name:  "verbosity",
+		Usage: "Verbosity of go-ethereum",
+	}
+
+	// ----------------------------
+	// Tendermint Flags
+
 	MonikerFlag = cli.StringFlag{
 		Name:  "moniker",
 		Value: "",
@@ -55,10 +76,5 @@ var (
 		Name:  "abci",
 		Value: "socket",
 		Usage: "socket | grpc",
-	}
-
-	VerbosityFlag = cli.IntFlag{
-		Name:  "verbosity",
-		Usage: "Verbosity of go-ethereum",
 	}
 )
