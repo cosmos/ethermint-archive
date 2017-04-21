@@ -29,4 +29,4 @@ EXPOSE 30303
 
 ENTRYPOINT ["./ethermint"]
 
-CMD ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0"]
+CMD ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin"]
