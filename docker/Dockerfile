@@ -1,4 +1,5 @@
 FROM alpine:latest
+
 MAINTAINER ethan@tendermint.com
 # Where to install binaries
 ENV INSTALL_BASE /usr/local/bin
@@ -26,8 +27,14 @@ RUN ethermint -datadir /ethermint/data init /ethermint/setup/genesis.json
 COPY keystore /ethermint/data/keystore
 
 EXPOSE 8545
+EXPOSE 8546
+
 EXPOSE 46656
 EXPOSE 46657
 EXPOSE 46658
 
-CMD ["ethermint", "--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin"]
+EXPOSE 30303
+
+ENTRYPOINT ["./ethermint"]
+
+CMD ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0",  "--ws", "--wsaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin"]

@@ -1,27 +1,28 @@
-## Ethermint 
+## Ethermint
 
-[![Build Status](https://circleci.com/gh/tendermint/ethermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/ethermint/tree/master) 
+[![Build Status](https://circleci.com/gh/tendermint/ethermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/ethermint/tree/master)
 
 ### Overview
-Ethereum as a [ABCI](https://github.com/tendermint/abci) application. 
+
+Ethereum as a [ABCI](https://github.com/tendermint/abci) application.
 
 This means running an Ethereum EVM-based network that uses Tendermint consesnsus instead of proof-of-work.
 The way it's built makes it easy to use existing Ethereum tools (geth attach, web3) to interact with the node.
 
 ### Docker image
+
 An easy way to get started is to use the docker image:
+
 ```
-docker run tendermint/ethermint
+docker run -d --restart=unless-stopped -p 8545:8545 tendermint/ethermint
 ```
 
-If you prefer instead to build locally, go to the `docker` directory and run `docker build -t ethermint .`.
+If you prefer instead to build locally, run `make build-docker`.
 
-After running the container, you can attach to it:
-* First, find its ID using `docker ps` and use it to find its IP using `docker inspect CONTAINER_ID | grep IPAddress`. 
-* Use the IP address to attach with `geth attach http://CONTAINER_IP:8545`.
+After running the container, you can attach to it: `geth attach http://localhost:8545`.
 
 ### Install
-You can build the `ethermint` executable by running `go install ./cmd/ethermint`. For vendored packages, Ethermint uses glide. 
+You can build the `ethermint` executable by running `go install ./cmd/ethermint`. For vendored packages, Ethermint uses glide.
 
 ### Initialization
 
@@ -35,7 +36,7 @@ cp -r dev/keystore ~/.ethermint/keystore
 ```
 
 Note we're using `tendermint` to create the tendermint files,
-and then `ethermint` to create the ethereum files, 
+and then `ethermint` to create the ethereum files,
 and everything is stored in `~/.ethermint`.
 The `dev/genesis.json` file specifies some initial ethereum account with funds,
 and the corresponding private key is copied over from `dev/keystore`.
@@ -60,7 +61,7 @@ at block: 71 (Thu, 16 Feb 2017 16:08:20 EST)
 10000000000000000
 > personal.unlockAccount(primary, "1234", 100)
 true
-> 
+>
 ```
 
 And you're off!
