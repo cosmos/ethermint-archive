@@ -1,30 +1,22 @@
-FROM alpine:latest
-
+FROM golang:latest
 MAINTAINER ethan@tendermint.com
-# Where to install binaries
-ENV INSTALL_BASE /usr/local/bin
-
-# User Creation
-# Choose the user id number 1000 to work well with Boot2Docker volumes.  See:
-# https://github.com/boot2docker/boot2docker/issues/581#issuecomment-62491280
-ENV USER ethermint
-RUN addgroup -S $USER && adduser -s /bin/bash -S -D -u 1000 $USER $USER
-RUN chown $USER /var/run
-
 
 RUN mkdir /ethermint && \
-  mkdir /ethermint/setup && \
-  chown --recursive $USER:$USER /ethermint
+    chmod 777 /ethermint
 
+RUN groupadd -r ethermint && useradd -r -g ethermint ethermint
 
-COPY ./ethermint $INSTALL_BASE/ethermint
-RUN chmod +x $INSTALL_BASE/ethermint
+RUN chown ethermint /var/run
 
-USER $USER
+RUN mkdir -p /app
+WORKDIR /app
+COPY ethermint /app/ethermint
+RUN ls -la /app
 
-COPY genesis.json /ethermint/setup/
-RUN ethermint -datadir /ethermint/data init /ethermint/setup/genesis.json
-COPY keystore /ethermint/data/keystore
+RUN mkdir -p /ethermint/setup
+COPY docker/genesis.json /ethermint/setup/
+RUN /app/ethermint -datadir /ethermint/data init /ethermint/setup/genesis.json
+COPY docker/keystore /ethermint/data/keystore
 
 EXPOSE 8545
 EXPOSE 8546
@@ -35,6 +27,6 @@ EXPOSE 46658
 
 EXPOSE 30303
 
-ENTRYPOINT "$INSTALL_BASE/ethermint"
+ENTRYPOINT ["./ethermint"]
 
-CMD ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0",  "--ws", "--wsaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin"]
+CMD ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0"]
