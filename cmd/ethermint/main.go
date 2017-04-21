@@ -3,33 +3,21 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/user"
-	"path"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/tendermint/ethermint/app"
-	"github.com/tendermint/ethermint/ethereum"
-	//	minerRewardStrategies "github.com/tendermint/ethermint/strategies/miner"
-	//	validatorsStrategy "github.com/tendermint/ethermint/strategies/validators"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/tendermint/abci/server"
+
 	cfg "github.com/tendermint/go-config"
-	tmlog "github.com/tendermint/go-logger"
-	tmcfg "github.com/tendermint/tendermint/config/tendermint"
-	tendermintNode "github.com/tendermint/tendermint/node"
 )
 
 var (
-	config      cfg.Config
+	config cfg.Config
+
 	DataDirFlag = utils.DirectoryFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
@@ -47,8 +35,8 @@ const (
 
 var (
 	verString string // Combined textual representation of all the version components
-	cliApp    *cli.App
-	gitCommit = "" // Git SHA1 commit hash of the release (set via linker flags)
+	gitCommit = ""   // Git SHA1 commit hash of the release (set via linker flags)
+
 	// mainLogger = logger.NewLogger("main")
 )
 
@@ -61,11 +49,16 @@ func init() {
 		verString += "-" + gitCommit[:8]
 	}
 	verString += " Ethereum/" + params.Version
-	cliApp = newCliApp(verString, "the ethermint command line interface")
-	cliApp.Action = abciEthereumAction
+}
+
+func main() {
+	glog.V(logger.Info).Infof("Starting ethermint")
+
+	cliApp := newCliApp(verString, "the ethermint command line interface")
+	cliApp.Action = ethermintCmd
 	cliApp.Commands = []cli.Command{
 		{
-			Action:      initCommand,
+			Action:      initCmd,
 			Name:        "init",
 			Usage:       "init genesis.json",
 			Description: "",
@@ -73,157 +66,19 @@ func init() {
 	}
 	cliApp.HideVersion = true // we have a command to print the version
 
+	cliApp.Before = func(ctx *cli.Context) error {
+		config = getTendermintConfig(ctx)
+		return nil
+	}
 	cliApp.After = func(ctx *cli.Context) error {
 		// logger.Flush()
 		return nil
 	}
-}
 
-func main() {
-	glog.V(logger.Info).Infof("Starting ethermint")
 	if err := cliApp.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func initCommand(ctx *cli.Context) error {
-	config = getTendermintConfig(ctx)
-	init_files()
-
-	// ethereum genesis.json
-	genesisPath := ctx.Args().First()
-	if len(genesisPath) == 0 {
-		utils.Fatalf("must supply path to genesis JSON file")
-	}
-
-	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(utils.MakeDataDir(ctx), "chaindata"), 0, 0)
-	if err != nil {
-		utils.Fatalf("could not open database: %v", err)
-	}
-
-	genesisFile, err := os.Open(genesisPath)
-	if err != nil {
-		utils.Fatalf("failed to read genesis file: %v", err)
-	}
-
-	block, err := core.WriteGenesisBlock(chainDb, genesisFile)
-	if err != nil {
-		utils.Fatalf("failed to write genesis block: %v", err)
-	}
-	glog.V(logger.Info).Infof("successfully wrote genesis block and/or chain rule set: %x", block.Hash())
-	return nil
-}
-
-func getTendermintConfig(ctx *cli.Context) cfg.Config {
-	datadir := ctx.GlobalString(DataDirFlag.Name)
-	os.Setenv("TMROOT", datadir)
-	config = tmcfg.GetConfig("")
-	config.Set("node_laddr", ctx.GlobalString("node_laddr"))
-	config.Set("seeds", ctx.GlobalString("seeds"))
-	config.Set("fast_sync", ctx.GlobalBool("no_fast_sync"))
-	config.Set("skip_upnp", ctx.GlobalBool("skip_upnp"))
-	config.Set("rpc_laddr", ctx.GlobalString("rpc_laddr"))
-	config.Set("proxy_app", ctx.GlobalString("addr"))
-	config.Set("log_level", ctx.GlobalString("log_level"))
-
-	tmlog.SetLogLevel(config.GetString("log_level"))
-
-	return config
-}
-
-func abciEthereumAction(ctx *cli.Context) error {
-	stack := ethereum.MakeSystemNode(clientIdentifier, verString, ctx)
-	utils.StartNode(stack)
-	addr := ctx.GlobalString("addr")
-	abci := ctx.GlobalString("abci")
-
-	//set verbosity level for go-ethereum
-	glog.SetToStderr(true)
-	glog.SetV(ctx.GlobalInt(VerbosityFlag.Name))
-
-	var backend *ethereum.Backend
-	if err := stack.Service(&backend); err != nil {
-		utils.Fatalf("backend service not running: %v", err)
-	}
-	client, err := stack.Attach()
-	if err != nil {
-		utils.Fatalf("Failed to attach to the inproc geth: %v", err)
-	}
-	ethApp, err := app.NewEthermintApplication(backend, client, nil)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-
-	}
-	_, err = server.NewServer(addr, abci, ethApp)
-	/*
-		_, err = server.NewServer(
-			addr,
-			abci,
-			app.NewTMSPEthereumApplication(
-				backend,
-				client,
-				&minerRewardStrategies.RewardConstant{},
-				&validatorsStrategy.TxBasedValidatorsStrategy{},
-			),
-		)
-	*/
-	if err != nil {
-		os.Exit(1)
-	}
-
-	config = getTendermintConfig(ctx)
-	tendermintNode.RunNode(config)
-	return nil
-}
-
-func expandPath(p string) string {
-	if strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~\\") {
-		if user, err := user.Current(); err == nil {
-			p = user.HomeDir + p[1:]
-		}
-	}
-	return path.Clean(os.ExpandEnv(p))
-}
-
-type DirectoryString struct {
-	Value string
-}
-
-func (self *DirectoryString) String() string {
-	return self.Value
-}
-
-func (self *DirectoryString) Set(value string) error {
-	self.Value = expandPath(value)
-	return nil
-}
-
-func HomeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-	if usr, err := user.Current(); err == nil {
-		return usr.HomeDir
-	}
-	return ""
-}
-
-func DefaultDataDir() string {
-	// Try to place the data folder in the user's home dir
-	home := HomeDir()
-	if home != "" {
-		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Ethermint")
-		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "Ethermint")
-		} else {
-			return filepath.Join(home, ".ethermint")
-		}
-	}
-	// As we cannot guess a stable location, return empty and handle later
-	return ""
 }
 
 func newCliApp(version, usage string) *cli.App {
@@ -285,10 +140,11 @@ func newCliApp(version, usage string) *cli.App {
 		utils.GpobaseCorrectionFactorFlag,
 
 		//ethermint flags
+		MonikerFlag,
 		NodeLaddrFlag,
 		LogLevelFlag,
 		SeedsFlag,
-		NoFastSyncFlag,
+		FastSyncFlag,
 		SkipUpnpFlag,
 		RpcLaddrFlag,
 		AddrFlag,
