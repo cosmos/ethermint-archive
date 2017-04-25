@@ -38,7 +38,9 @@ get_vendor_deps: tools
 
 build-docker:
 	rm -f ./ethermint
-	docker run -it --rm -v "$(PWD):/go/src/github.com/tendermint/ethermint" -w "/go/src/github.com/tendermint/ethermint" golang:latest go build ./cmd/ethermint
+	docker run -it --rm -v "$(PWD):/go/src/github.com/tendermint/ethermint" -w "/go/src/github.com/tendermint/ethermint" golang:latest go build \
+	    --ldflags "-extldflags '-static' -X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
+	    ./cmd/ethermint
 	docker build -t "tendermint/ethermint" -f docker/Dockerfile .
 
 clean:

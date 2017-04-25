@@ -1,12 +1,8 @@
-FROM golang:latest
+FROM alpine:latest
 MAINTAINER ethan@tendermint.com
 
 RUN mkdir /ethermint && \
     chmod 777 /ethermint
-
-RUN groupadd -r ethermint && useradd -r -g ethermint ethermint
-
-RUN chown ethermint /var/run
 
 RUN mkdir -p /app
 WORKDIR /app
