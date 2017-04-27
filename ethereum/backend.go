@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"os"
 	"sync"
@@ -103,13 +104,23 @@ func waitForServer(s *Backend) error {
 
 //----------------------------------------------------------------------
 
+// we must implement our own net service since we don't have access to `internal/ethapi`
+type NetRPCService struct {
+	networkVersion int
+}
+
+func (n *NetRPCService) Version() string {
+	return fmt.Sprintf("%d", n.networkVersion)
+}
+
 // APIs returns the collection of RPC services the ethereum package offers.
 func (s *Backend) APIs() []rpc.API {
 	apis := s.Ethereum().APIs()
 	retApis := []rpc.API{}
 	for _, v := range apis {
 		if v.Namespace == "net" {
-			continue
+			networkVersion := 1
+			v.Service = &NetRPCService{networkVersion}
 		}
 		if v.Namespace == "miner" {
 			continue
@@ -126,7 +137,6 @@ func (s *Backend) APIs() []rpc.API {
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
 func (s *Backend) Start(srvr *p2p.Server) error {
-	//	s.netRPCService = NewPublicNetAPI(srvr, s.NetVersion())
 	return nil
 }
 
