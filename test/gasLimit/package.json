@@ -1,0 +1,17 @@
+{
+  "name": "gaslimit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "dependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.3.0",
+    "solc": "^0.4.10",
+    "web3": "^0.18.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "./node_modules/.bin/mocha main.js"
+  },
+  "author": ""
+}

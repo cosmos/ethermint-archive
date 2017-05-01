@@ -1,9 +1,10 @@
-package main
+package utils
 
 import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"math/big"
 )
 
 var (
@@ -21,6 +22,12 @@ var (
 	VerbosityFlag = cli.IntFlag{
 		Name:  "verbosity",
 		Usage: "Verbosity of go-ethereum",
+	}
+
+	MinGasLimitFlag = cli.StringFlag{
+		Name:  "mingaslimit",
+		Usage: "Minimum gas limit for block",
+		Value: big.NewInt(10000000).String(),
 	}
 
 	// ----------------------------
