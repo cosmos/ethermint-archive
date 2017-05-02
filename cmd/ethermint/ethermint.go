@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	ethereumUtils "github.com/ethereum/go-ethereum/cmd/utils"
+	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
 	"github.com/tendermint/ethermint/app"
@@ -15,26 +15,26 @@ import (
 
 	"github.com/tendermint/abci/server"
 	tendermintNode "github.com/tendermint/tendermint/node"
-	ethermintUtils "github.com/tendermint/ethermint/cmd/utils"
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
 	stack := ethereum.MakeSystemNode(clientIdentifier, version.Version, ctx)
-	ethereumUtils.StartNode(stack)
+	ethUtils.StartNode(stack)
 	addr := ctx.GlobalString("addr")
 	abci := ctx.GlobalString("abci")
 
 	//set verbosity level for go-ethereum
 	glog.SetToStderr(true)
-	glog.SetV(ctx.GlobalInt(ethermintUtils.VerbosityFlag.Name))
+	glog.SetV(ctx.GlobalInt(emtUtils.VerbosityFlag.Name))
 
 	var backend *ethereum.Backend
 	if err := stack.Service(&backend); err != nil {
-		ethereumUtils.Fatalf("backend service not running: %v", err)
+		ethUtils.Fatalf("backend service not running: %v", err)
 	}
 	client, err := stack.Attach()
 	if err != nil {
-		ethereumUtils.Fatalf("Failed to attach to the inproc geth: %v", err)
+		ethUtils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
 	ethApp, err := app.NewEthermintApplication(backend, client, nil)
 	if err != nil {
