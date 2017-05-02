@@ -252,9 +252,9 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockH
 		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
 	)
 	if err != nil {
+		glog.V(logger.Error).Infof("DeliverTx error: %v", err)
+
 		return err
-		glog.V(logger.Debug).Infof("DeliverTx error: %v", err)
-		return abciTypes.ErrInternalError
 	}
 
 	logs := w.state.GetLogs(tx.Hash())
@@ -265,7 +265,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockH
 	w.receipts = append(w.receipts, receipt)
 	w.allLogs = append(w.allLogs, logs...)
 
-	return err
+	return nil
 }
 
 //----------------------------------------------------------------------

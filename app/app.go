@@ -91,7 +91,7 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 	glog.V(logger.Debug).Infof("Got DeliverTx (tx): %v", tx)
 	err = app.backend.DeliverTx(tx)
 	if err != nil {
-		glog.V(logger.Debug).Infof("DeliverTx error: %v", err)
+		glog.V(logger.Error).Infof("DeliverTx error: %v", err)
 		return abciTypes.ErrInternalError
 	}
 	app.CollectTx(tx)
