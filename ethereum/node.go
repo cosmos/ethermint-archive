@@ -73,18 +73,18 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 	// Setup the node, a container for services
 	// TODO: dont think we need a node.Node at all
 	nodeConf := NewNodeConfig(ctx)
-	nodeStack, err := node.New(nodeConf)
+	stack, err := node.New(nodeConf)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
 	// Configure the eth
-	ethConf := NewEthConfig(ctx, nodeStack)
+	ethConf := NewEthConfig(ctx, stack)
 
-	if err := nodeStack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		return NewBackend(ctx, ethConf, rpcclient.NewClientURI("tcp://localhost:46657"))
 	}); err != nil {
 		utils.Fatalf("Failed to register the TMSP application service: %v", err)
 	}
-	return nodeStack
+	return stack
 }
