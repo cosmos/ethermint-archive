@@ -95,7 +95,7 @@ func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTim
 
 //----------------------------------------------------------------------
 // Implements miner.Pending API (our custom patch to go-ethereum)
-// TODO: Why do we need both Pending and PendingBlock ?
+// TODO: Remove PendingBlock
 
 // Return a new block and a copy of the state from the latest work
 func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
