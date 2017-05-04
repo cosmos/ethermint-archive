@@ -119,7 +119,7 @@ func (s *Backend) APIs() []rpc.API {
 	retApis := []rpc.API{}
 	for _, v := range apis {
 		if v.Namespace == "net" {
-			networkVersion := 1
+			networkVersion := 1 // TODO: this should come from a flag
 			v.Service = &NetRPCService{networkVersion}
 		}
 		if v.Namespace == "miner" {

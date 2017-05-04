@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bytes"
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,7 +9,6 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	abciTypes "github.com/tendermint/abci/types"
@@ -20,11 +18,19 @@ import (
 
 // EthermintApplication implements an ABCI application
 type EthermintApplication struct {
-	backend      *ethereum.Backend              // backend ethereum struct
-	currentState func() (*state.StateDB, error) // fetch the latest state from the ethereum blockchain
-	rpcClient    *rpc.Client                    // eth rpc cclient
-	strategy     *emtTypes.Strategy             // strategy for validator compensation
 
+	// backend handles the ethereum state machine
+	// and wrangles other services started by an ethereum node (eg. tx pool)
+	backend *ethereum.Backend // backend ethereum struct
+
+	// a closure to return the latest current state from the ethereum blockchain
+	currentState func() (*state.StateDB, error)
+
+	// an ethereum rpc client we can forward queries to
+	rpcClient *rpc.Client
+
+	// strategy for validator compensation
+	strategy *emtTypes.Strategy
 }
 
 // NewEthermintApplication creates the abci application for ethermint
@@ -41,7 +47,7 @@ func NewEthermintApplication(backend *ethereum.Backend,
 	return app, err
 }
 
-// Info returns information about EthermintApplication to the tendermint engine
+// Info returns information about the last height and app_hash to the tendermint engine
 func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
@@ -54,7 +60,7 @@ func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	}
 }
 
-// SetOption sets a configuration option for EthermintApplication
+// SetOption sets a configuration option
 func (app *EthermintApplication) SetOption(key string, value string) (log string) {
 	return ""
 }
@@ -74,20 +80,22 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 		return abciTypes.ErrEncodingError
 	}
 
+	// TODO: validateTx should return an abciTypes.Result
 	err = app.validateTx(tx)
 	if err != nil {
-		return abciTypes.ErrInternalError // TODO
+		return abciTypes.ErrInternalError
 	}
 
 	return abciTypes.OK
 }
 
-// DeliverTx processes a transaction in the EthermintApplication state
+// DeliverTx executes a transaction against the latest state
 func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
 	if err != nil {
 		return abciTypes.ErrEncodingError
 	}
+
 	glog.V(logger.Debug).Infof("Got DeliverTx (tx): %v", tx)
 	err = app.backend.DeliverTx(tx)
 	if err != nil {
@@ -126,7 +134,7 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
 	var in jsonRequest
 	if err := json.Unmarshal(query, &in); err != nil {
-		return abciTypes.ErrInternalError
+		return abciTypes.ErrEncodingError
 	}
 	var result interface{}
 	if err := app.rpcClient.Call(&result, in.Method, in.Params...); err != nil {
@@ -140,36 +148,6 @@ func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
 }
 
 //-------------------------------------------------------
-// convenience methods
-
-func (app *EthermintApplication) Receiver() common.Address {
-	if app.strategy != nil {
-		return app.strategy.Receiver()
-	}
-	return common.Address{}
-}
-
-func (app *EthermintApplication) SetValidators(validators []*abciTypes.Validator) {
-	if app.strategy != nil {
-		app.strategy.SetValidators(validators)
-	}
-}
-
-func (app *EthermintApplication) GetUpdatedValidators() abciTypes.ResponseEndBlock {
-	if app.strategy != nil {
-		return abciTypes.ResponseEndBlock{Diffs: app.strategy.GetUpdatedValidators()}
-	}
-	return abciTypes.ResponseEndBlock{}
-}
-
-func (app *EthermintApplication) CollectTx(tx *ethTypes.Transaction) {
-	if app.strategy != nil {
-		app.strategy.CollectTx(tx)
-	}
-}
-
-//-------------------------------------------------------
-// utility functions
 
 // validateTx checks the validity of a tx against the blockchain's current state.
 // it duplicates the logic in ethereum's tx_pool
@@ -226,21 +204,4 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) error {
 	}
 
 	return nil
-}
-
-// format of query data
-type jsonRequest struct {
-	Method string          `json:"method"`
-	Id     json.RawMessage `json:"id,omitempty"`
-	Params []interface{}   `json:"params,omitempty"`
-}
-
-// rlp decode an etherum transaction
-func decodeTx(txBytes []byte) (*ethTypes.Transaction, error) {
-	tx := new(ethTypes.Transaction)
-	rlpStream := rlp.NewStream(bytes.NewBuffer(txBytes), 0)
-	if err := tx.DecodeRLP(rlpStream); err != nil {
-		return nil, err
-	}
-	return tx, nil
 }
