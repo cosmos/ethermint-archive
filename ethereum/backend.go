@@ -14,6 +14,7 @@ import (
 
 	abciTypes "github.com/tendermint/abci/types"
 	emtTypes "github.com/tendermint/ethermint/types"
+	"github.com/ethereum/go-ethereum/core"
 )
 
 //----------------------------------------------------------------------
@@ -45,6 +46,10 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client Client) (*B
 	if err != nil {
 		return nil, err
 	}
+
+	//send special event to go-ethereum to switch homestead=true
+	currentBlock := ethereum.BlockChain().CurrentBlock()
+	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
 
 	// We don't need PoW/Uncle validation
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
