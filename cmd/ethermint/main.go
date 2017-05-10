@@ -7,13 +7,14 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/ethereum/go-ethereum/cmd/utils"
+	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
 	"github.com/tendermint/ethermint/version"
 
 	cfg "github.com/tendermint/go-config"
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 )
 
 const (
@@ -49,7 +50,7 @@ func main() {
 	cliApp.HideVersion = true // we have a command to print the version
 
 	cliApp.Before = func(ctx *cli.Context) error {
-		config = getTendermintConfig(ctx)
+		config = emtUtils.GetTendermintConfig(ctx)
 		return nil
 	}
 	cliApp.After = func(ctx *cli.Context) error {
@@ -72,66 +73,67 @@ func newCliApp(version, usage string) *cli.App {
 	app.Version = version
 	app.Usage = usage
 	app.Flags = []cli.Flag{
-		utils.IdentityFlag,
-		utils.UnlockedAccountFlag,
-		utils.PasswordFileFlag,
-		utils.BootnodesFlag,
-		utils.KeyStoreDirFlag,
-		// utils.BlockchainVersionFlag,
-		utils.CacheFlag,
-		utils.LightKDFFlag,
-		utils.JSpathFlag,
-		utils.ListenPortFlag,
-		utils.MaxPeersFlag,
-		utils.MaxPendingPeersFlag,
-		utils.EtherbaseFlag,
-		utils.TargetGasLimitFlag,
-		utils.GasPriceFlag,
-		utils.NATFlag,
-		// utils.NatspecEnabledFlag,
-		utils.NodeKeyFileFlag,
-		utils.NodeKeyHexFlag,
-		utils.RPCEnabledFlag,
-		utils.RPCListenAddrFlag,
-		utils.RPCPortFlag,
-		utils.RPCApiFlag,
-		utils.WSEnabledFlag,
-		utils.WSListenAddrFlag,
-		utils.WSPortFlag,
-		utils.WSApiFlag,
-		utils.WSAllowedOriginsFlag,
-		utils.IPCDisabledFlag,
-		utils.IPCApiFlag,
-		utils.IPCPathFlag,
-		utils.ExecFlag,
-		utils.PreloadJSFlag,
-		utils.TestNetFlag,
-		utils.VMForceJitFlag,
-		utils.VMJitCacheFlag,
-		utils.VMEnableJitFlag,
-		utils.NetworkIdFlag,
-		utils.RPCCORSDomainFlag,
-		utils.MetricsEnabledFlag,
-		utils.SolcPathFlag,
-		utils.GpoMinGasPriceFlag,
-		utils.GpoMaxGasPriceFlag,
-		utils.GpoFullBlockRatioFlag,
-		utils.GpobaseStepDownFlag,
-		utils.GpobaseStepUpFlag,
-		utils.GpobaseCorrectionFactorFlag,
-		VerbosityFlag, // not exposed by go-ethereum
-		DataDirFlag,   // so we control defaults
+		ethUtils.IdentityFlag,
+		ethUtils.UnlockedAccountFlag,
+		ethUtils.PasswordFileFlag,
+		ethUtils.BootnodesFlag,
+		ethUtils.KeyStoreDirFlag,
+		// ethUtils.BlockchainVersionFlag,
+		ethUtils.CacheFlag,
+		ethUtils.LightKDFFlag,
+		ethUtils.JSpathFlag,
+		ethUtils.ListenPortFlag,
+		ethUtils.MaxPeersFlag,
+		ethUtils.MaxPendingPeersFlag,
+		ethUtils.EtherbaseFlag,
+		ethUtils.TargetGasLimitFlag,
+		ethUtils.GasPriceFlag,
+		ethUtils.NATFlag,
+		// ethUtils.NatspecEnabledFlag,
+		ethUtils.NodeKeyFileFlag,
+		ethUtils.NodeKeyHexFlag,
+		ethUtils.RPCEnabledFlag,
+		ethUtils.RPCListenAddrFlag,
+		ethUtils.RPCPortFlag,
+		ethUtils.RPCApiFlag,
+		ethUtils.WSEnabledFlag,
+		ethUtils.WSListenAddrFlag,
+		ethUtils.WSPortFlag,
+		ethUtils.WSApiFlag,
+		ethUtils.WSAllowedOriginsFlag,
+		ethUtils.IPCDisabledFlag,
+		ethUtils.IPCApiFlag,
+		ethUtils.IPCPathFlag,
+		ethUtils.ExecFlag,
+		ethUtils.PreloadJSFlag,
+		ethUtils.TestNetFlag,
+		ethUtils.VMForceJitFlag,
+		ethUtils.VMJitCacheFlag,
+		ethUtils.VMEnableJitFlag,
+		ethUtils.NetworkIdFlag,
+		ethUtils.RPCCORSDomainFlag,
+		ethUtils.MetricsEnabledFlag,
+		ethUtils.SolcPathFlag,
+		ethUtils.GpoMinGasPriceFlag,
+		ethUtils.GpoMaxGasPriceFlag,
+		ethUtils.GpoFullBlockRatioFlag,
+		ethUtils.GpobaseStepDownFlag,
+		ethUtils.GpobaseStepUpFlag,
+		ethUtils.GpobaseCorrectionFactorFlag,
+
+		emtUtils.VerbosityFlag, // not exposed by go-ethereum
+		emtUtils.DataDirFlag,   // so we control defaults
 
 		//ethermint flags
-		MonikerFlag,
-		NodeLaddrFlag,
-		LogLevelFlag,
-		SeedsFlag,
-		FastSyncFlag,
-		SkipUpnpFlag,
-		RpcLaddrFlag,
-		AddrFlag,
-		AbciFlag,
+		emtUtils.MonikerFlag,
+		emtUtils.NodeLaddrFlag,
+		emtUtils.LogLevelFlag,
+		emtUtils.SeedsFlag,
+		emtUtils.FastSyncFlag,
+		emtUtils.SkipUpnpFlag,
+		emtUtils.RpcLaddrFlag,
+		emtUtils.AddrFlag,
+		emtUtils.AbciFlag,
 	}
 	return app
 }
