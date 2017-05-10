@@ -1,7 +1,6 @@
 package ethereum
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -104,8 +103,7 @@ func (s *Backend) APIs() []rpc.API {
 	retApis := []rpc.API{}
 	for _, v := range apis {
 		if v.Namespace == "net" {
-			networkVersion := 1 // TODO: this should come from a flag
-			v.Service = &NetRPCService{networkVersion}
+			v.Service = NewNetRPCService(s.config.NetworkId)
 		}
 		if v.Namespace == "miner" {
 			continue
@@ -136,17 +134,6 @@ func (s *Backend) Stop() error {
 // network protocols to start.
 func (s *Backend) Protocols() []p2p.Protocol {
 	return nil
-}
-
-//----------------------------------------------------------------------
-// We must implement our own net service since we don't have access to `internal/ethapi`
-
-type NetRPCService struct {
-	networkVersion int
-}
-
-func (n *NetRPCService) Version() string {
-	return fmt.Sprintf("%d", n.networkVersion)
 }
 
 //----------------------------------------------------------------------
