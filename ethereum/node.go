@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 
 	"github.com/tendermint/go-rpc/client"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var clientIdentifier = "geth" // Client identifier to advertise over the network
@@ -41,9 +42,13 @@ func NewEthConfig(ctx *cli.Context, stack *node.Node) *eth.Config {
 
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 
+	//set HomesteadBlock to 0
+	chainConfig := utils.MakeChainConfig(ctx, stack)
+	chainConfig.HomesteadBlock = params.TestNetHomesteadBlock
+
 	// jitEnabled := ctx.GlobalBool(utils.VMEnableJitFlag.Name)
 	return &eth.Config{
-		ChainConfig: utils.MakeChainConfig(ctx, stack),
+		ChainConfig: chainConfig,
 		// BlockChainVersion:       ctx.GlobalInt(utils.BlockchainVersionFlag.Name), TODO
 		DatabaseCache:   ctx.GlobalInt(utils.CacheFlag.Name),
 		DatabaseHandles: utils.MakeDatabaseHandles(),
