@@ -11,7 +11,7 @@ build:
 	go build --ldflags '-extldflags "-static"' \
 		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"  -o $(GOPATH)/bin/ethermint ./cmd/ethermint/
 
-install: get_deps
+install: get_vendor_deps get_deps
 	@go install ./cmd/ethermint
 
 test:
