@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"fmt"
 	abciTypes "github.com/tendermint/abci/types"
 	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
@@ -165,13 +166,15 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	// Make sure the account exist. Non existent accounts
 	// haven't got funds and well therefor never pass.
 	if !currentState.Exist(from) {
-		return abciTypes.ErrBaseInvalidSignature.
+		return abciTypes.ErrBaseUnknownAddress.
 			AppendLog(core.ErrInvalidSender.Error())
 	}
 
 	// Last but not least check for nonce errors
-	if currentState.GetNonce(from) > tx.Nonce() {
-		return abciTypes.ErrBadNonce
+	currentNonce := currentState.GetNonce(from)
+	if currentNonce > tx.Nonce() {
+		return abciTypes.ErrBadNonce.
+			AppendLog(fmt.Sprintf("Got: %d, Current: %d", tx.Nonce(), currentNonce))
 	}
 
 	// Check the transaction doesn't exceed the current
@@ -191,8 +194,11 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	if currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		return abciTypes.ErrInsufficientFunds
+	currentBalance := currentState.GetBalance(from)
+	if currentBalance.Cmp(tx.Cost()) < 0 {
+		return abciTypes.ErrInsufficientFunds.
+			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s", currentBalance, tx.Cost()))
+
 	}
 
 	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true) // homestead == true
