@@ -91,7 +91,7 @@ func TestBumpingNonces(t *testing.T) {
 	app.Commit()
 
 	// replays should fail - we're checking if the transaction got through earlier, by replaying the nonce
-	assert.Equal(t, app.CheckTx(encodedtx), abciTypes.ErrInternalError)
+	assert.Equal(t, app.CheckTx(encodedtx).Code, abciTypes.ErrBadNonce.Code)
 	// ...on both interfaces of the app
 	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx1), core.ErrNonce)
 
