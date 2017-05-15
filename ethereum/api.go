@@ -17,12 +17,12 @@ func NewNetRPCService(networkVersion int) *NetRPCService {
 }
 
 // Listening returns an indication if the node is listening for network connections.
-func (s *NetRPCService) Listening() bool {
+func (n *NetRPCService) Listening() bool {
 	return true // always listening
 }
 
 // PeerCount returns the number of connected peers
-func (s *NetRPCService) PeerCount() hexutil.Uint {
+func (n *NetRPCService) PeerCount() hexutil.Uint {
 	return hexutil.Uint(0)
 }
 
