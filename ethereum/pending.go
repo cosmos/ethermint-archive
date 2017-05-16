@@ -95,7 +95,6 @@ func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTim
 
 //----------------------------------------------------------------------
 // Implements miner.Pending API (our custom patch to go-ethereum)
-// TODO: Remove PendingBlock
 
 // Return a new block and a copy of the state from the latest work
 func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
@@ -108,19 +107,6 @@ func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
 		nil,
 		s.work.receipts,
 	), s.work.state.Copy()
-}
-
-// Return a new block from the latest work
-func (s *pending) PendingBlock() *ethTypes.Block {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	return ethTypes.NewBlock(
-		s.work.header,
-		s.work.transactions,
-		nil,
-		s.work.receipts,
-	)
 }
 
 //----------------------------------------------------------------------
