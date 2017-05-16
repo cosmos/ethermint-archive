@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"fmt"
+
 	abciTypes "github.com/tendermint/abci/types"
 	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
@@ -126,20 +127,20 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 }
 
 // Query queries the state of EthermintApplication
-func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
+func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.ResponseQuery {
 	var in jsonRequest
-	if err := json.Unmarshal(query, &in); err != nil {
-		return abciTypes.ErrEncodingError
+	if err := json.Unmarshal(query.Data, &in); err != nil {
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrEncodingError.Code}
 	}
 	var result interface{}
 	if err := app.rpcClient.Call(&result, in.Method, in.Params...); err != nil {
-		return abciTypes.NewError(abciTypes.ErrInternalError.Code, err.Error())
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code}
 	}
 	bytes, err := json.Marshal(result)
 	if err != nil {
-		return abciTypes.ErrInternalError
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code}
 	}
-	return abciTypes.NewResultOK(bytes, "")
+	return abciTypes.ResponseQuery{Code: abciTypes.OK.Code, Value: bytes}
 }
 
 //-------------------------------------------------------

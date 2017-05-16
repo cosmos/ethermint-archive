@@ -1,5 +1,5 @@
-hash: c5139b79be22ebf1bd63a11c2a2af52587dbb0523e87ceee94284ab5ebb7ad59
-updated: 2017-03-08T17:24:59.768184579-05:00
+hash: fd64bb327bdd29f03351672cc820c48313d7c42881e6d34286ad9f0b9962ed8a
+updated: 2017-05-16T22:15:18.020430238+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -11,8 +11,6 @@ imports:
   - btcec
 - name: github.com/BurntSushi/toml
   version: 99064174e013895bbd9b025c31100bd1d9b590ca
-- name: github.com/ebuchman/fail-test
-  version: c1eddaa09da2b4017351245b0d43234955276798
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
@@ -67,6 +65,14 @@ imports:
   - rpc
   - trie
   - whisper/whisperv2
+- name: github.com/go-kit/kit
+  version: d67bb4c202e3b91377d1079b110a6c9ce23ab2f8
+  subpackages:
+  - log
+  - log/level
+  - log/term
+- name: github.com/go-logfmt/logfmt
+  version: 390ab7935ee28ec6b286364bba9b4dd6410cb3d5
 - name: github.com/go-stack/stack
   version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
 - name: github.com/golang/protobuf
@@ -92,18 +98,20 @@ imports:
   - ssdp
 - name: github.com/jackpal/go-nat-pmp
   version: 1fa385a6f45828c83361136b45b1a21a12139493
-- name: github.com/jmhodges/levigo
-  version: c42d9e0ca023e2198120196f842701bb4c55d7b9
 - name: github.com/karalabe/gousb
   version: ffa821b2e25aa1828ffca731f759a1ebfa410d73
   subpackages:
   - usb
+- name: github.com/kr/logfmt
+  version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/mattn/go-colorable
   version: d228849504861217f796da67fae4f6e347643f15
 - name: github.com/mattn/go-isatty
   version: 30a891c33c7cde7b02a981314b4228ec99380cca
 - name: github.com/pborman/uuid
   version: 1b00554d822231195d1babd97ff4a781231955c9
+- name: github.com/pkg/errors
+  version: c605e284fe17294bda444b34710735b29d1a9d90
 - name: github.com/rcrowley/go-metrics
   version: 1f30fe9094a513ce4c700b9a54458bbb0c96996c
   subpackages:
@@ -150,59 +158,49 @@ imports:
   subpackages:
   - edwards25519
   - extra25519
-- name: github.com/tendermint/go-autofile
-  version: 48b17de82914e1ec2f134ce823ba426337d2c518
-- name: github.com/tendermint/go-clist
-  version: 3baa390bbaf7634251c42ad69a8682e7e3990552
 - name: github.com/tendermint/go-common
   version: e289af53b6bf6af28da129d9ef64389a4cf7987f
 - name: github.com/tendermint/go-config
   version: e64b424499acd0eb9856b88e10c0dff41628c0d6
 - name: github.com/tendermint/go-crypto
-  version: 4b11d62bdb324027ea01554e5767b71174680ba0
-- name: github.com/tendermint/go-db
-  version: 72f6dacd22a686cdf7fcd60286503e3aceda77ba
+  version: 438b16f1f84ef002d7408ecd6fc3a3974cbc9559
 - name: github.com/tendermint/go-events
   version: fddee66d90305fccb6f6d84d16c34fa65ea5b7f6
-- name: github.com/tendermint/go-flowrate
-  version: a20c98e61957faa93b4014fbd902f20ab9317a6a
-  subpackages:
-  - flowrate
 - name: github.com/tendermint/go-logger
   version: cefb3a45c0bf3c493a04e9bcd9b1540528be59f2
-- name: github.com/tendermint/go-merkle
-  version: 7a86b4486f2cd84ac885c5bbc609fdee2905f5d1
-- name: github.com/tendermint/go-p2p
-  version: 3d98f675f30dc4796546b8b890f895926152fa8d
-  subpackages:
-  - upnp
 - name: github.com/tendermint/go-rpc
   version: fcea0cda21f64889be00a0f4b6d13266b1a76ee7
   subpackages:
   - client
-  - server
   - types
 - name: github.com/tendermint/go-wire
-  version: 2f3b7aafe21c80b19b6ee3210ecb3e3d07c7a471
+  version: 97beaedf0f4dbc035309157c92be3b30cc6e5d74
+  subpackages:
+  - data
 - name: github.com/tendermint/log15
   version: ae0f3d6450da9eac7074b439c8e1c3cabf0d5ce6
   subpackages:
   - term
 - name: github.com/tendermint/tendermint
-  version: 764091dfbb035f1b28da4b067526e04c6a849966
+  version: e1792c1ea521ff6c10f79d7865a027024978b629
   subpackages:
-  - blockchain
+  - config
   - config/tendermint
-  - consensus
-  - mempool
   - node
-  - proxy
-  - rpc/core
+  - p2p
+  - p2p/upnp
   - rpc/core/types
-  - rpc/grpc
-  - state
   - types
-  - version
+- name: github.com/tendermint/tmlibs
+  version: 812d9f9b84d1dfe4cb46ce021b3a2d97b48d1292
+  subpackages:
+  - common
+  - db
+  - events
+  - flowrate
+  - log
+  - merkle
+  - process
 - name: golang.org/x/crypto
   version: 92783773f0d5c65e68a806909423bea53c78df01
   subpackages:

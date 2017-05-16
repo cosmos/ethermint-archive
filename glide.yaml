@@ -29,6 +29,7 @@ import:
   subpackages:
   - client
 - package: github.com/tendermint/tendermint
+  version: develop
   subpackages:
   - config/tendermint
   - node

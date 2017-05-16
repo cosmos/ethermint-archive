@@ -50,7 +50,6 @@ func main() {
 	cliApp.HideVersion = true // we have a command to print the version
 
 	cliApp.Before = func(ctx *cli.Context) error {
-		config = emtUtils.GetTendermintConfig(ctx)
 		return nil
 	}
 	cliApp.After = func(ctx *cli.Context) error {

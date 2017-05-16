@@ -7,37 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"gopkg.in/urfave/cli.v1"
-
-	cfg "github.com/tendermint/go-config"
-	tmlog "github.com/tendermint/go-logger"
-	tmcfg "github.com/tendermint/tendermint/config/tendermint"
 )
-
-func GetTendermintConfig(ctx *cli.Context) cfg.Config {
-	datadir := ctx.GlobalString(DataDirFlag.Name)
-	config := tmcfg.GetConfig(datadir)
-
-	checkAndSet(config, ctx, "moniker")
-	checkAndSet(config, ctx, "node_laddr")
-	checkAndSet(config, ctx, "log_level")
-	checkAndSet(config, ctx, "seeds")
-	checkAndSet(config, ctx, "fast_sync")
-	checkAndSet(config, ctx, "skip_upnp")
-	checkAndSet(config, ctx, "rpc_laddr")
-
-	tmlog.SetLogLevel(config.GetString("log_level"))
-
-	return config
-}
-
-func checkAndSet(config cfg.Config, ctx *cli.Context, opName string) {
-	if ctx.GlobalIsSet(opName) {
-		config.Set(opName, ctx.GlobalString(opName))
-
-	}
-}
 
 func expandPath(p string) string {
 	if strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~\\") {

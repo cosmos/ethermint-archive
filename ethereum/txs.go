@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 
 	abciTypes "github.com/tendermint/abci/types"
-	core_types "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 const (
@@ -51,7 +50,7 @@ func (s *Backend) txBroadcastLoop() {
 
 // BroadcastTx broadcasts a transaction to tendermint core
 func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
-	var result core_types.TMResult
+	var result interface{}
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
 		return err
@@ -66,7 +65,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 //----------------------------------------------------------------------
 // wait for Tendermint to open the socket and run http endpoint
 func waitForServer(c Client) error {
-	var result core_types.TMResult
+	var result interface{}
 	retriesCount := 0
 	for result == nil {
 		_, err := c.Call("status", map[string]interface{}{}, &result)

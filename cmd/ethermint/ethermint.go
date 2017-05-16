@@ -15,7 +15,6 @@ import (
 
 	"github.com/tendermint/abci/server"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-	tendermintNode "github.com/tendermint/tendermint/node"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
@@ -57,7 +56,7 @@ func ethermintCmd(ctx *cli.Context) error {
 	}
 
 	// Start tendermint
-	fmt.Println("tm node")
-	tendermintNode.RunNode(config)
+	// fmt.Println("tm node")
+	// tendermintNode.RunNode(config)
 	return nil
 }
