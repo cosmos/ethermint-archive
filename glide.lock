@@ -141,11 +141,8 @@ imports:
   - leveldb/table
   - leveldb/util
 - name: github.com/tendermint/abci
-  version: a954f91e5f7e7708c6662330363d53372cbc5cfd
+  version: 5dabeffb35c027d7087a12149685daa68989168b
   subpackages:
-  - client
-  - example/dummy
-  - example/nil
   - server
   - types
 - name: github.com/tendermint/ed25519

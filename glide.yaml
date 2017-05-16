@@ -1,6 +1,7 @@
 package: github.com/tendermint/ethermint
 import:
 - package: github.com/ethereum/go-ethereum
+  version: master
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - cmd/utils
@@ -34,6 +35,7 @@ import:
   - rpc/core/types
   - types
 - package: github.com/tendermint/abci
+  version: develop
   subpackages:
   - server
   - types
