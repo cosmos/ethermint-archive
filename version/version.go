@@ -27,7 +27,7 @@ func init() {
 		Version += "-" + Meta
 	}
 
-	if GitCommit != "" {
+	if GitCommit != "" && len(GitCommit) >= 8 {
 		Version += "-" + GitCommit[:8]
 	}
 	Version += " Ethereum/" + params.Version
