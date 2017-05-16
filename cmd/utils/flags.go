@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"gopkg.in/urfave/cli.v1"
@@ -64,6 +64,12 @@ var (
 		Name:  "rpc_laddr",
 		Value: "tcp://0.0.0.0:46657",
 		Usage: "RPC listen address. Port required",
+	}
+
+	BroadcastTxAddrFlag = cli.StringFlag{
+		Name:  "broadcast_tx_addr",
+		Value: "tcp://localhost:46657",
+		Usage: "Remote tendermint RPC address. Port required",
 	}
 
 	AddrFlag = cli.StringFlag{
