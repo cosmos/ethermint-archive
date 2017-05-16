@@ -1,5 +1,5 @@
-hash: e505a6072c4ad3e943f7e84825a00f2d37ec867a7813155c062bc9396cb65022
-updated: 2017-05-16T22:47:13.001037289+02:00
+hash: 21e4f919eedf8b7b55367560ec7e290a5254494882d3c341f6851d02af1684db
+updated: 2017-05-16T23:07:52.041243139+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -166,14 +166,6 @@ imports:
   version: ae0f3d6450da9eac7074b439c8e1c3cabf0d5ce6
   subpackages:
   - term
-- name: github.com/tendermint/tendermint
-  version: e1792c1ea521ff6c10f79d7865a027024978b629
-  subpackages:
-  - config
-  - p2p
-  - p2p/upnp
-  - rpc/core/types
-  - types
 - name: github.com/tendermint/tmlibs
   version: 812d9f9b84d1dfe4cb46ce021b3a2d97b48d1292
   subpackages:
@@ -282,3 +274,11 @@ testImports:
   - extra25519
 - name: github.com/tendermint/go-crypto
   version: 438b16f1f84ef002d7408ecd6fc3a3974cbc9559
+- name: github.com/tendermint/tendermint
+  version: e1792c1ea521ff6c10f79d7865a027024978b629
+  subpackages:
+  - config
+  - p2p
+  - p2p/upnp
+  - rpc/core/types
+  - types

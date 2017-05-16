@@ -14,6 +14,7 @@ import (
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
 	"github.com/tendermint/ethermint/version"
+	cmn "github.com/tendermint/tmlibs/common"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
@@ -54,8 +55,9 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	// Start tendermint
-	// fmt.Println("tm node")
-	// tendermintNode.RunNode(config)
+	cmn.TrapSignal(func() {
+
+	})
+
 	return nil
 }

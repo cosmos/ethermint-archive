@@ -116,7 +116,7 @@ func newCliApp(version, usage string) *cli.App {
 		emtUtils.VerbosityFlag, // not exposed by go-ethereum
 		emtUtils.DataDirFlag,   // so we control defaults
 
-		//ethermint flags
+		// ethermint flags
 		emtUtils.BroadcastTxAddrFlag,
 		emtUtils.AddrFlag,
 		emtUtils.AbciFlag,

@@ -1,7 +1,5 @@
 package: github.com/tendermint/ethermint
 import:
-- package: github.com/tendermint/tendermint
-  version: develop
 - package: github.com/tendermint/tmlibs
   version: develop
 - package: github.com/tendermint/abci
@@ -13,3 +11,7 @@ import:
   version: master
 - package: gopkg.in/urfave/cli.v1
   version: 1.x
+
+testImport:
+- package: github.com/tendermint/tendermint
+  version: develop
