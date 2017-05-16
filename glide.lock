@@ -16,8 +16,8 @@ imports:
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
-  version: 295bafe98e87d098fa47320297bc1faaa848328d
-  repo: https://github.com/ramilexe/go-ethereum.git
+  version: ecaeccb7f5bf0c45e3b148205442ad80554abb83
+  repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
   - accounts/keystore
