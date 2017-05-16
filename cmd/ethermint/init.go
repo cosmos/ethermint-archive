@@ -11,13 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-
-	cmn "github.com/tendermint/go-common"
-	"github.com/tendermint/tendermint/types"
 )
 
 func initCmd(ctx *cli.Context) error {
-	init_files()
 
 	// ethereum genesis.json
 	genesisPath := ctx.Args().First()
@@ -41,29 +37,4 @@ func initCmd(ctx *cli.Context) error {
 	}
 	glog.V(logger.Info).Infof("successfully wrote genesis block and/or chain rule set: %x", block.Hash())
 	return nil
-}
-
-func init_files() {
-	// if no priv val, make it
-	privValFile := config.GetString("priv_validator_file")
-	if _, err := os.Stat(privValFile); os.IsNotExist(err) {
-		privValidator := types.GenPrivValidator()
-		privValidator.SetFile(privValFile)
-		privValidator.Save()
-
-		// if no genesis, make it using the priv val
-		genFile := config.GetString("genesis_file")
-		if _, err := os.Stat(genFile); os.IsNotExist(err) {
-			genDoc := types.GenesisDoc{
-				ChainID: cmn.Fmt("test-chain-%v", cmn.RandStr(6)),
-			}
-			genDoc.Validators = []types.GenesisValidator{types.GenesisValidator{
-				PubKey: privValidator.PubKey,
-				Amount: 10,
-			}}
-			genDoc.SaveAs(genFile)
-		}
-	}
-
-	// TODO: if there is a priv val but no genesis
 }

@@ -11,20 +11,13 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
-	"github.com/tendermint/ethermint/version"
-
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-	cfg "github.com/tendermint/go-config"
+	"github.com/tendermint/ethermint/version"
 )
 
 const (
 	// Client identifier to advertise over the network
 	clientIdentifier = "Ethermint"
-)
-
-var (
-	// tendermint config
-	config cfg.Config
 )
 
 func main() {
@@ -124,13 +117,6 @@ func newCliApp(version, usage string) *cli.App {
 		emtUtils.DataDirFlag,   // so we control defaults
 
 		//ethermint flags
-		emtUtils.MonikerFlag,
-		emtUtils.NodeLaddrFlag,
-		emtUtils.LogLevelFlag,
-		emtUtils.SeedsFlag,
-		emtUtils.FastSyncFlag,
-		emtUtils.SkipUpnpFlag,
-		emtUtils.RpcLaddrFlag,
 		emtUtils.BroadcastTxAddrFlag,
 		emtUtils.AddrFlag,
 		emtUtils.AbciFlag,

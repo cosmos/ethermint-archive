@@ -1,16 +1,10 @@
-hash: fd64bb327bdd29f03351672cc820c48313d7c42881e6d34286ad9f0b9962ed8a
-updated: 2017-05-16T22:15:18.020430238+02:00
+hash: b8e17d2748c4bb71224daa4e6ae84c2cec1942292a938961e03aa7b255ad42ab
+updated: 2017-05-16T22:33:57.499421818+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
   subpackages:
   - monotime
-- name: github.com/btcsuite/btcd
-  version: d06c0bb181529331be8f8d9350288c420d9e60e4
-  subpackages:
-  - btcec
-- name: github.com/BurntSushi/toml
-  version: 99064174e013895bbd9b025c31100bd1d9b590ca
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
@@ -153,17 +147,10 @@ imports:
   subpackages:
   - server
   - types
-- name: github.com/tendermint/ed25519
-  version: 1f52c6f8b8a5c7908aff4497c186af344b428925
-  subpackages:
-  - edwards25519
-  - extra25519
 - name: github.com/tendermint/go-common
   version: e289af53b6bf6af28da129d9ef64389a4cf7987f
 - name: github.com/tendermint/go-config
   version: e64b424499acd0eb9856b88e10c0dff41628c0d6
-- name: github.com/tendermint/go-crypto
-  version: 438b16f1f84ef002d7408ecd6fc3a3974cbc9559
 - name: github.com/tendermint/go-events
   version: fddee66d90305fccb6f6d84d16c34fa65ea5b7f6
 - name: github.com/tendermint/go-logger
@@ -195,12 +182,10 @@ imports:
   version: 812d9f9b84d1dfe4cb46ce021b3a2d97b48d1292
   subpackages:
   - common
-  - db
   - events
   - flowrate
   - log
   - merkle
-  - process
 - name: golang.org/x/crypto
   version: 92783773f0d5c65e68a806909423bea53c78df01
   subpackages:
@@ -278,6 +263,10 @@ imports:
 - name: gopkg.in/urfave/cli.v1
   version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
 testImports:
+- name: github.com/btcsuite/btcd
+  version: d06c0bb181529331be8f8d9350288c420d9e60e4
+  subpackages:
+  - btcec
 - name: github.com/davecgh/go-spew
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
   subpackages:
@@ -290,3 +279,10 @@ testImports:
   version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
+- name: github.com/tendermint/ed25519
+  version: 1f52c6f8b8a5c7908aff4497c186af344b428925
+  subpackages:
+  - edwards25519
+  - extra25519
+- name: github.com/tendermint/go-crypto
+  version: 438b16f1f84ef002d7408ecd6fc3a3974cbc9559

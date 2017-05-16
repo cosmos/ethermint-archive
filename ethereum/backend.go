@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -13,7 +14,6 @@ import (
 
 	abciTypes "github.com/tendermint/abci/types"
 	emtTypes "github.com/tendermint/ethermint/types"
-	"github.com/ethereum/go-ethereum/core"
 )
 
 //----------------------------------------------------------------------

@@ -7,6 +7,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+
 	"github.com/tendermint/abci/types"
 )
 

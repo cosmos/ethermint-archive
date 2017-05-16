@@ -35,6 +35,8 @@ import:
   - node
   - rpc/core/types
   - types
+- package: github.com/tendermint/tmlibs
+  version: develop
 - package: github.com/tendermint/abci
   version: develop
   subpackages:

@@ -9,12 +9,11 @@ import (
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/logger/glog"
 
+	"github.com/tendermint/abci/server"
 	"github.com/tendermint/ethermint/app"
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
 	"github.com/tendermint/ethermint/version"
-
-	"github.com/tendermint/abci/server"
-	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
