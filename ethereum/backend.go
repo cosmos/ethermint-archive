@@ -1,7 +1,6 @@
 package ethereum
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,6 +13,7 @@ import (
 
 	abciTypes "github.com/tendermint/abci/types"
 	emtTypes "github.com/tendermint/ethermint/types"
+	"github.com/ethereum/go-ethereum/core"
 )
 
 //----------------------------------------------------------------------
@@ -45,6 +45,10 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client Client) (*B
 	if err != nil {
 		return nil, err
 	}
+
+	//send special event to go-ethereum to switch homestead=true
+	currentBlock := ethereum.BlockChain().CurrentBlock()
+	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
 
 	// We don't need PoW/Uncle validation
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
@@ -104,8 +108,7 @@ func (s *Backend) APIs() []rpc.API {
 	retApis := []rpc.API{}
 	for _, v := range apis {
 		if v.Namespace == "net" {
-			networkVersion := 1 // TODO: this should come from a flag
-			v.Service = &NetRPCService{networkVersion}
+			v.Service = NewNetRPCService(s.config.NetworkId)
 		}
 		if v.Namespace == "miner" {
 			continue
@@ -136,17 +139,6 @@ func (s *Backend) Stop() error {
 // network protocols to start.
 func (s *Backend) Protocols() []p2p.Protocol {
 	return nil
-}
-
-//----------------------------------------------------------------------
-// We must implement our own net service since we don't have access to `internal/ethapi`
-
-type NetRPCService struct {
-	networkVersion int
-}
-
-func (n *NetRPCService) Version() string {
-	return fmt.Sprintf("%d", n.networkVersion)
 }
 
 //----------------------------------------------------------------------

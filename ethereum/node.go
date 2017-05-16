@@ -1,6 +1,8 @@
 package ethereum
 
 import (
+	"math/big"
+
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -41,9 +43,13 @@ func NewEthConfig(ctx *cli.Context, stack *node.Node) *eth.Config {
 
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 
+	//set HomesteadBlock to 0
+	chainConfig := utils.MakeChainConfig(ctx, stack)
+	chainConfig.HomesteadBlock = big.NewInt(0)
+
 	// jitEnabled := ctx.GlobalBool(utils.VMEnableJitFlag.Name)
 	return &eth.Config{
-		ChainConfig: utils.MakeChainConfig(ctx, stack),
+		ChainConfig: chainConfig,
 		// BlockChainVersion:       ctx.GlobalInt(utils.BlockchainVersionFlag.Name), TODO
 		DatabaseCache:   ctx.GlobalInt(utils.CacheFlag.Name),
 		DatabaseHandles: utils.MakeDatabaseHandles(),

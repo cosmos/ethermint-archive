@@ -111,7 +111,7 @@ imports:
 - name: github.com/rjeczalik/notify
   version: 9d5aa0c3b735c3340018a4627446c3ea5a04a097
 - name: github.com/robertkrimen/otto
-  version: 6a77b7cbc37d0c39f7d5fa5766826e541df31fd5
+  version: 21ec96599b1279b5673e4df0097dd56bb8360068
   subpackages:
   - ast
   - dbg
