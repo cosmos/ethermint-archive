@@ -13,8 +13,8 @@ import (
 
 	"github.com/tendermint/ethermint/version"
 
-	cfg "github.com/tendermint/go-config"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
+	cfg "github.com/tendermint/go-config"
 )
 
 const (
@@ -132,6 +132,7 @@ func newCliApp(version, usage string) *cli.App {
 		emtUtils.FastSyncFlag,
 		emtUtils.SkipUpnpFlag,
 		emtUtils.RpcLaddrFlag,
+		emtUtils.BroadcastTxAddrFlag,
 		emtUtils.AddrFlag,
 		emtUtils.AbciFlag,
 	}
