@@ -1,5 +1,5 @@
-hash: b8e17d2748c4bb71224daa4e6ae84c2cec1942292a938961e03aa7b255ad42ab
-updated: 2017-05-16T22:33:57.499421818+02:00
+hash: e505a6072c4ad3e943f7e84825a00f2d37ec867a7813155c062bc9396cb65022
+updated: 2017-05-16T22:47:13.001037289+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -126,7 +126,7 @@ imports:
 - name: github.com/rs/xhandler
   version: ed27b6fd65218132ee50cd95f38474a3d8a2cd12
 - name: github.com/spf13/pflag
-  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
 - name: github.com/syndtr/goleveldb
   version: 23851d93a2292dcc56e71a18ec9e0624d84a0f65
   subpackages:
@@ -149,8 +149,6 @@ imports:
   - types
 - name: github.com/tendermint/go-common
   version: e289af53b6bf6af28da129d9ef64389a4cf7987f
-- name: github.com/tendermint/go-config
-  version: e64b424499acd0eb9856b88e10c0dff41628c0d6
 - name: github.com/tendermint/go-events
   version: fddee66d90305fccb6f6d84d16c34fa65ea5b7f6
 - name: github.com/tendermint/go-logger
@@ -172,8 +170,6 @@ imports:
   version: e1792c1ea521ff6c10f79d7865a027024978b629
   subpackages:
   - config
-  - config/tendermint
-  - node
   - p2p
   - p2p/upnp
   - rpc/core/types
