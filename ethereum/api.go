@@ -2,17 +2,18 @@ package ethereum
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // We must implement our own net service since we don't have access to `internal/ethapi`
 
 type NetRPCService struct {
-	networkVersion int
+	networkVersion uint64
 }
 
 // NewNetRPCService creates a new net API instance.
-func NewNetRPCService(networkVersion int) *NetRPCService {
+func NewNetRPCService(networkVersion uint64) *NetRPCService {
 	return &NetRPCService{networkVersion}
 }
 

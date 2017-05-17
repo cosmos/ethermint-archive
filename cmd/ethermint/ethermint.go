@@ -7,11 +7,9 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/logger/glog"
 
 	"github.com/tendermint/abci/server"
 	"github.com/tendermint/ethermint/app"
-	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
 	"github.com/tendermint/ethermint/version"
 	cmn "github.com/tendermint/tmlibs/common"
@@ -25,8 +23,8 @@ func ethermintCmd(ctx *cli.Context) error {
 	abci := ctx.GlobalString("abci")
 
 	//set verbosity level for go-ethereum
-	glog.SetToStderr(true)
-	glog.SetV(ctx.GlobalInt(emtUtils.VerbosityFlag.Name))
+	//glog.SetToStderr(true)
+	//glog.SetV(ctx.GlobalInt(emtUtils.VerbosityFlag.Name))
 
 	// Fetch the registered service of this type
 	var backend *ethereum.Backend

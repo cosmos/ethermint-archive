@@ -9,8 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func initCmd(ctx *cli.Context) error {
@@ -31,10 +30,10 @@ func initCmd(ctx *cli.Context) error {
 		utils.Fatalf("failed to read genesis file: %v", err)
 	}
 
-	block, err := core.WriteGenesisBlock(chainDb, genesisFile)
+	_, hash, err := core.SetupGenesisBlock(chainDb, genesisFile)
 	if err != nil {
 		utils.Fatalf("failed to write genesis block: %v", err)
 	}
-	glog.V(logger.Info).Infof("successfully wrote genesis block and/or chain rule set: %x", block.Hash())
+	log.Info("successfully wrote genesis block and/or chain rule set: %x", hash)
 	return nil
 }

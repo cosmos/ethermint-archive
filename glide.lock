@@ -1,5 +1,5 @@
-hash: 21e4f919eedf8b7b55367560ec7e290a5254494882d3c341f6851d02af1684db
-updated: 2017-05-16T23:07:52.041243139+02:00
+hash: 496c7d192b89c256b71bde03e6e2077130fdd822fd6a3155ab2f0a921bb7aeed
+updated: 2017-05-16T23:46:15.282858001+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
@@ -8,7 +8,7 @@ imports:
 - name: github.com/ethereum/ethash
   version: 214d4c008e101d4f7b18318389fb8c2e00323f24
 - name: github.com/ethereum/go-ethereum
-  version: ecaeccb7f5bf0c45e3b148205442ad80554abb83
+  version: 37214bd87b13bb48c9cf516d0cc5cde5b83b68b6
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
@@ -43,8 +43,7 @@ imports:
   - les
   - les/flowcontrol
   - light
-  - logger
-  - logger/glog
+  - log
   - metrics
   - miner
   - node

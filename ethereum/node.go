@@ -1,13 +1,9 @@
 package ethereum
 
 import (
-	"math/big"
-
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 
@@ -19,56 +15,20 @@ var clientIdentifier = "geth" // Client identifier to advertise over the network
 
 // Config for p2p and network layer
 func NewNodeConfig(ctx *cli.Context) *node.Config {
-	return &node.Config{
-		DataDir:     ethUtils.MakeDataDir(ctx),
-		PrivateKey:  ethUtils.MakeNodeKey(ctx),
-		Name:        clientIdentifier,
-		IPCPath:     ethUtils.MakeIPCPath(ctx),
-		HTTPHost:    ethUtils.MakeHTTPRpcHost(ctx),
-		HTTPPort:    ctx.GlobalInt(ethUtils.RPCPortFlag.Name),
-		HTTPCors:    ctx.GlobalString(ethUtils.RPCCORSDomainFlag.Name),
-		HTTPModules: ethUtils.MakeRPCModules(ctx.GlobalString(ethUtils.RPCApiFlag.Name)),
-		WSHost:      ethUtils.MakeWSRpcHost(ctx),
-		WSPort:      ctx.GlobalInt(ethUtils.WSPortFlag.Name),
-		WSOrigins:   ctx.GlobalString(ethUtils.WSAllowedOriginsFlag.Name),
-		WSModules:   ethUtils.MakeRPCModules(ctx.GlobalString(ethUtils.WSApiFlag.Name)),
-		NoDiscovery: true,
-		MaxPeers:    0,
-	}
+	var node_config *node.Config
+	ethUtils.SetNodeConfig(ctx, node_config)
+
+	return node_config
 }
 
 // Config for the ethereum services
 // NOTE:(go-ethereum) stack.OpenDatabase could be moved off the stack
 // and then we wouldnt need it as an arg
 func NewEthConfig(ctx *cli.Context, stack *node.Node) *eth.Config {
+	var eth_config *eth.Config
+	ethUtils.SetEthConfig(ctx, stack, eth_config)
 
-	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
-
-	//set HomesteadBlock to 0
-	chainConfig := ethUtils.MakeChainConfig(ctx, stack)
-	chainConfig.HomesteadBlock = big.NewInt(0)
-
-	// jitEnabled := ctx.GlobalBool(ethUtils.VMEnableJitFlag.Name)
-	return &eth.Config{
-		ChainConfig: chainConfig,
-		// BlockChainVersion:       ctx.GlobalInt(ethUtils.BlockchainVersionFlag.Name), TODO
-		DatabaseCache:   ctx.GlobalInt(ethUtils.CacheFlag.Name),
-		DatabaseHandles: ethUtils.MakeDatabaseHandles(),
-		NetworkId:       ctx.GlobalInt(ethUtils.NetworkIdFlag.Name),
-		Etherbase:       ethUtils.MakeEtherbase(ks, ctx),
-		//EnableJit:               jitEnabled, // TODO
-		//ForceJit:                ctx.GlobalBool(ethUtils.VMForceJitFlag.Name),
-		GasPrice:                common.String2Big(ctx.GlobalString(ethUtils.GasPriceFlag.Name)),
-		GpoMinGasPrice:          common.String2Big(ctx.GlobalString(ethUtils.GpoMinGasPriceFlag.Name)),
-		GpoMaxGasPrice:          common.String2Big(ctx.GlobalString(ethUtils.GpoMaxGasPriceFlag.Name)),
-		GpoFullBlockRatio:       ctx.GlobalInt(ethUtils.GpoFullBlockRatioFlag.Name),
-		GpobaseStepDown:         ctx.GlobalInt(ethUtils.GpobaseStepDownFlag.Name),
-		GpobaseStepUp:           ctx.GlobalInt(ethUtils.GpobaseStepUpFlag.Name),
-		GpobaseCorrectionFactor: ctx.GlobalInt(ethUtils.GpobaseCorrectionFactorFlag.Name),
-		SolcPath:                ctx.GlobalString(ethUtils.SolcPathFlag.Name),
-		PowFake:                 true,
-	}
-
+	return eth_config
 }
 
 // MakeSystemNode sets up a local node and configures the services to launch
@@ -94,7 +54,7 @@ func MakeSystemNode(name, version string, ctx *cli.Context) *node.Node {
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		return NewBackend(ctx, ethConf, rpcclient.NewClientURI(tendermintURI))
 	}); err != nil {
-		ethUtils.Fatalf("Failed to register the TMSP application service: %v", err)
+		ethUtils.Fatalf("Failed to register the ABCI application service: %v", err)
 	}
 	return stack
 }

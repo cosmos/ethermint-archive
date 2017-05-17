@@ -5,8 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/tendermint/abci/types"
 )
@@ -21,7 +20,7 @@ func (strategy *TxBasedValidatorsStrategy) SetValidators(validators []*types.Val
 
 func (strategy *TxBasedValidatorsStrategy) CollectTx(tx *ethTypes.Transaction) {
 	if reflect.DeepEqual(tx.To(), common.HexToAddress("0000000000000000000000000000000000000001")) {
-		glog.V(logger.Debug).Infof("Adding validator: %v", tx.Data())
+		log.Info("Adding validator: %v", tx.Data())
 		strategy.currentValidators = append(
 			strategy.currentValidators,
 			&types.Validator{

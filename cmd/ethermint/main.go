@@ -8,8 +8,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/version"
@@ -21,9 +20,9 @@ const (
 )
 
 func main() {
-	glog.V(logger.Info).Infof("Starting ethermint")
+	log.Info("Starting ethermint")
 
-	cliApp := newCliApp(version.Version, "the ethermint command line interface")
+	cliApp := newCliApp(version.Version, "The ethermint command line interface")
 	cliApp.Action = ethermintCmd
 	cliApp.Commands = []cli.Command{
 		{
