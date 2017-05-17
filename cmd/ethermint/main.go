@@ -31,7 +31,6 @@ func main() {
 			Usage:       "init genesis.json",
 			Description: "Initialize the files",
 		},
-
 		{
 			Action:      versionCmd,
 			Name:        "version",
@@ -93,24 +92,12 @@ func newCliApp(version, usage string) *cli.App {
 		ethUtils.WSApiFlag,
 		ethUtils.WSAllowedOriginsFlag,
 		ethUtils.IPCDisabledFlag,
-		ethUtils.IPCApiFlag,
 		ethUtils.IPCPathFlag,
 		ethUtils.ExecFlag,
 		ethUtils.PreloadJSFlag,
-		ethUtils.TestNetFlag,
-		ethUtils.VMForceJitFlag,
-		ethUtils.VMJitCacheFlag,
-		ethUtils.VMEnableJitFlag,
 		ethUtils.NetworkIdFlag,
 		ethUtils.RPCCORSDomainFlag,
 		ethUtils.MetricsEnabledFlag,
-		ethUtils.SolcPathFlag,
-		ethUtils.GpoMinGasPriceFlag,
-		ethUtils.GpoMaxGasPriceFlag,
-		ethUtils.GpoFullBlockRatioFlag,
-		ethUtils.GpobaseStepDownFlag,
-		ethUtils.GpobaseStepUpFlag,
-		ethUtils.GpobaseCorrectionFactorFlag,
 
 		emtUtils.VerbosityFlag, // not exposed by go-ethereum
 		emtUtils.DataDirFlag,   // so we control defaults

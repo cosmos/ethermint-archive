@@ -6,6 +6,8 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
+	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -30,7 +32,11 @@ func initCmd(ctx *cli.Context) error {
 		utils.Fatalf("failed to read genesis file: %v", err)
 	}
 
-	_, hash, err := core.SetupGenesisBlock(chainDb, genesisFile)
+	genesis := new(core.Genesis)
+	if err := json.NewDecoder(genesisFile).Decode(genesis); err != nil {
+		utils.Fatalf("invalid genesis file: %v", err)
+	}
+	_, hash, err := core.SetupGenesisBlock(chainDb, genesis)
 	if err != nil {
 		utils.Fatalf("failed to write genesis block: %v", err)
 	}
