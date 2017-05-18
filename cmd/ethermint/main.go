@@ -44,7 +44,6 @@ func main() {
 		return nil
 	}
 	cliApp.After = func(ctx *cli.Context) error {
-		// logger.Flush()
 		return nil
 	}
 
@@ -58,7 +57,6 @@ func newCliApp(version, usage string) *cli.App {
 	app := cli.NewApp()
 	app.Name = filepath.Base(os.Args[0])
 	app.Author = ""
-	//app.Authors = nil
 	app.Email = ""
 	app.Version = version
 	app.Usage = usage

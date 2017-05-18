@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 func initCmd(ctx *cli.Context) error {
@@ -32,11 +33,13 @@ func initCmd(ctx *cli.Context) error {
 		utils.Fatalf("failed to read genesis file: %v", err)
 	}
 
-	genesis := new(core.Genesis)
-	if err := json.NewDecoder(genesisFile).Decode(genesis); err != nil {
+	genesisConfig := new(core.Genesis)
+	genesisConfig.Config = params.MainnetChainConfig
+	if err := json.NewDecoder(genesisFile).Decode(genesisConfig); err != nil {
 		utils.Fatalf("invalid genesis file: %v", err)
 	}
-	_, hash, err := core.SetupGenesisBlock(chainDb, genesis)
+
+	_, hash, err := core.SetupGenesisBlock(chainDb, genesisConfig)
 	if err != nil {
 		utils.Fatalf("failed to write genesis block: %v", err)
 	}
