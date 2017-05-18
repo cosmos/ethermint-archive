@@ -2,28 +2,9 @@ package utils
 
 import (
 	"gopkg.in/urfave/cli.v1"
-
-	"github.com/ethereum/go-ethereum/cmd/utils"
 )
 
 var (
-	// ----------------------------
-	// go-ethereum flags
-
-	// So we can control the DefaultDir
-	DataDirFlag = utils.DirectoryFlag{
-		Name:  "datadir",
-		Usage: "Data directory for the databases and keystore",
-		Value: utils.DirectoryString{DefaultDataDir()},
-	}
-
-	// Not exposed by go-ethereum
-	VerbosityFlag = cli.IntFlag{
-		Name:  "verbosity",
-		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail",
-		Value: 3,
-	}
-
 	// ----------------------------
 	// ABCI Flags
 

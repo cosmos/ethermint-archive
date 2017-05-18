@@ -9,6 +9,7 @@ import (
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/version"
 )
 
@@ -54,6 +55,12 @@ var (
 		ethUtils.IPCDisabledFlag,
 		ethUtils.IPCPathFlag,
 	}
+
+	ethermintFlags = []cli.Flag{
+		utils.BroadcastTxAddrFlag,
+		utils.AbciFlag,
+		utils.AddrFlag,
+	}
 )
 
 func init() {
@@ -78,6 +85,7 @@ func init() {
 
 	app.Flags = append(app.Flags, nodeFlags...)
 	app.Flags = append(app.Flags, rpcFlags...)
+	app.Flags = append(app.Flags, ethermintFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		return nil

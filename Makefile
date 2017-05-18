@@ -7,12 +7,12 @@ TMROOT = $${TMROOT:-$$HOME/.tendermint}
 all: get_deps install test
 
 build:
-	rm -rf ./ethermint
-	go build --ldflags "-extldflags '-static' \
-		-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"  -o $(GOPATH)/bin/ethermint ./cmd/ethermint/
+	go build \
+		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"  -o build/ethermint ./cmd/ethermint/
 
 install: get_vendor_deps get_deps
-	@go install ./cmd/ethermint
+	@go install \
+		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" ./cmd/ethermint
 
 test:
 	@echo "--> Running go test"
@@ -36,14 +36,7 @@ get_vendor_deps: tools
 	@echo "--> Running glide install"
 	@glide install --strip-vendor
 
-build-docker:
-	rm -f ./ethermint
-	docker run -it --rm -v "$(PWD):/go/src/github.com/tendermint/ethermint" -w "/go/src/github.com/tendermint/ethermint" golang:latest go build \
-	    --ldflags "-extldflags '-static' -X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
-	    ./cmd/ethermint
-	docker build -t "tendermint/ethermint" -f docker/Dockerfile .
-
 clean:
-	rm -f ./ethermint
+	rm -rf build/ethermint
   
 .PHONY: all install test test_race get_deps get_vendor_deps tools build-docker clean

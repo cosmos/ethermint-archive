@@ -5,10 +5,13 @@
         "eip155Block": 0,
         "eip158Block": 0
     },
-    "difficulty": "400",
-    "gasLimit": "8000000",
+    "nonce": "0xdeadbeefdeadbeef",
+    "timestamp": "0x00",
+    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "mixhash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "difficulty": "0x40",
+    "gasLimit": "0x8000000",
     "alloc": {
-        "7df9a875a174b3bc565e6424a0050ebc1b2d1d82": { "balance": "300000" },
-        "f41c74c9ae680c1aa78f42e5647a62f353b7bdde": { "balance": "400000" }
+        "0x7eff122b94897ea5b0e2a9abf47b86337fafebdc": { "balance": "10000000000000000000000000000000000" }
     }
 }
