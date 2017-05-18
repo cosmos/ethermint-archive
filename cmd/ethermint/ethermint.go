@@ -9,7 +9,7 @@ import (
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 
 	"github.com/tendermint/abci/server"
-	"github.com/tendermint/ethermint/app"
+	abciApp "github.com/tendermint/ethermint/app"
 	"github.com/tendermint/ethermint/ethereum"
 	"github.com/tendermint/ethermint/version"
 	cmn "github.com/tendermint/tmlibs/common"
@@ -39,7 +39,7 @@ func ethermintCmd(ctx *cli.Context) error {
 	}
 
 	// Create the ABCI app
-	ethApp, err := app.NewEthermintApplication(backend, client, nil)
+	ethApp, err := abciApp.NewEthermintApplication(backend, client, nil)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

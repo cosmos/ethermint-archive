@@ -3,28 +3,65 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"gopkg.in/urfave/cli.v1"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
 
-	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/version"
 )
 
 const (
 	// Client identifier to advertise over the network
-	clientIdentifier = "Ethermint"
+	clientIdentifier = "ethermint"
 )
 
-func main() {
+var (
+	// The app that holds all commands and flags.
+	app = ethUtils.NewApp(version.Version, "the go-ethereum command line interface")
+	// flags that configure the node
+	nodeFlags = []cli.Flag{
+		ethUtils.IdentityFlag,
+		ethUtils.UnlockedAccountFlag,
+		ethUtils.PasswordFileFlag,
+		ethUtils.DataDirFlag,
+		ethUtils.KeyStoreDirFlag,
+		ethUtils.NoUSBFlag,
+		ethUtils.CacheFlag,
+		ethUtils.GasPriceFlag,
+		ethUtils.TargetGasLimitFlag,
+		ethUtils.NoDiscoverFlag,
+		ethUtils.VMEnableDebugFlag,
+		ethUtils.NetworkIdFlag,
+		ethUtils.RPCCORSDomainFlag,
+		ethUtils.EthStatsURLFlag,
+		ethUtils.MetricsEnabledFlag,
+		ethUtils.GpoBlocksFlag,
+		ethUtils.GpoPercentileFlag,
+	}
+
+	rpcFlags = []cli.Flag{
+		ethUtils.RPCEnabledFlag,
+		ethUtils.RPCListenAddrFlag,
+		ethUtils.RPCPortFlag,
+		ethUtils.RPCApiFlag,
+		ethUtils.WSEnabledFlag,
+		ethUtils.WSListenAddrFlag,
+		ethUtils.WSPortFlag,
+		ethUtils.WSApiFlag,
+		ethUtils.WSAllowedOriginsFlag,
+		ethUtils.IPCDisabledFlag,
+		ethUtils.IPCPathFlag,
+	}
+)
+
+func init() {
 	log.Info("Starting ethermint")
 
-	cliApp := newCliApp(version.Version, "The ethermint command line interface")
-	cliApp.Action = ethermintCmd
-	cliApp.Commands = []cli.Command{
+	app.Action = ethermintCmd
+	app.HideVersion = true
+	app.Commands = []cli.Command{
 		{
 			Action:      initCmd,
 			Name:        "init",
@@ -38,74 +75,23 @@ func main() {
 			Description: "Print the version",
 		},
 	}
-	cliApp.HideVersion = true // we have a command to print the version
 
-	cliApp.Before = func(ctx *cli.Context) error {
+	app.Flags = append(app.Flags, nodeFlags...)
+	app.Flags = append(app.Flags, rpcFlags...)
+
+	app.Before = func(ctx *cli.Context) error {
 		return nil
 	}
-	cliApp.After = func(ctx *cli.Context) error {
+	app.After = func(ctx *cli.Context) error {
 		return nil
-	}
-
-	if err := cliApp.Run(os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
 	}
 }
 
-func newCliApp(version, usage string) *cli.App {
-	app := cli.NewApp()
-	app.Name = filepath.Base(os.Args[0])
-	app.Author = ""
-	app.Email = ""
-	app.Version = version
-	app.Usage = usage
-	app.Flags = []cli.Flag{
-		ethUtils.IdentityFlag,
-		ethUtils.UnlockedAccountFlag,
-		ethUtils.PasswordFileFlag,
-		ethUtils.BootnodesFlag,
-		ethUtils.KeyStoreDirFlag,
-		// ethUtils.BlockchainVersionFlag,
-		ethUtils.CacheFlag,
-		ethUtils.LightKDFFlag,
-		ethUtils.JSpathFlag,
-		ethUtils.ListenPortFlag,
-		ethUtils.MaxPeersFlag,
-		ethUtils.MaxPendingPeersFlag,
-		ethUtils.EtherbaseFlag,
-		ethUtils.TargetGasLimitFlag,
-		ethUtils.GasPriceFlag,
-		ethUtils.NATFlag,
-		// ethUtils.NatspecEnabledFlag,
-		ethUtils.NodeKeyFileFlag,
-		ethUtils.NodeKeyHexFlag,
-		ethUtils.RPCEnabledFlag,
-		ethUtils.RPCListenAddrFlag,
-		ethUtils.RPCPortFlag,
-		ethUtils.RPCApiFlag,
-		ethUtils.WSEnabledFlag,
-		ethUtils.WSListenAddrFlag,
-		ethUtils.WSPortFlag,
-		ethUtils.WSApiFlag,
-		ethUtils.WSAllowedOriginsFlag,
-		ethUtils.IPCDisabledFlag,
-		ethUtils.IPCPathFlag,
-		ethUtils.ExecFlag,
-		ethUtils.PreloadJSFlag,
-		ethUtils.NetworkIdFlag,
-		ethUtils.RPCCORSDomainFlag,
-		ethUtils.MetricsEnabledFlag,
-
-		emtUtils.VerbosityFlag, // not exposed by go-ethereum
-		emtUtils.DataDirFlag,   // so we control defaults
-
-		// ethermint flags
-		emtUtils.BroadcastTxAddrFlag,
-		emtUtils.AddrFlag,
-		emtUtils.AbciFlag,
+func main() {
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	return app
 }
 
 func versionCmd(ctx *cli.Context) error {
