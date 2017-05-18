@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	Version = fmt.Sprintf("%d.%d.%d", Major, Minor, Patch)
+	Version = "ethermint/" + fmt.Sprintf("%d.%d.%d", Major, Minor, Patch)
 	if Meta != "" {
 		Version += "-" + Meta
 	}
@@ -30,5 +30,5 @@ func init() {
 	if GitCommit != "" && len(GitCommit) >= 8 {
 		Version += "-" + GitCommit[:8]
 	}
-	Version += " Ethereum/" + params.Version
+	Version += " ++" + " go-ethereum/" + params.Version
 }
