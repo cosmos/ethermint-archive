@@ -3,8 +3,7 @@ set -e
 
 XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
 XC_OS=${XC_OS:-"solaris darwin freebsd linux windows"}
-#XC_ARCH=${XC_ARCH:-"amd64"}
-#XC_OS=${XC_OS:-"darwin"}
+
 IGNORE=("darwin/arm solaris/amd64 freebsd/amd64")
 
 # Get the version from the environment, or try to figure it out.
@@ -41,24 +40,33 @@ for os in $XC_OS; do
     target="$os/$arch"
 
     case ${IGNORE[@]} in *$target*) continue;; esac
-    # We can export some vars, like go version"
     TARGETS="$os/$arch,$TARGETS"
   done
 done
 
+# Remove last comma
 TARGETS=${TARGETS::${#TARGETS}-1}
+
+# static build doesn't work with Darwin
 xgo --go="latest" \
   --targets="${TARGETS}" \
   --dest build/pkg/ \
   --ldflags "-X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT}" \
   "${DIR}/cmd/ethermint"
 
+echo "==> Packaging..."
+for FILE in $(ls ./build/pkg); do
+  pushd ./build/pkg
+  zip "${FILE}.zip" $FILE
+  popd
+done
 
+echo "==> Moving to dist"
 # Add "ethermint" and $VERSION prefix to package name.
 mkdir -p ./build/dist
-for FILENAME in $(find ./build/pkg -mindepth 1 -maxdepth 1 -type f); do
-  FILENAME=$(basename "$FILENAME")
-	cp "./build/pkg/${FILENAME}" "./build/dist/${FILENAME/ethermint/ethermint-$VERSION}"
+for FILE in $(ls ./build/pkg/*.zip); do
+  FILENAME=$(basename $FILE)
+	mv $FILE "./build/dist/${FILENAME/ethermint/ethermint-${VERSION}}"
 done
 
 # Make the checksums.
