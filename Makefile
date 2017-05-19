@@ -16,7 +16,7 @@ build:
 		-o ./build/ethermint ./cmd/ethermint/
 
 # dist builds binaries for all platforms and packages them for distribution
-dist: tools get_vendor_deps clean_dist
+dist: clean_dist tools get_vendor_deps
 	@$(CURDIR)/scripts/dist.sh
 
 install: build

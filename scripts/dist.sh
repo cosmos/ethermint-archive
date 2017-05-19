@@ -50,7 +50,7 @@ TARGETS=${TARGETS::${#TARGETS}-1}
 # static build doesn't work with Darwin
 xgo --go="latest" \
   --targets="${TARGETS}" \
-  --dest build/pkg/ \
+  --dest ./build/pkg/ \
   --ldflags "-X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT}" \
   "${DIR}/cmd/ethermint"
 
@@ -71,7 +71,7 @@ done
 
 # Make the checksums.
 pushd ./build/dist
-shasum -a256 ./* > "./ethermint_${VERSION}_SHA256SUMS"
+shasum -a256 ./* > "./ethermint-${VERSION}-SHA256SUMS"
 popd
 
 # Done
