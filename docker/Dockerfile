@@ -6,7 +6,7 @@ RUN mkdir /ethermint && \
 
 RUN mkdir -p /app
 WORKDIR /app
-COPY ethermint /app/ethermint
+COPY ./build/ethermint /app/ethermint
 RUN ls -la /app
 
 RUN mkdir -p /ethermint/setup
