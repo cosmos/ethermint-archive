@@ -4,3 +4,4 @@ dev/data
 *.swp
 *.swo
 vendor/
+build/*

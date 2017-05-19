@@ -1,17 +1,21 @@
 GOTOOLS = \
+					github.com/karalabe/xgo \
 					github.com/Masterminds/glide
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 
 TMROOT = $${TMROOT:-$$HOME/.tendermint}
 
-all: get_deps install test
+all: install test
 
 build:
-	rm -rf ./ethermint
 	go build --ldflags "-extldflags '-static' \
 		-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"  -o $(GOPATH)/bin/ethermint ./cmd/ethermint/
 
-install: get_vendor_deps get_deps
+# dist builds binaries for all platforms and packages them for distribution
+dist: tools get_vendor_deps clean_dist
+	@$(CURDIR)/scripts/dist.sh
+
+install: get_vendor_deps
 	@go install ./cmd/ethermint
 
 test:
@@ -44,6 +48,10 @@ build-docker:
 	docker build -t "tendermint/ethermint" -f docker/Dockerfile .
 
 clean:
-	rm -f ./ethermint
+	-rm -f ./build/ethermint
+
+clean_dist:
+	-rm -rf ./build/pkg
+	-rm -rf ./build/dist
   
-.PHONY: all install test test_race get_deps get_vendor_deps tools build-docker clean
+.PHONY: all build install test test_race get_deps get_vendor_deps tools build-docker clean clean_dist
