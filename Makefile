@@ -2,7 +2,7 @@ GOTOOLS = \
 					github.com/karalabe/xgo \
 					github.com/Masterminds/glide
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
-STATIC?=1
+STATIC?=0
 LDFLAGS=-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`
 
 ifeq ($(STATIC), 1)
@@ -19,7 +19,7 @@ build:
 dist: clean_dist tools get_vendor_deps
 	@$(CURDIR)/scripts/dist.sh
 
-install: build
+install: get_vendor_deps build
 	@cp ./build/ethermint  $(GOPATH)/bin/ethermint
 
 test:
@@ -48,7 +48,7 @@ build-docker: clean
 	# For docker we build with static flag.
 	docker run -it --rm \
 		-v "$(PWD):/go/src/github.com/tendermint/ethermint" \
-		-w "/go/src/github.com/tendermint/ethermint" golang:latest make build
+		-w "/go/src/github.com/tendermint/ethermint" golang:latest make -e STATIC=1 build
 	docker build -t "tendermint/ethermint" -f docker/Dockerfile .
 
 clean:

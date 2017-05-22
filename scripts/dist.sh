@@ -66,7 +66,7 @@ echo "==> Moving to dist"
 mkdir -p ./build/dist
 for FILE in $(ls ./build/pkg/*.zip); do
   FILENAME=$(basename $FILE)
-	mv $FILE "./build/dist/${FILENAME/ethermint/ethermint-${VERSION}}"
+  mv $FILE "./build/dist/${FILENAME/ethermint/ethermint-${VERSION}}"
 done
 
 # Make the checksums.
