@@ -6,7 +6,7 @@ TMROOT = $${TMROOT:-$$HOME/.tendermint}
 
 all: get_deps install test
 
-build:
+build: clean
 	go build \
 		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"  -o build/ethermint ./cmd/ethermint/
 

@@ -21,41 +21,13 @@ const (
 var (
 	// The app that holds all commands and flags.
 	app = ethUtils.NewApp(version.Version, "the go-ethereum command line interface")
-	// flags that configure the node
+	// flags that configure the go-ethereum node
 	nodeFlags = []cli.Flag{
-		ethUtils.IdentityFlag,
-		ethUtils.UnlockedAccountFlag,
-		ethUtils.PasswordFileFlag,
 		ethUtils.DataDirFlag,
-		ethUtils.KeyStoreDirFlag,
-		ethUtils.NoUSBFlag,
-		ethUtils.CacheFlag,
-		ethUtils.GasPriceFlag,
-		ethUtils.TargetGasLimitFlag,
-		ethUtils.NoDiscoverFlag,
-		ethUtils.VMEnableDebugFlag,
-		ethUtils.NetworkIdFlag,
-		ethUtils.RPCCORSDomainFlag,
-		ethUtils.EthStatsURLFlag,
-		ethUtils.MetricsEnabledFlag,
-		ethUtils.GpoBlocksFlag,
-		ethUtils.GpoPercentileFlag,
 	}
+	rpcFlags = []cli.Flag{}
 
-	rpcFlags = []cli.Flag{
-		ethUtils.RPCEnabledFlag,
-		ethUtils.RPCListenAddrFlag,
-		ethUtils.RPCPortFlag,
-		ethUtils.RPCApiFlag,
-		ethUtils.WSEnabledFlag,
-		ethUtils.WSListenAddrFlag,
-		ethUtils.WSPortFlag,
-		ethUtils.WSApiFlag,
-		ethUtils.WSAllowedOriginsFlag,
-		ethUtils.IPCDisabledFlag,
-		ethUtils.IPCPathFlag,
-	}
-
+	// flags that configure the ABCI app
 	ethermintFlags = []cli.Flag{
 		utils.BroadcastTxAddrFlag,
 		utils.AbciFlag,
@@ -86,13 +58,6 @@ func init() {
 	app.Flags = append(app.Flags, nodeFlags...)
 	app.Flags = append(app.Flags, rpcFlags...)
 	app.Flags = append(app.Flags, ethermintFlags...)
-
-	app.Before = func(ctx *cli.Context) error {
-		return nil
-	}
-	app.After = func(ctx *cli.Context) error {
-		return nil
-	}
 }
 
 func main() {
