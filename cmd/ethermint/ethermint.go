@@ -76,7 +76,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 func makeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
-	tendermintURI := ctx.GlobalString(emtUtils.BroadcastTxAddrFlag.Name)
+	tendermintURI := ctx.GlobalString(emtUtils.TendermintAddrFlag.Name)
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		return ethereum.NewBackend(ctx, &cfg.Eth, rpcClient.NewURIClient(tendermintURI))
@@ -86,13 +86,21 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	return stack
 }
 
+/*
+1. Configure a full go-ethereum node with p2p disabled but the blockchain running
+2. Start that full node
+3. Add that running node to the ABCI server
+4. Start the ABCI server
+5. Trap the signal
+*/
 func ethermintCmd(ctx *cli.Context) error {
-	fmt.Println("ethermindCmd")
+	// Setup the go-ethereum node and start it
 	node := makeFullNode(ctx)
 	ethUtils.StartNode(node)
 
-	addr := ctx.GlobalString("addr")
-	abci := ctx.GlobalString("abci")
+	// Setup the ABCI server and start it
+	addr := ctx.GlobalString(emtUtils.ABCIAddrFlag.Name)
+	abci := ctx.GlobalString(emtUtils.ABCIProtocolFlag.Name)
 
 	// Fetch the registered service of this type
 	var backend *ethereum.Backend
@@ -100,29 +108,36 @@ func ethermintCmd(ctx *cli.Context) error {
 		ethUtils.Fatalf("backend service not running: %v", err)
 	}
 
+	fmt.Println("Fetched the running backend service.")
+
 	// In-proc RPC connection so ABCI.Query can be forwarded over the ethereum rpc
 	rpcClient, err := node.Attach()
 	if err != nil {
 		ethUtils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
 
+	fmt.Println("Connected to the inproc geth.")
+
 	// Create the ABCI app
 	ethApp, err := abciApp.NewEthermintApplication(backend, rpcClient, nil)
 	if err != nil {
-		fmt.Println("testtest")
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	fmt.Println("Created the ABCI app.")
 
 	// Start the app on the ABCI server
 	_, err = server.NewServer(addr, abci, ethApp)
 	if err != nil {
-		fmt.Println("test")
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
+	fmt.Println("The ABCI server started as expected.")
+
 	cmn.TrapSignal(func() {
+		fmt.Println("The ABCI server shut down.")
 	})
 
 	return nil

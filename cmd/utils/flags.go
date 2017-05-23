@@ -8,20 +8,20 @@ var (
 	// ----------------------------
 	// ABCI Flags
 
-	BroadcastTxAddrFlag = cli.StringFlag{
-		Name:  "broadcast_tx_addr",
+	TendermintAddrFlag = cli.StringFlag{
+		Name:  "tendermint_addr",
 		Value: "tcp://localhost:46657",
-		Usage: "Remote tendermint RPC address. Port required",
+		Usage: "This is the address that ethermint will use to connect to the tendermint core node. Please provide a port.",
 	}
 
-	AddrFlag = cli.StringFlag{
-		Name:  "addr",
+	ABCIAddrFlag = cli.StringFlag{
+		Name:  "abci_laddr",
 		Value: "tcp://0.0.0.0:46658",
-		Usage: "TMSP app listen address",
+		Usage: "This is the address that the ABCI server will use to listen to incoming connection from tendermint core.",
 	}
 
-	AbciFlag = cli.StringFlag{
-		Name:  "abci",
+	ABCIProtocolFlag = cli.StringFlag{
+		Name:  "abci_protocol",
 		Value: "socket",
 		Usage: "socket | grpc",
 	}
