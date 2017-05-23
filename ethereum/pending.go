@@ -5,13 +5,13 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
 	abciTypes "github.com/tendermint/abci/types"
@@ -31,12 +31,12 @@ func newPending() *pending {
 }
 
 // execute the transaction
-func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, tx *ethTypes.Transaction) error {
+func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, tx *ethTypes.Transaction) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	blockHash := common.Hash{}
-	return p.work.deliverTx(blockchain, config, blockHash, tx)
+	return p.work.deliverTx(blockchain, config, chainConfig, blockHash, tx)
 }
 
 // accumulate validator rewards
@@ -129,17 +129,18 @@ type work struct {
 }
 
 func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
-	core.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
+	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
 	w.header.GasUsed = w.totalUsedGas
 }
 
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,
 // and appends the tx, receipt, and logs
-func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockHash common.Hash, tx *ethTypes.Transaction) error {
+func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, blockHash common.Hash, tx *ethTypes.Transaction) error {
 	w.state.StartRecord(tx.Hash(), blockHash, w.txIndex)
 	receipt, _, err := core.ApplyTransaction(
-		config.ChainConfig,
+		chainConfig,
 		blockchain,
+		nil, // defaults to address of the author of the header
 		w.gp,
 		w.state,
 		w.header,
@@ -149,7 +150,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockH
 	)
 	if err != nil {
 		return err
-		glog.V(logger.Debug).Infof("DeliverTx error: %v", err)
+		log.Info("DeliverTx error: %v", err)
 		return abciTypes.ErrInternalError
 	}
 
@@ -186,10 +187,10 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 	blockHash := block.Hash()
 
 	// save the block to disk
-	glog.V(logger.Debug).Infof("Committing block with state hash %X and root hash %X", hashArray, blockHash)
+	log.Info("Committing block with state hash %X and root hash %X", hashArray, blockHash)
 	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
 	if err != nil {
-		glog.V(logger.Debug).Infof("Error inserting ethereum block in chain: %v", err)
+		log.Info("Error inserting ethereum block in chain: %v", err)
 		return common.Hash{}, err
 	}
 	return blockHash, err
@@ -198,7 +199,7 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64) {
 	lastBlock := w.parent
 	w.header.Time = new(big.Int).SetUint64(parentTime)
-	w.header.Difficulty = core.CalcDifficulty(config, parentTime,
+	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime,
 		lastBlock.Time().Uint64(), lastBlock.Number(), lastBlock.Difficulty())
 }
 

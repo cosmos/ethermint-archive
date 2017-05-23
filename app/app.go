@@ -2,16 +2,15 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"fmt"
 	abciTypes "github.com/tendermint/abci/types"
 	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
@@ -68,13 +67,13 @@ func (app *EthermintApplication) SetOption(key string, value string) (log string
 
 // InitChain initalizes the validator set
 func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
-	glog.V(logger.Debug).Infof("InitChain")
+	log.Info("InitChain")
 	app.SetValidators(validators)
 }
 
 // CheckTx checks a transaction is valid but does not mutate the state
 func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
-	glog.V(logger.Debug).Infof("Check tx")
+	log.Info("Check tx")
 
 	tx, err := decodeTx(txBytes)
 	if err != nil {
@@ -91,10 +90,10 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 		return abciTypes.ErrEncodingError
 	}
 
-	glog.V(logger.Debug).Infof("Got DeliverTx (tx): %v", tx)
+	log.Info("Got DeliverTx (tx): %v", tx)
 	err = app.backend.DeliverTx(tx)
 	if err != nil {
-		glog.V(logger.Debug).Infof("DeliverTx error: %v", err)
+		log.Info("DeliverTx error: %v", err)
 		return abciTypes.ErrInternalError
 	}
 	app.CollectTx(tx)
@@ -103,7 +102,7 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 
 // BeginBlock starts a new Ethereum block
 func (app *EthermintApplication) BeginBlock(hash []byte, tmHeader *abciTypes.Header) {
-	glog.V(logger.Debug).Infof("Begin block")
+	log.Info("Begin block")
 
 	// update the eth header with the tendermint header
 	app.backend.UpdateHeaderWithTimeInfo(tmHeader)
@@ -119,27 +118,27 @@ func (app *EthermintApplication) EndBlock(height uint64) abciTypes.ResponseEndBl
 func (app *EthermintApplication) Commit() abciTypes.Result {
 	blockHash, err := app.backend.Commit(app.Receiver())
 	if err != nil {
-		glog.V(logger.Debug).Infof("Error getting latest ethereum state: %v", err)
+		log.Info("Error getting latest ethereum state: %v", err)
 		return abciTypes.ErrInternalError
 	}
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
 
 // Query queries the state of EthermintApplication
-func (app *EthermintApplication) Query(query []byte) abciTypes.Result {
+func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.ResponseQuery {
 	var in jsonRequest
-	if err := json.Unmarshal(query, &in); err != nil {
-		return abciTypes.ErrEncodingError
+	if err := json.Unmarshal(query.Data, &in); err != nil {
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrEncodingError.Code}
 	}
 	var result interface{}
 	if err := app.rpcClient.Call(&result, in.Method, in.Params...); err != nil {
-		return abciTypes.NewError(abciTypes.ErrInternalError.Code, err.Error())
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code}
 	}
 	bytes, err := json.Marshal(result)
 	if err != nil {
-		return abciTypes.ErrInternalError
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code}
 	}
-	return abciTypes.NewResultOK(bytes, "")
+	return abciTypes.ResponseQuery{Code: abciTypes.OK.Code, Value: bytes}
 }
 
 //-------------------------------------------------------

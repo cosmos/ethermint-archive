@@ -7,11 +7,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 
 	abciTypes "github.com/tendermint/abci/types"
-	core_types "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 const (
@@ -37,21 +35,21 @@ func (s *Backend) txBroadcastLoop() {
 
 	if err := waitForServer(s.client); err != nil {
 		// timeouted when waiting for tendermint communication failed
-		glog.V(logger.Error).Infof("Failed to run tendermint HTTP endpoint, err=%s", err)
+		log.Error("Failed to run tendermint HTTP endpoint, err=%s", err)
 		os.Exit(1)
 	}
 
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		if err := s.BroadcastTx(event.Tx); err != nil {
-			glog.V(logger.Error).Infof("Broadcast, err=%s", err)
+			log.Error("Broadcast, err=%s", err)
 		}
 	}
 }
 
 // BroadcastTx broadcasts a transaction to tendermint core
 func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
-	var result core_types.TMResult
+	var result interface{}
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
 		return err
@@ -66,12 +64,12 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 //----------------------------------------------------------------------
 // wait for Tendermint to open the socket and run http endpoint
 func waitForServer(c Client) error {
-	var result core_types.TMResult
+	var result interface{}
 	retriesCount := 0
 	for result == nil {
 		_, err := c.Call("status", map[string]interface{}{}, &result)
 		if err != nil {
-			glog.V(logger.Info).Infof("Waiting for tendermint endpoint to start: %s", err)
+			log.Info("Waiting for tendermint endpoint to start: %s", err)
 		}
 		if retriesCount += 1; retriesCount >= maxWaitForServerRetries {
 			return abciTypes.ErrInternalError

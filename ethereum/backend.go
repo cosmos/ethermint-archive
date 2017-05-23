@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -13,7 +14,6 @@ import (
 
 	abciTypes "github.com/tendermint/abci/types"
 	emtTypes "github.com/tendermint/ethermint/types"
-	"github.com/ethereum/go-ethereum/core"
 )
 
 //----------------------------------------------------------------------
@@ -33,7 +33,7 @@ type Backend struct {
 	client Client
 }
 
-// New creates a new Backend
+// NewBackend creates a new Backend
 func NewBackend(ctx *node.ServiceContext, config *eth.Config, client Client) (*Backend, error) {
 	p := newPending()
 
@@ -76,7 +76,7 @@ func (s *Backend) Config() *eth.Config {
 // Handle block processing
 
 func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
-	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, tx)
+	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, b.ethereum.ApiBackend.ChainConfig(), tx)
 }
 
 func (b *Backend) AccumulateRewards(strategy *emtTypes.Strategy) {
@@ -94,7 +94,7 @@ func (b *Backend) ResetWork(receiver common.Address) error {
 }
 
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
-	b.pending.updateHeaderWithTimeInfo(b.Config().ChainConfig, tmHeader.Time)
+	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time)
 }
 
 //----------------------------------------------------------------------
@@ -148,10 +148,7 @@ func (s *Backend) Protocols() []p2p.Protocol {
 type NullBlockProcessor struct{}
 
 // ValidateBlock does not validate anything
-func (NullBlockProcessor) ValidateBlock(*ethTypes.Block) error { return nil }
-
-// ValidateHeader does not validate anything
-func (NullBlockProcessor) ValidateHeader(*ethTypes.Header, *ethTypes.Header, bool) error { return nil }
+func (NullBlockProcessor) ValidateBody(*ethTypes.Block) error { return nil }
 
 // ValidateState does not validate anything
 func (NullBlockProcessor) ValidateState(block, parent *ethTypes.Block, state *state.StateDB, receipts ethTypes.Receipts, usedGas *big.Int) error {
