@@ -18,6 +18,7 @@ import (
 	"github.com/tendermint/abci/server"
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 	cmn "github.com/tendermint/tmlibs/common"
+	"github.com/tendermint/tmlibs/log"
 )
 
 type ethstatsConfig struct {
@@ -86,13 +87,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	return stack
 }
 
-/*
-1. Configure a full go-ethereum node with p2p disabled but the blockchain running
-2. Start that full node
-3. Add that running node to the ABCI server
-4. Start the ABCI server
-5. Trap the signal
-*/
 func ethermintCmd(ctx *cli.Context) error {
 	// Setup the go-ethereum node and start it
 	node := makeFullNode(ctx)
@@ -128,8 +122,16 @@ func ethermintCmd(ctx *cli.Context) error {
 	fmt.Println("Created the ABCI app.")
 
 	// Start the app on the ABCI server
-	_, err = server.NewServer(addr, abci, ethApp)
+	srv, err := server.NewServer(addr, abci, ethApp)
 	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	srv.SetLogger(logger.With("module", "abci-server"))
+
+	if _, err := srv.Start(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -137,8 +139,11 @@ func ethermintCmd(ctx *cli.Context) error {
 	fmt.Println("The ABCI server started as expected.")
 
 	cmn.TrapSignal(func() {
+		srv.Stop()
 		fmt.Println("The ABCI server shut down.")
 	})
+
+	fmt.Println("Test")
 
 	return nil
 }
