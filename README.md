@@ -29,23 +29,33 @@ You can build the `ethermint` executable by running `go install ./cmd/ethermint`
 To get started, you need to initialize the genesis block for tendermint and geth.
 This is still a work in progress, but it's possible to do:
 
+For example you want to store all file inside `/tmp/eth/` dir.
+
 ```
-TMROOT=~/.ethermint tendermint init
-ethermint -datadir ~/.ethermint init dev/genesis.json
-cp -r dev/keystore ~/.ethermint/keystore
+tendermint init --home /tmp/eth/tendermint
 ```
 
-Note we're using `tendermint` to create the tendermint files,
-and then `ethermint` to create the ethereum files,
-and everything is stored in `~/.ethermint`.
+Set `app_hash=D4E56740F876AEF8C010B86A40D5F56745A118D0906A34E69AEC8C0DB1CB8FA3` in `/tmp/eth/tendermint/genesis.json`
+
+Run tendermint:
+```
+tendermint node --moniker node1 --proxy_app tcp://127.0.0.1:46658 --home /tmp/eth/tendermint
+```
+
+Then run ethermint:
+```
+ethermint -datadir /tmp/eth/ethermint init dev/genesis.json
+cp -r dev/keystore /tmp/eth/ethermint/keystore
+ethermint --datadir /tmp/eth/ethermint --tendermint_addr tcp://localhost:46657 --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
+```
+
 The `dev/genesis.json` file specifies some initial ethereum account with funds,
 and the corresponding private key is copied over from `dev/keystore`.
 The password to this key is `1234`
 
 ### Run
 
-Now just run `ethermint --datadir ~/.ethermint`.  You should see Tendermint blocks start streaming by.
-In another window, run `geth attach ~/.ethermint/geth.ipc` to drop into a web3 console for
+In another window, run `geth attach http://localhost:8545` or `geth attach /tmp/eth/ethermint/geth.ipc` to drop into a web3 console for
 your ethermint node:
 
 ```
