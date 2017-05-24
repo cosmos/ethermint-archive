@@ -8,8 +8,6 @@ import (
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/node"
 
 	abciApp "github.com/tendermint/ethermint/app"
@@ -33,17 +31,6 @@ type gethConfig struct {
 	Ethstats ethstatsConfig
 }
 
-/*
-defaultNodeConfig() should do the following:
-- allow the user to set their own data directory for ethermint and by default set it to ~/.ethermint
-- take the defaults for RPC and WS servers and functions that they expose but let CTX be able to override it
-- set P2P networking to be turned off without the ability to enable it
-*/
-/*
-exposed options to user
-+ datadir
-get minimal setup to run and then extend it
-*/
 func defaultNodeConfig(ctx *cli.Context) node.Config {
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
@@ -90,8 +77,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 }
 
 func ethermintCmd(ctx *cli.Context) error {
-	glog.V(logger.Info).Infof("Starting ethermint")
-
 	// Setup the go-ethereum node and start it
 	node := makeFullNode(ctx)
 	ethUtils.StartNode(node)
