@@ -1,12 +1,16 @@
-hash: 496c7d192b89c256b71bde03e6e2077130fdd822fd6a3155ab2f0a921bb7aeed
-updated: 2017-05-16T23:46:15.282858001+02:00
+hash: 5c6a1c46dfe5893523b4e9d5386348ea275d902227b8aaae3423042d671c07ac
+updated: 2017-05-24T16:04:30.471276627+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: b0e49c238c066506cefd63181b73b282ccd84708
   subpackages:
   - monotime
-- name: github.com/ethereum/ethash
-  version: 214d4c008e101d4f7b18318389fb8c2e00323f24
+- name: github.com/btcsuite/btcd
+  version: d06c0bb181529331be8f8d9350288c420d9e60e4
+  subpackages:
+  - btcec
+- name: github.com/edsrzf/mmap-go
+  version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
   version: 37214bd87b13bb48c9cf516d0cc5cde5b83b68b6
   repo: https://github.com/tendermint/go-ethereum.git
@@ -16,10 +20,13 @@ imports:
   - accounts/usbwallet
   - cmd/utils
   - common
-  - common/compiler
   - common/hexutil
   - common/math
   - common/mclock
+  - consensus
+  - consensus/clique
+  - consensus/ethash
+  - consensus/misc
   - core
   - core/state
   - core/types
@@ -37,13 +44,13 @@ imports:
   - ethdb
   - ethstats
   - event
-  - event/filter
   - internal/debug
   - internal/ethapi
   - les
   - les/flowcontrol
   - light
   - log
+  - log/term
   - metrics
   - miner
   - node
@@ -53,11 +60,10 @@ imports:
   - p2p/nat
   - p2p/netutil
   - params
-  - pow
   - rlp
   - rpc
   - trie
-  - whisper/whisperv2
+  - whisper/whisperv5
 - name: github.com/go-kit/kit
   version: d67bb4c202e3b91377d1079b110a6c9ce23ab2f8
   subpackages:
@@ -91,10 +97,8 @@ imports:
   - ssdp
 - name: github.com/jackpal/go-nat-pmp
   version: 1fa385a6f45828c83361136b45b1a21a12139493
-- name: github.com/karalabe/gousb
-  version: ffa821b2e25aa1828ffca731f759a1ebfa410d73
-  subpackages:
-  - usb
+- name: github.com/karalabe/hid
+  version: 875879887cf0560a993b57e04615944e1dd02a73
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/mattn/go-colorable
@@ -142,31 +146,33 @@ imports:
   - leveldb/table
   - leveldb/util
 - name: github.com/tendermint/abci
-  version: 5dabeffb35c027d7087a12149685daa68989168b
+  version: 864d1f80b36b440bde030a5c18d8ac3aa8c2949d
   subpackages:
   - server
   - types
-- name: github.com/tendermint/go-common
-  version: e289af53b6bf6af28da129d9ef64389a4cf7987f
-- name: github.com/tendermint/go-events
-  version: fddee66d90305fccb6f6d84d16c34fa65ea5b7f6
-- name: github.com/tendermint/go-logger
-  version: cefb3a45c0bf3c493a04e9bcd9b1540528be59f2
-- name: github.com/tendermint/go-rpc
-  version: fcea0cda21f64889be00a0f4b6d13266b1a76ee7
+- name: github.com/tendermint/ed25519
+  version: 1f52c6f8b8a5c7908aff4497c186af344b428925
   subpackages:
-  - client
-  - types
+  - edwards25519
+  - extra25519
+- name: github.com/tendermint/go-crypto
+  version: 7dff40942a64cdeefefa9446b2d104750b349f8a
 - name: github.com/tendermint/go-wire
-  version: 97beaedf0f4dbc035309157c92be3b30cc6e5d74
+  version: 5f88da3dbc1a72844e6dfaf274ce87f851d488eb
   subpackages:
   - data
-- name: github.com/tendermint/log15
-  version: ae0f3d6450da9eac7074b439c8e1c3cabf0d5ce6
+- name: github.com/tendermint/tendermint
+  version: aa22bd8464e36c81b79816f9feda6d2415392693
   subpackages:
-  - term
+  - config
+  - p2p
+  - p2p/upnp
+  - rpc/core/types
+  - rpc/lib/client
+  - rpc/lib/types
+  - types
 - name: github.com/tendermint/tmlibs
-  version: 812d9f9b84d1dfe4cb46ce021b3a2d97b48d1292
+  version: 306795ae1d8e4f4a10dcc8bdb32a00455843c9d5
   subpackages:
   - common
   - events
@@ -250,10 +256,6 @@ imports:
 - name: gopkg.in/urfave/cli.v1
   version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
 testImports:
-- name: github.com/btcsuite/btcd
-  version: d06c0bb181529331be8f8d9350288c420d9e60e4
-  subpackages:
-  - btcec
 - name: github.com/davecgh/go-spew
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
   subpackages:
@@ -266,18 +268,3 @@ testImports:
   version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
-- name: github.com/tendermint/ed25519
-  version: 1f52c6f8b8a5c7908aff4497c186af344b428925
-  subpackages:
-  - edwards25519
-  - extra25519
-- name: github.com/tendermint/go-crypto
-  version: 438b16f1f84ef002d7408ecd6fc3a3974cbc9559
-- name: github.com/tendermint/tendermint
-  version: e1792c1ea521ff6c10f79d7865a027024978b629
-  subpackages:
-  - config
-  - p2p
-  - p2p/upnp
-  - rpc/core/types
-  - types
