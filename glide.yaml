@@ -13,3 +13,5 @@ import:
   version: master
 - package: gopkg.in/urfave/cli.v1
   version: 1.x
+- package: github.com/mattn/go-colorable
+  version: 0.x

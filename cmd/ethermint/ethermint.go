@@ -8,6 +8,8 @@ import (
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/logger"
+	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/node"
 
 	abciApp "github.com/tendermint/ethermint/app"
@@ -18,7 +20,7 @@ import (
 	"github.com/tendermint/abci/server"
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 	cmn "github.com/tendermint/tmlibs/common"
-	"github.com/tendermint/tmlibs/log"
+	tmlog "github.com/tendermint/tmlibs/log"
 )
 
 type ethstatsConfig struct {
@@ -88,6 +90,8 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 }
 
 func ethermintCmd(ctx *cli.Context) error {
+	glog.V(logger.Info).Infof("Starting ethermint")
+
 	// Setup the go-ethereum node and start it
 	node := makeFullNode(ctx)
 	ethUtils.StartNode(node)
@@ -102,15 +106,11 @@ func ethermintCmd(ctx *cli.Context) error {
 		ethUtils.Fatalf("backend service not running: %v", err)
 	}
 
-	fmt.Println("Fetched the running backend service.")
-
 	// In-proc RPC connection so ABCI.Query can be forwarded over the ethereum rpc
 	rpcClient, err := node.Attach()
 	if err != nil {
 		ethUtils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
-
-	fmt.Println("Connected to the inproc geth.")
 
 	// Create the ABCI app
 	ethApp, err := abciApp.NewEthermintApplication(backend, rpcClient, nil)
@@ -119,8 +119,6 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	fmt.Println("Created the ABCI app.")
-
 	// Start the app on the ABCI server
 	srv, err := server.NewServer(addr, abci, ethApp)
 	if err != nil {
@@ -128,7 +126,7 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
+	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
 	srv.SetLogger(logger.With("module", "abci-server"))
 
 	if _, err := srv.Start(); err != nil {
@@ -136,14 +134,9 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	fmt.Println("The ABCI server started as expected.")
-
 	cmn.TrapSignal(func() {
 		srv.Stop()
-		fmt.Println("The ABCI server shut down.")
 	})
-
-	fmt.Println("Test")
 
 	return nil
 }

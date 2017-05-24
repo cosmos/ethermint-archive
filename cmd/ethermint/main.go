@@ -7,7 +7,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/version"
@@ -81,11 +80,14 @@ var (
 		utils.ABCIAddrFlag,
 		utils.ABCIProtocolFlag,
 	}
+
+	debugFlags = []cli.Flag{
+		utils.VerbosityFlag,
+		utils.DebugFlag,
+	}
 )
 
 func init() {
-	log.Info("Starting ethermint")
-
 	app.Action = ethermintCmd
 	app.HideVersion = true
 	app.Commands = []cli.Command{
@@ -106,6 +108,21 @@ func init() {
 	app.Flags = append(app.Flags, nodeFlags...)
 	app.Flags = append(app.Flags, rpcFlags...)
 	app.Flags = append(app.Flags, ethermintFlags...)
+	app.Flags = append(app.Flags, debugFlags...)
+
+	app.Before = func(ctx *cli.Context) error {
+		if err := utils.Setup(ctx); err != nil {
+			return err
+		}
+
+		ethUtils.SetupNetwork(ctx)
+
+		return nil
+	}
+
+	app.After = func(ctx *cli.Context) error {
+		return nil
+	}
 }
 
 func versionCmd(ctx *cli.Context) error {
