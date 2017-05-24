@@ -46,9 +46,9 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client Client) (*B
 		return nil, err
 	}
 
-	//send special event to go-ethereum to switch homestead=true
-	currentBlock := ethereum.BlockChain().CurrentBlock()
-	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
+	// send special event to go-ethereum to switch homestead=true
+	// currentBlock := ethereum.BlockChain().CurrentBlock()
+	// ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
 
 	// We don't need PoW/Uncle validation
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})

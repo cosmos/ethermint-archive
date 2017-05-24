@@ -53,6 +53,8 @@ func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	currentBlock := blockchain.CurrentBlock()
 	height := currentBlock.Number()
 	hash := currentBlock.Hash()
+	fmt.Println(height)
+	fmt.Println(hash)
 	return abciTypes.ResponseInfo{
 		Data:             "ABCIEthereum",
 		LastBlockHeight:  height.Uint64(),
