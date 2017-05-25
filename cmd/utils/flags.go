@@ -1,14 +1,7 @@
 package utils
 
 import (
-	"io"
-	"os"
-
 	"gopkg.in/urfave/cli.v1"
-
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/log/term"
-	colorable "github.com/mattn/go-colorable"
 )
 
 var (
@@ -39,27 +32,8 @@ var (
 		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=core, 5=debug, 6=detail",
 	}
 
-	DebugFlag = cli.BoolFlag{
-		Name:  "debug",
-		Usage: "Prepends log messages with call-site location (file and line number)",
+	ConfigFileFlag = cli.StringFlag{
+		Name:  "config",
+		Usage: "TOML configuration file",
 	}
 )
-
-var glogger *log.GlogHandler
-
-func init() {
-	usecolor := term.IsTty(os.Stderr.Fd()) && os.Getenv("TERM") != "dumb"
-	output := io.Writer(os.Stderr)
-	if usecolor {
-		output = colorable.NewColorableStderr()
-	}
-	glogger = log.NewGlogHandler(log.StreamHandler(output, log.TerminalFormat(usecolor)))
-}
-
-func Setup(ctx *cli.Context) error {
-	log.PrintOrigins(ctx.GlobalBool(DebugFlag.Name))
-	glogger.Verbosity(log.Lvl(ctx.GlobalInt(VerbosityFlag.Name)))
-	log.Root().SetHandler(glogger)
-
-	return nil
-}

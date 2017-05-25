@@ -25,9 +25,6 @@ var (
 		ethUtils.DataDirFlag,
 		ethUtils.KeyStoreDirFlag,
 		ethUtils.NoUSBFlag,
-		ethUtils.NetworkIdFlag,
-		ethUtils.TestnetFlag,
-		ethUtils.IdentityFlag,
 		// Performance tuning
 		ethUtils.CacheFlag,
 		ethUtils.TrieCacheGenFlag,
@@ -36,23 +33,7 @@ var (
 		ethUtils.PasswordFileFlag,
 		ethUtils.VMEnableDebugFlag,
 		// Logging and debug settings
-		ethUtils.EthStatsURLFlag,
-		ethUtils.MetricsEnabledFlag,
-		ethUtils.FakePoWFlag,
 		ethUtils.NoCompactionFlag,
-		// Network settings
-		ethUtils.MaxPeersFlag,
-		ethUtils.MaxPendingPeersFlag,
-		ethUtils.ListenPortFlag,
-		ethUtils.BootnodesFlag,
-		ethUtils.NodeKeyFileFlag,
-		ethUtils.NodeKeyHexFlag,
-		ethUtils.NATFlag,
-		ethUtils.NoDiscoverFlag,
-		ethUtils.DiscoveryV5Flag,
-		ethUtils.NetrestrictFlag,
-		ethUtils.WhisperEnabledFlag,
-		ethUtils.JSpathFlag,
 		// Gas price oracle settings
 		ethUtils.GpoBlocksFlag,
 		ethUtils.GpoPercentileFlag,
@@ -70,8 +51,6 @@ var (
 		ethUtils.WSPortFlag,
 		ethUtils.WSApiFlag,
 		ethUtils.WSAllowedOriginsFlag,
-		ethUtils.ExecFlag,
-		ethUtils.PreloadJSFlag,
 	}
 
 	// flags that configure the ABCI app
@@ -79,11 +58,8 @@ var (
 		utils.TendermintAddrFlag,
 		utils.ABCIAddrFlag,
 		utils.ABCIProtocolFlag,
-	}
-
-	debugFlags = []cli.Flag{
 		utils.VerbosityFlag,
-		utils.DebugFlag,
+		utils.ConfigFileFlag,
 	}
 )
 
@@ -108,7 +84,6 @@ func init() {
 	app.Flags = append(app.Flags, nodeFlags...)
 	app.Flags = append(app.Flags, rpcFlags...)
 	app.Flags = append(app.Flags, ethermintFlags...)
-	app.Flags = append(app.Flags, debugFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		if err := utils.Setup(ctx); err != nil {
