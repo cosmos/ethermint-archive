@@ -11,18 +11,6 @@ Ethermint enables ethereum to run as an [ABCI](https://github.com/tendermint/abc
 This means running an Ethereum EVM-based network that uses Tendermint consesnsus instead of proof-of-work.
 The way it's built makes it easy to use existing Ethereum tools (geth attach, web3) to interact with the node.
 
-### Docker image
-
-An easy way to get started is to use the docker image:
-
-```
-docker run -d --restart=unless-stopped -p 8545:8545 tendermint/ethermint
-```
-
-If you prefer instead to build locally, run `make build-docker`.
-
-After running the container, you can attach to it: `geth attach http://localhost:8545`.
-
 ### Install
 Currently, we are not shipping executable binaries and hence you have to build ethermint from source. To do so, please install go1.8. Once you have go installed you can build the `ethermint` executable by running `git clone https://github.com/tendermint/ethermint.git`. Afterwards, please switch into the ethermint directory and run `make install`, which will place the binary in your $GOPATH.
 
