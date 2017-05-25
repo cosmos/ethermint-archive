@@ -2,9 +2,11 @@
 
 [![Build Status](https://circleci.com/gh/tendermint/ethermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/ethermint/tree/master)
 
+[![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint)
+
 ### Overview
 
-Ethereum as a [ABCI](https://github.com/tendermint/abci) application.
+Ethermint enables ethereum to run as an [ABCI](https://github.com/tendermint/abci) application on tendermint and the COSMOS hub. This application allows you to get all the benefits of ethereum without having to run your own miners.
 
 This means running an Ethereum EVM-based network that uses Tendermint consesnsus instead of proof-of-work.
 The way it's built makes it easy to use existing Ethereum tools (geth attach, web3) to interact with the node.
@@ -22,41 +24,58 @@ If you prefer instead to build locally, run `make build-docker`.
 After running the container, you can attach to it: `geth attach http://localhost:8545`.
 
 ### Install
-You can build the `ethermint` executable by running `go install ./cmd/ethermint`. For vendored packages, Ethermint uses glide.
+Currently, we are not shipping executable binaries and hence you have to build ethermint from source. To do so, please install go1.8. Once you have go installed you can build the `ethermint` executable by running `git clone https://github.com/tendermint/ethermint.git`. Afterwards, please switch into the ethermint directory and run `make install`, which will place the binary in your $GOPATH.
 
-### Initialization
+You will also need to have `tendermint` installed. Please follow this [guide](https://tendermint.com/docs/guides/install).
 
-To get started, you need to initialize the genesis block for tendermint and geth.
+### Getting started
+To get started, you need to initialise the genesis block for tendermint core and go-ethereum.
 This is still a work in progress, but it's possible to do:
 
-For example you want to store all file inside `/tmp/eth/` dir.
+You can choose where to store the ethermint files with `--datadir`. For this guide, we will use `~/.ethermint`, which is a reasonable default in most cases.
+
+#### Tendermint
+First you need to initialise the tendermint engine
 
 ```
-tendermint init --home /tmp/eth/tendermint
+tendermint init --home ~/.ethermint/tendermint
 ```
 
-Set `app_hash=D4E56740F876AEF8C010B86A40D5F56745A118D0906A34E69AEC8C0DB1CB8FA3` in `/tmp/eth/tendermint/genesis.json`
-
-Run tendermint:
+and then run it with
 ```
-tendermint node --moniker node1 --proxy_app tcp://127.0.0.1:46658 --home /tmp/eth/tendermint
+tendermint node --home ~/.ethermint/tendermint
 ```
 
-Then run ethermint:
+#### Ethermint
+First you need to initialise ethermint.
+For that please switch into the source code folder for ethermint.
+
 ```
-ethermint -datadir /tmp/eth/ethermint init dev/genesis.json
-cp -r dev/keystore /tmp/eth/ethermint/keystore
-ethermint --datadir /tmp/eth/ethermint --tendermint_addr tcp://localhost:46657 --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
+ethermint --datadir ~/.ethermint init dev/genesis.json
+cp -r dev/keystore ~/.ethermint/keystore
+```
+
+And the you can run ethermint with
+```
+ethermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
 ```
 
 The `dev/genesis.json` file specifies some initial ethereum account with funds,
 and the corresponding private key is copied over from `dev/keystore`.
 The password to this key is `1234`
 
-### Run
+#### Geth
 
-In another window, run `geth attach http://localhost:8545` or `geth attach /tmp/eth/ethermint/geth.ipc` to drop into a web3 console for
-your ethermint node:
+Lastly, you can use all the cool ethereum tools that you are already used to. For example, you can use geth to interact with the ethereum instance.
+
+```
+get attach http://localhost:8545
+```
+or
+```
+geth attach ~/.ethermint/geth.ipc
+```
+will drop you into a web3 console.
 
 ```
 instance: Geth/linux/go1.7.4
