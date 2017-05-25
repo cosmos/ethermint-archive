@@ -23,10 +23,10 @@ func initCmd(ctx *cli.Context) error {
 	}
 
 	file, err := os.Open(genesisPath)
+	defer file.Close()
 	if err != nil {
 		ethUtils.Fatalf("Failed to read genesis file: %v", err)
 	}
-	defer file.Close()
 
 	genesis := new(core.Genesis)
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {

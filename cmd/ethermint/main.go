@@ -119,10 +119,6 @@ func init() {
 
 		return nil
 	}
-
-	app.After = func(ctx *cli.Context) error {
-		return nil
-	}
 }
 
 func versionCmd(ctx *cli.Context) error {
