@@ -10,19 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	abciTypes "github.com/tendermint/abci/types"
+	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 const (
 	// try this number of times to connect to tendermint
 	maxWaitForServerRetries = 10
 )
-
-// used by Backend to call tendermint rpc endpoints
-// TODO: replace with HttpClient https://github.com/tendermint/go-rpc/issues/8
-type Client interface {
-	// see tendermint/go-rpc/client/http_client.go:115 func (c *ClientURI) Call(...)
-	Call(method string, params map[string]interface{}, result interface{}) (interface{}, error)
-}
 
 //----------------------------------------------------------------------
 // Transactions sent via the go-ethereum rpc need to be routed to tendermint
@@ -63,7 +57,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 
 //----------------------------------------------------------------------
 // wait for Tendermint to open the socket and run http endpoint
-func waitForServer(c Client) error {
+func waitForServer(c rpcClient.HTTPClient) error {
 	var result interface{}
 	retriesCount := 0
 	for result == nil {
