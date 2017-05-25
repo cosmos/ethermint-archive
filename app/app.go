@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -49,10 +50,18 @@ func NewEthermintApplication(backend *ethereum.Backend,
 
 // Info returns information about the last height and app_hash to the tendermint engine
 func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
+	log.Info("Info")
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
 	height := currentBlock.Number()
 	hash := currentBlock.Hash()
+	if height.Cmp(big.NewInt(0)) == 0 {
+		return abciTypes.ResponseInfo{
+			Data:             "ABCIEthereum",
+			LastBlockHeight:  height.Uint64(),
+			LastBlockAppHash: []byte{},
+		}
+	}
 	return abciTypes.ResponseInfo{
 		Data:             "ABCIEthereum",
 		LastBlockHeight:  height.Uint64(),
