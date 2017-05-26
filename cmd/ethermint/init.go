@@ -43,6 +43,6 @@ func initCmd(ctx *cli.Context) error {
 		ethUtils.Fatalf("failed to write genesis block: %v", err)
 	}
 
-	log.Info("successfully wrote genesis block and/or chain rule set: %x", hash)
+	log.Info("successfully wrote genesis block and/or chain rule set", "hash", hash)
 	return nil
 }
