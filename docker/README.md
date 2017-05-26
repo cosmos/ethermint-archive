@@ -11,7 +11,7 @@ Docker-compose allow to start 4 instances of tendermint and ethermint together i
 `docker-compose up -d`
 
 #### Inspect IP address
-`docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -f name=tests_ethermint* -q)`
+`docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -f name=ethermint* -q)`
 
 ### Check with geth
 
