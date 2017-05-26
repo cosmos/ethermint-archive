@@ -187,10 +187,10 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 	blockHash := block.Hash()
 
 	// save the block to disk
-	log.Info("Committing block with state hash %X and root hash %X", hashArray, blockHash)
+	log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
 	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
 	if err != nil {
-		log.Info("Error inserting ethereum block in chain: %v", err)
+		log.Info("Error inserting ethereum block in chain", "err", err)
 		return common.Hash{}, err
 	}
 	return blockHash, err
