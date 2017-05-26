@@ -2,7 +2,6 @@ package ethereum
 
 import (
 	"bytes"
-	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -10,11 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
-)
-
-const (
-	// try this number of times to connect to tendermint
-	maxWaitForServerRetries = 10
 )
 
 //----------------------------------------------------------------------
@@ -26,16 +20,12 @@ const (
 func (s *Backend) txBroadcastLoop() {
 	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 
-	if err := waitForServer(s.client); err != nil {
-		// timeouted when waiting for tendermint communication failed
-		log.Error("Failed to run tendermint HTTP endpoint, err=%s", err)
-		os.Exit(1)
-	}
+	waitForServer(s.client)
 
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
 		if err := s.BroadcastTx(event.Tx); err != nil {
-			log.Error("Broadcast, err=%s", err)
+			log.Error("Broadcast error", "err", err)
 		}
 	}
 }
@@ -56,7 +46,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 
 //----------------------------------------------------------------------
 // wait for Tendermint to open the socket and run http endpoint
-func waitForServer(c rpcClient.HTTPClient) error {
+func waitForServer(c rpcClient.HTTPClient) {
 	var result interface{}
 
 	for {
@@ -67,8 +57,5 @@ func waitForServer(c rpcClient.HTTPClient) error {
 
 		log.Info("Waiting for tendermint endpoint to start", "err", err)
 		time.Sleep(time.Second * 3)
-
 	}
-
-	return nil
 }

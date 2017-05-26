@@ -150,7 +150,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 	)
 	if err != nil {
 		return err
-		log.Info("DeliverTx error: %v", err)
+		log.Warn("DeliverTx error", "err", err)
 		return abciTypes.ErrInternalError
 	}
 

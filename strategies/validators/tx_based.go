@@ -20,7 +20,7 @@ func (strategy *TxBasedValidatorsStrategy) SetValidators(validators []*types.Val
 
 func (strategy *TxBasedValidatorsStrategy) CollectTx(tx *ethTypes.Transaction) {
 	if reflect.DeepEqual(tx.To(), common.HexToAddress("0000000000000000000000000000000000000001")) {
-		log.Info("Adding validator: %v", tx.Data())
+		log.Info("Adding validator", "data", tx.Data())
 		strategy.currentValidators = append(
 			strategy.currentValidators,
 			&types.Validator{
