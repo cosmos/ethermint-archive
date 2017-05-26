@@ -55,7 +55,7 @@ func waitForServer(c rpcClient.HTTPClient) {
 			break
 		}
 
-		log.Info("Waiting for tendermint endpoint to start", "err", err)
-		time.Sleep(time.Second * 3)
+			log.Info("Waiting for tendermint endpoint to start", "err", err)
+		time.Sleep(time.Second* 3)
 	}
 }
