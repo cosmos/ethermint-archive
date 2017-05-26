@@ -99,10 +99,10 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 		return abciTypes.ErrEncodingError
 	}
 
-	log.Info("Got DeliverTx (tx): %v", tx)
+	log.Info("Got DeliverTx", "tx", tx)
 	err = app.backend.DeliverTx(tx)
 	if err != nil {
-		log.Info("DeliverTx error: %v", err)
+		log.Warn("DeliverTx error", "err", err)
 		return abciTypes.ErrInternalError
 	}
 	app.CollectTx(tx)
@@ -127,7 +127,7 @@ func (app *EthermintApplication) EndBlock(height uint64) abciTypes.ResponseEndBl
 func (app *EthermintApplication) Commit() abciTypes.Result {
 	blockHash, err := app.backend.Commit(app.Receiver())
 	if err != nil {
-		log.Info("Error getting latest ethereum state: %v", err)
+		log.Warn("Error getting latest ethereum state", "err", err)
 		return abciTypes.ErrInternalError
 	}
 	return abciTypes.NewResultOK(blockHash[:], "")
