@@ -33,7 +33,7 @@ func initCmd(ctx *cli.Context) error {
 		ethUtils.Fatalf("invalid genesis file: %v", err)
 	}
 
-	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(ethUtils.MakeDataDir(ctx), "chaindata"), 0, 0)
+	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(ethUtils.MakeDataDir(ctx), "ethermint/chaindata"), 0, 0)
 	if err != nil {
 		ethUtils.Fatalf("could not open database: %v", err)
 	}
