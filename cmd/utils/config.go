@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	cli "gopkg.in/urfave/cli.v1"
@@ -7,10 +7,14 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 
-	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
 
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
+)
+
+const (
+	// Client identifier to advertise over the network
+	clientIdentifier = "ethermint"
 )
 
 type ethstatsConfig struct {
@@ -23,10 +27,10 @@ type gethConfig struct {
 	Ethstats ethstatsConfig
 }
 
-func makeFullNode(ctx *cli.Context) *node.Node {
+func MakeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
-	tendermintLAddr := ctx.GlobalString(emtUtils.TendermintAddrFlag.Name)
+	tendermintLAddr := ctx.GlobalString(TendermintAddrFlag.Name)
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		return ethereum.NewBackend(ctx, &cfg.Eth, rpcClient.NewURIClient(tendermintLAddr))
 	}); err != nil {
@@ -39,23 +43,23 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	cfg := gethConfig{
 		Eth:  eth.DefaultConfig,
-		Node: defaultNodeConfig(),
+		Node: DefaultNodeConfig(),
 	}
 
 	ethUtils.SetNodeConfig(ctx, &cfg.Node)
-	setEthermintNodeConfig(&cfg.Node)
+	SetEthermintNodeConfig(&cfg.Node)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		ethUtils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
 	ethUtils.SetEthConfig(ctx, stack, &cfg.Eth)
-	setEthermintEthConfig(&cfg.Eth)
+	SetEthermintEthConfig(&cfg.Eth)
 
 	return stack, cfg
 }
 
-func defaultNodeConfig() node.Config {
+func DefaultNodeConfig() node.Config {
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
@@ -64,12 +68,12 @@ func defaultNodeConfig() node.Config {
 	return cfg
 }
 
-func setEthermintNodeConfig(cfg *node.Config) {
+func SetEthermintNodeConfig(cfg *node.Config) {
 	cfg.P2P.MaxPeers = 0
 	cfg.P2P.NoDiscovery = true
 }
 
-func setEthermintEthConfig(cfg *eth.Config) {
+func SetEthermintEthConfig(cfg *eth.Config) {
 	cfg.MaxPeers = 0
 	cfg.PowFake = true
 }

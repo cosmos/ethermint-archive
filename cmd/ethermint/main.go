@@ -12,11 +12,6 @@ import (
 	"github.com/tendermint/ethermint/version"
 )
 
-const (
-	// Client identifier to advertise over the network
-	clientIdentifier = "ethermint"
-)
-
 var (
 	// The app that holds all commands and flags.
 	app = ethUtils.NewApp(version.Version, "the ethermint command line interface")

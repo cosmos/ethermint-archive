@@ -26,7 +26,7 @@ import (
 
 func ethermintCmd(ctx *cli.Context) error {
 	// Setup the go-ethereum node and start it
-	node := makeFullNode(ctx)
+	node := emtUtils.MakeFullNode(ctx)
 	startNode(ctx, node)
 
 	// Setup the ABCI server and start it
