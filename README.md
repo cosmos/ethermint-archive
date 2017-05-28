@@ -57,7 +57,7 @@ The password to this key is `1234`
 Lastly, you can use all the cool ethereum tools that you are already used to. For example, you can use geth to interact with the ethereum instance.
 
 ```
-get attach http://localhost:8545
+geth attach http://localhost:8545
 ```
 or
 ```
