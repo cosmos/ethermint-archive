@@ -128,7 +128,7 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 	blockHash, err := app.backend.Commit(app.Receiver())
 	if err != nil {
 		log.Warn("Error getting latest ethereum state", "err", err)
-		return abciTypes.ErrInternalError
+		return abciTypes.ErrInternalError.SetLog(err.Error())
 	}
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
