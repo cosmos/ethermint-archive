@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -46,6 +47,10 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.H
 		return nil, err
 	}
 
+	// send special event to go-ethereum to switch homestead=true
+	currentBlock := ethereum.BlockChain().CurrentBlock()
+	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
+
 	// We don't need PoW/Uncle validation
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
 
@@ -60,12 +65,12 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.H
 
 // Ethereum returns the underlying the ethereum object
 func (b *Backend) Ethereum() *eth.Ethereum {
-	return s.ethereum
+	return b.ethereum
 }
 
 // Config returns the eth.Config
 func (b *Backend) Config() *eth.Config {
-	return s.config
+	return b.config
 }
 
 //----------------------------------------------------------------------
@@ -102,12 +107,12 @@ func (b *Backend) GasLimit() big.Int {
 // Implements: node.Service
 
 // APIs returns the collection of RPC services the ethereum package offers.
-func (s *Backend) APIs() []rpc.API {
-	apis := s.Ethereum().APIs()
+func (b *Backend) APIs() []rpc.API {
+	apis := b.Ethereum().APIs()
 	retApis := []rpc.API{}
 	for _, v := range apis {
 		if v.Namespace == "net" {
-			v.Service = NewNetRPCService(s.config.NetworkId)
+			v.Service = NewNetRPCService(b.config.NetworkId)
 		}
 		if v.Namespace == "miner" {
 			continue
@@ -117,26 +122,26 @@ func (s *Backend) APIs() []rpc.API {
 		}
 		retApis = append(retApis, v)
 	}
-	go s.txBroadcastLoop()
+	go b.txBroadcastLoop()
 	return retApis
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
-func (s *Backend) Start(srvr *p2p.Server) error {
+func (b *Backend) Start(srvr *p2p.Server) error {
 	return nil
 }
 
 // Stop implements node.Service, terminating all internal goroutines used by the
 // Ethereum protocol.
-func (s *Backend) Stop() error {
-	s.ethereum.Stop()
+func (b *Backend) Stop() error {
+	b.ethereum.Stop()
 	return nil
 }
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
-func (s *Backend) Protocols() []p2p.Protocol {
+func (b *Backend) Protocols() []p2p.Protocol {
 	return nil
 }
 

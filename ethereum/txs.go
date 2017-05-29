@@ -16,13 +16,13 @@ import (
 
 // listen for txs and forward to tendermint
 func (b *Backend) txBroadcastLoop() {
-	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
+	txSub := b.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 
-	waitForServer(s.client)
+	waitForServer(b.client)
 
 	for obj := range txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
-		if err := s.BroadcastTx(event.Tx); err != nil {
+		if err := b.BroadcastTx(event.Tx); err != nil {
 			log.Error("Broadcast error", "err", err)
 		}
 	}
@@ -38,7 +38,7 @@ func (b *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 	params := map[string]interface{}{
 		"tx": buf.Bytes(),
 	}
-	_, err := s.client.Call("broadcast_tx_sync", params, &result)
+	_, err := b.client.Call("broadcast_tx_sync", params, &result)
 	return err
 }
 
