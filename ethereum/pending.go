@@ -98,7 +98,7 @@ func (p *pending) gasLimit() big.Int {
 }
 
 //----------------------------------------------------------------------
-// Implements miner.Pending API (our custom patch to go-ethereum)
+// Implements: miner.Pending API (our custom patch to go-ethereum)
 
 // Return a new block and a copy of the state from the latest work
 func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
@@ -160,9 +160,8 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 
 	logs := w.state.GetLogs(tx.Hash())
 
-	w.txIndex += 1
+	w.txIndex++
 
-	// TODO: allocate correct size in BeginBlock instead of using append
 	w.transactions = append(w.transactions, tx)
 	w.receipts = append(w.receipts, receipt)
 	w.allLogs = append(w.allLogs, logs...)
@@ -173,6 +172,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 // Commit the ethereum state, update the header, make a new block and add it
 // to the ethereum blockchain. The application root hash is the hash of the ethereum block.
 func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
+
 	// commit ethereum state and update the header
 	hashArray, err := w.state.Commit(false) // XXX: ugh hardforks
 	if err != nil {
@@ -181,7 +181,6 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 	w.header.Root = hashArray
 
 	// tag logs with state root
-	// NOTE: BlockHash ?
 	for _, log := range w.allLogs {
 		log.BlockHash = hashArray
 	}

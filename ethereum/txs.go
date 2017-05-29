@@ -13,11 +13,9 @@ import (
 
 //----------------------------------------------------------------------
 // Transactions sent via the go-ethereum rpc need to be routed to tendermint
-// TODO: Cleanup the relationship with Backend here ..
 
 // listen for txs and forward to tendermint
-// TODO: some way to exit this (it runs in a go-routine)
-func (s *Backend) txBroadcastLoop() {
+func (b *Backend) txBroadcastLoop() {
 	txSub := s.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 
 	waitForServer(s.client)
@@ -31,7 +29,7 @@ func (s *Backend) txBroadcastLoop() {
 }
 
 // BroadcastTx broadcasts a transaction to tendermint core
-func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
+func (b *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 	var result interface{}
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
@@ -46,6 +44,7 @@ func (s *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 
 //----------------------------------------------------------------------
 // wait for Tendermint to open the socket and run http endpoint
+
 func waitForServer(c rpcClient.HTTPClient) {
 	var result interface{}
 

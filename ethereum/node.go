@@ -19,8 +19,6 @@ func NewNodeConfig(ctx *cli.Context) *node.Config {
 }
 
 // Config for the ethereum services
-// NOTE:(go-ethereum) stack.OpenDatabase could be moved off the stack
-// and then we wouldnt need it as an arg
 func NewEthConfig(ctx *cli.Context, stack *node.Node) *eth.Config {
 	var eth_config *eth.Config
 	ethUtils.SetEthConfig(ctx, stack, eth_config)

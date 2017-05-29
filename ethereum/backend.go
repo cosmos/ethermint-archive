@@ -39,16 +39,10 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.H
 
 	// eth.New takes a ServiceContext for the EventMux, the AccountManager,
 	// and some basic functions around the DataDir.
-	// TODO: Can we build it ourselves so it doesnt need to come from registering
-	// this as a Service on the node ?
 	ethereum, err := eth.New(ctx, config, p)
 	if err != nil {
 		return nil, err
 	}
-
-	// send special event to go-ethereum to switch homestead=true
-	// currentBlock := ethereum.BlockChain().CurrentBlock()
-	// ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
 
 	// We don't need PoW/Uncle validation
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
@@ -63,12 +57,12 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.H
 }
 
 // Ethereum returns the underlying the ethereum object
-func (s *Backend) Ethereum() *eth.Ethereum {
+func (b *Backend) Ethereum() *eth.Ethereum {
 	return s.ethereum
 }
 
 // Config returns the eth.Config
-func (s *Backend) Config() *eth.Config {
+func (b *Backend) Config() *eth.Config {
 	return s.config
 }
 
@@ -97,14 +91,13 @@ func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
 	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time)
 }
 
+// GasLimit returns the maximum gas per block
 func (b *Backend) GasLimit() big.Int {
 	return b.pending.gasLimit()
 }
 
 //----------------------------------------------------------------------
-// Implement node.Service
-// TODO: It would be great if we didn't need to register as a service
-// and just loaded the APIs into an RPC server ourselves
+// Implements: node.Service
 
 // APIs returns the collection of RPC services the ethereum package offers.
 func (s *Backend) APIs() []rpc.API {
