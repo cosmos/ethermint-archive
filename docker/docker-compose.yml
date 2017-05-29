@@ -1,0 +1,58 @@
+version: '2'
+
+services:
+  #run tendermint node 1
+  tendermint1Node:
+    image: tendermint/tendermint
+    volumes:
+        - ./tendermint_1:/tendermint
+    command: ["node", "--moniker=node1", "--proxy_app", "tcp://ethermint1:46658", "--p2p.seeds", "tendermint2Node:46656,tendermint3Node:46656,tendermint4Node:46656"]
+
+  #run ethermint node 1
+  ethermint1:
+    image: tendermint/ethermint
+    command: ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin", "--tendermint_addr", "tcp://tendermint1Node:46657"]
+    depends_on:
+        - tendermint1Node
+
+  #run tendermint node 2
+  tendermint2Node:
+    image: tendermint/tendermint
+    volumes:
+        - ./tendermint_2:/tendermint
+    command: ["node", "--moniker=node2", "--proxy_app", "tcp://ethermint2:46658", "--p2p.seeds", "tendermint1Node:46656,tendermint3Node:46656,tendermint4Node:46656"]
+
+  #run ethermint node 2
+  ethermint2:
+    image: tendermint/ethermint
+    command: ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin", "--tendermint_addr", "tcp://tendermint2Node:46657"]
+    depends_on:
+        - tendermint2Node
+
+  #run tendermint node 3
+  tendermint3Node:
+    image: tendermint/tendermint
+    volumes:
+        - ./tendermint_3:/tendermint
+    command: ["node", "--moniker=node3", "--proxy_app", "tcp://ethermint3:46658", "--p2p.seeds", "tendermint1Node:46656,tendermint2Node:46656,tendermint4Node:46656"]
+
+  #run ethermint node 3
+  ethermint3:
+    image: tendermint/ethermint
+    command: ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin", "--tendermint_addr", "tcp://tendermint3Node:46657"]
+    depends_on:
+        - tendermint3Node
+
+  #run tendermint node 4
+  tendermint4Node:
+    image: tendermint/tendermint
+    volumes:
+        - ./tendermint_4:/tendermint
+    command: ["node", "--moniker=node4", "--proxy_app", "tcp://ethermint4:46658", "--p2p.seeds", "tendermint1Node:46656,tendermint2Node:46656,tendermint3Node:46656"]
+
+  #run ethermint node 4
+  ethermint4:
+    image: tendermint/ethermint
+    command: ["--datadir=/ethermint/data", "--rpc", "--rpcaddr=0.0.0.0", "--ws", "--wsaddr=0.0.0.0", "--rpcapi", "eth,net,web3,personal,admin", "--tendermint_addr", "tcp://tendermint4Node:46657"]
+    depends_on:
+        - tendermint4Node

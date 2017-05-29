@@ -1,18 +1,26 @@
 GOTOOLS = \
+					github.com/karalabe/xgo \
 					github.com/Masterminds/glide
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
+STATIC?=0
+LDFLAGS=-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`
 
-TMROOT = $${TMROOT:-$$HOME/.tendermint}
+ifeq ($(STATIC), 1)
+	LDFLAGS+= -extldflags '-static'
+endif
 
-all: get_deps install test
+all: install test
 
 build:
-	rm -rf ./ethermint
-	go build --ldflags "-extldflags '-static' \
-		-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"  -o $(GOPATH)/bin/ethermint ./cmd/ethermint/
+	go build --ldflags "$(LDFLAGS)" \
+		-o ./build/ethermint ./cmd/ethermint/
 
-install: get_vendor_deps get_deps
-	@go install ./cmd/ethermint
+# dist builds binaries for all platforms and packages them for distribution
+dist: clean_dist tools get_vendor_deps
+	@$(CURDIR)/scripts/dist.sh
+
+install: get_vendor_deps build
+	@cp ./build/ethermint  $(GOPATH)/bin/ethermint
 
 test:
 	@echo "--> Running go test"
@@ -36,14 +44,18 @@ get_vendor_deps: tools
 	@echo "--> Running glide install"
 	@glide install --strip-vendor
 
-build-docker:
-	rm -f ./ethermint
-	docker run -it --rm -v "$(PWD):/go/src/github.com/tendermint/ethermint" -w "/go/src/github.com/tendermint/ethermint" golang:latest go build \
-	    --ldflags "-extldflags '-static' -X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
-	    ./cmd/ethermint
+build-docker: clean
+	# For docker we build with static flag.
+	docker run -it --rm \
+		-v "$(PWD):/go/src/github.com/tendermint/ethermint" \
+		-w "/go/src/github.com/tendermint/ethermint" golang:latest make -e STATIC=1 build
 	docker build -t "tendermint/ethermint" -f docker/Dockerfile .
 
 clean:
-	rm -f ./ethermint
+	-rm -f ./build/ethermint
+
+clean_dist:
+	-rm -rf ./build/pkg
+	-rm -rf ./build/dist
   
-.PHONY: all install test test_race get_deps get_vendor_deps tools build-docker clean
+.PHONY: all build install test test_race get_deps get_vendor_deps tools build-docker clean clean_dist

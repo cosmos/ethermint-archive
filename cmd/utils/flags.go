@@ -2,85 +2,38 @@ package utils
 
 import (
 	"gopkg.in/urfave/cli.v1"
-
-	"github.com/ethereum/go-ethereum/cmd/utils"
 )
 
 var (
 	// ----------------------------
-	// go-ethereum flags
+	// ABCI Flags
 
-	// So we can control the DefaultDir
-	DataDirFlag = utils.DirectoryFlag{
-		Name:  "datadir",
-		Usage: "Data directory for the databases and keystore",
-		Value: utils.DirectoryString{DefaultDataDir()},
-	}
-
-	// Not exposed by go-ethereum
-	VerbosityFlag = cli.IntFlag{
-		Name:  "verbosity",
-		Usage: "Verbosity of go-ethereum",
-	}
-
-	// ----------------------------
-	// Tendermint Flags
-
-	MonikerFlag = cli.StringFlag{
-		Name:  "moniker",
-		Value: "",
-		Usage: "Node's moniker",
-	}
-
-	NodeLaddrFlag = cli.StringFlag{
-		Name:  "node_laddr",
-		Value: "tcp://0.0.0.0:46656",
-		Usage: "Node listen address. (0.0.0.0:0 means any interface, any port)",
-	}
-
-	LogLevelFlag = cli.StringFlag{
-		Name:  "log_level",
-		Value: "info",
-		Usage: "Tendermint Log level",
-	}
-
-	SeedsFlag = cli.StringFlag{
-		Name:  "seeds",
-		Value: "",
-		Usage: "Comma delimited host:port seed nodes",
-	}
-
-	FastSyncFlag = cli.BoolFlag{
-		Name:  "fast_sync",
-		Usage: "Fast blockchain syncing",
-	}
-
-	SkipUpnpFlag = cli.BoolFlag{
-		Name:  "skip_upnp",
-		Usage: "Skip UPNP configuration",
-	}
-
-	RpcLaddrFlag = cli.StringFlag{
-		Name:  "rpc_laddr",
-		Value: "tcp://0.0.0.0:46657",
-		Usage: "RPC listen address. Port required",
-	}
-
-	BroadcastTxAddrFlag = cli.StringFlag{
-		Name:  "broadcast_tx_addr",
+	TendermintAddrFlag = cli.StringFlag{
+		Name:  "tendermint_addr",
 		Value: "tcp://localhost:46657",
-		Usage: "Remote tendermint RPC address. Port required",
+		Usage: "This is the address that ethermint will use to connect to the tendermint core node. Please provide a port.",
 	}
 
-	AddrFlag = cli.StringFlag{
-		Name:  "addr",
+	ABCIAddrFlag = cli.StringFlag{
+		Name:  "abci_laddr",
 		Value: "tcp://0.0.0.0:46658",
-		Usage: "TMSP app listen address",
+		Usage: "This is the address that the ABCI server will use to listen to incoming connection from tendermint core.",
 	}
 
-	AbciFlag = cli.StringFlag{
-		Name:  "abci",
+	ABCIProtocolFlag = cli.StringFlag{
+		Name:  "abci_protocol",
 		Value: "socket",
 		Usage: "socket | grpc",
+	}
+
+	VerbosityFlag = cli.IntFlag{
+		Name:  "verbosity",
+		Value: 3,
+		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=core, 5=debug, 6=detail",
+	}
+
+	ConfigFileFlag = cli.StringFlag{
+		Name:  "config",
+		Usage: "TOML configuration file",
 	}
 )

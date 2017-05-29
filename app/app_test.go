@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -13,24 +15,29 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/ethereum/go-ethereum/cmd/utils"
+	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	abciTypes "github.com/tendermint/abci/types"
 	"github.com/tendermint/ethermint/app"
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
-	core_types "github.com/tendermint/tendermint/rpc/core/types"
+
+	abciTypes "github.com/tendermint/abci/types"
+
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-// implements backend.Client, used for rpc calls to tendermint
-// TODO: consider using gomock or something
+var (
+	receiverAddress = common.StringToAddress("0x1234123412341234123412341234123412341234")
+)
+
+// implements: tendermint.rpc.client.HTTPClient
 type MockClient struct {
 	sentBroadcastTx chan struct{} // fires when we call broadcast_tx_sync
 }
@@ -38,26 +45,32 @@ type MockClient struct {
 func NewMockClient() *MockClient { return &MockClient{make(chan struct{})} }
 
 func (mc *MockClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
-	tmresult := result.(*core_types.TMResult)
 	switch method {
 	case "status":
-		*tmresult = &core_types.ResultStatus{}
-		return tmresult, nil
+		result = &ctypes.ResultStatus{}
+
+		return result, nil
 	case "broadcast_tx_sync":
 		close(mc.sentBroadcastTx)
-		*tmresult = &core_types.ResultBroadcastTx{}
-		return tmresult, nil
+		result = &ctypes.ResultBroadcastTx{}
+
+		return result, nil
 	}
+
 	return nil, abciTypes.ErrInternalError
 }
 
 func TestBumpingNonces(t *testing.T) {
-	// setup test addresses and other useful stuff
-	key, _ := crypto.GenerateKey()
-	addr := crypto.PubkeyToAddress(key.PublicKey)
-	receiver_addr := common.StringToAddress("0x1234123412341234123412341234123412341234")
-	signer := types.HomesteadSigner{}
+	// generate key
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
 	ctx := context.Background()
+
+	// used to intercept rpc calls to tendermint
+	mockclient := NewMockClient()
 
 	// setup temp data dir and the app instance
 	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
@@ -65,9 +78,6 @@ func TestBumpingNonces(t *testing.T) {
 		t.Error("unable to create temporary datadir")
 	}
 	defer os.RemoveAll(tempDatadir)
-
-	// used to intercept rpc calls to tendermint
-	mockclient := NewMockClient()
 
 	backend, app, err := makeTestApp(tempDatadir, addr, mockclient)
 	if err != nil {
@@ -77,32 +87,37 @@ func TestBumpingNonces(t *testing.T) {
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
 	nonce1 := uint64(0)
-	tx1, err := types.SignTx(
-		types.NewTransaction(nonce1, receiver_addr, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil),
-		signer,
-		key,
-	)
+	tx1, err := createTransaction(privateKey, nonce1)
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
 	encodedtx, err := rlp.EncodeToBytes(tx1)
 
-	assert.Equal(t, app.CheckTx(encodedtx), abciTypes.OK)
-	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height})
-	assert.Equal(t, app.DeliverTx(encodedtx), abciTypes.OK)
+	// check transaction
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx))
+
+	// set time greater than time of prev tx (zero)
+	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+
+	// check deliverTx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedtx))
+
 	app.EndBlock(height)
-	app.Commit()
+
+	// check commit
+	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
 	// replays should fail - we're checking if the transaction got through earlier, by replaying the nonce
-	assert.Equal(t, app.CheckTx(encodedtx).Code, abciTypes.ErrBadNonce.Code)
+	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(encodedtx).Code)
+
 	// ...on both interfaces of the app
-	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx1), core.ErrNonce)
+	assert.Equal(t, core.ErrNonce, backend.Ethereum().ApiBackend.SendTx(ctx, tx1))
 
 	// second transaction is sent via geth RPC, or at least pretending to be so
 	// with a correct nonce this time, it should pass
 	nonce2 := uint64(1)
-	tx2, err := types.SignTx(
-		types.NewTransaction(nonce2, receiver_addr, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil),
-		signer,
-		key,
-	)
+	tx2, err := createTransaction(privateKey, nonce2)
 
 	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
 
@@ -120,7 +135,7 @@ func makeTestApp(tempDatadir string, addr common.Address, mockclient *MockClient
 	if err != nil {
 		return nil, nil, err
 	}
-	utils.StartNode(stack)
+	ethUtils.StartNode(stack)
 
 	var backend *ethereum.Backend
 	if err = stack.Service(&backend); err != nil {
@@ -132,60 +147,66 @@ func makeTestApp(tempDatadir string, addr common.Address, mockclient *MockClient
 	return backend, app, err
 }
 
-func makeTestGenesis(addr common.Address) (string, error) {
+func makeTestGenesis(addr common.Address) (*core.Genesis, error) {
 	gopath := os.Getenv("GOPATH")
-	genesis, err := ioutil.ReadFile(filepath.Join(gopath, "src/github.com/tendermint/ethermint/dev/genesis.json"))
+	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/dev/genesis.json")
+
+	file, err := os.Open(genesisPath)
+	defer file.Close()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var genesisdict map[string]interface{}
-	err = json.Unmarshal(genesis, &genesisdict)
-	if err != nil {
-		return "", err
+	genesis := new(core.Genesis)
+	if err := json.NewDecoder(file).Decode(genesis); err != nil {
+		ethUtils.Fatalf("invalid genesis file: %v", err)
 	}
 
-	// most important: update the alloc section to alloc to the test address
-	genesisdict["alloc"] = map[string]map[string]string{addr.Hex(): {"balance": "10000000000000000000000000000000000"}}
-
-	genesis, err = json.Marshal(genesisdict)
-	if err != nil {
-		return "", err
+	balance, result := new(big.Int).SetString("10000000000000000000000000000000000", 10)
+	if !result {
+		return nil, errors.New("BigInt convertation error")
 	}
-	return string(genesis), nil
+
+	genesis.Alloc[addr] = core.GenesisAccount{Balance: balance}
+
+	return genesis, nil
 }
 
 // mimics MakeSystemNode from ethereum/node.go
 func makeTestSystemNode(tempDatadir string, addr common.Address, mockclient *MockClient) (*node.Node, error) {
 	// Configure the node's service container
-	stackConf := &node.Config{
-		DataDir:     tempDatadir,
-		NoDial:      true,
-		NoDiscovery: true,
-	}
+	nodeConf := emtUtils.DefaultNodeConfig()
+	emtUtils.SetEthermintNodeConfig(&nodeConf)
+	nodeConf.DataDir = tempDatadir
+
+	// Configure the Ethereum service
+	ethConf := eth.DefaultConfig
+	emtUtils.SetEthermintEthConfig(&ethConf)
 
 	genesis, err := makeTestGenesis(addr)
 	if err != nil {
 		return nil, err
 	}
-	// Configure the Ethereum service
-	ethConf := &eth.Config{
-		Genesis: genesis,
-		ChainConfig: &params.ChainConfig{
-			ChainId: big.NewInt(0),
-		},
-		GasPrice:       common.String2Big("1000"),
-		GpoMinGasPrice: common.String2Big("100"),
-		GpoMaxGasPrice: common.String2Big("10000"),
-		PowFake:        true,
-	}
+
+	ethConf.Genesis = genesis
 
 	// Assemble and return the protocol stack
-	stack, err := node.New(stackConf)
+	stack, err := node.New(&nodeConf)
 	if err != nil {
 		return nil, err
 	}
 	return stack, stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return ethereum.NewBackend(ctx, ethConf, mockclient)
+		return ethereum.NewBackend(ctx, &ethConf, mockclient)
 	})
+}
+
+func createTransaction(key *ecdsa.PrivateKey, nonce uint64) (*types.Transaction, error) {
+	signer := types.HomesteadSigner{}
+
+	return types.SignTx(
+		types.NewTransaction(nonce, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10),
+			nil),
+		signer,
+		key,
+	)
 }
