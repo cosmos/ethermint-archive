@@ -12,7 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	abciTypes "github.com/tendermint/abci/types"
+
 	emtTypes "github.com/tendermint/ethermint/types"
+
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 

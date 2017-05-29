@@ -29,6 +29,7 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 
 	abciTypes "github.com/tendermint/abci/types"
+
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 

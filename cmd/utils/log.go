@@ -6,9 +6,10 @@ import (
 
 	"gopkg.in/urfave/cli.v1"
 
+	colorable "github.com/mattn/go-colorable"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/log/term"
-	colorable "github.com/mattn/go-colorable"
 )
 
 var glogger *log.GlogHandler

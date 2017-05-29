@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	abciTypes "github.com/tendermint/abci/types"
+
 	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
 )

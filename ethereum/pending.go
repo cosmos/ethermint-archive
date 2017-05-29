@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	abciTypes "github.com/tendermint/abci/types"
+
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
