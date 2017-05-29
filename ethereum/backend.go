@@ -97,6 +97,10 @@ func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
 	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time)
 }
 
+func (b *Backend) GasLimit() big.Int {
+	return b.pending.gasLimit()
+}
+
 //----------------------------------------------------------------------
 // Implement node.Service
 // TODO: It would be great if we didn't need to register as a service
@@ -147,7 +151,7 @@ func (s *Backend) Protocols() []p2p.Protocol {
 // NullBlockProcessor does not validate anything
 type NullBlockProcessor struct{}
 
-// ValidateBlock does not validate anything
+// ValidateBody does not validate anything
 func (NullBlockProcessor) ValidateBody(*ethTypes.Block) error { return nil }
 
 // ValidateState does not validate anything

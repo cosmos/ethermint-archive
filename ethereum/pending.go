@@ -93,6 +93,10 @@ func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTim
 	p.work.updateHeaderWithTimeInfo(config, parentTime)
 }
 
+func (p *pending) gasLimit() big.Int {
+	return big.Int(*p.work.gp)
+}
+
 //----------------------------------------------------------------------
 // Implements miner.Pending API (our custom patch to go-ethereum)
 

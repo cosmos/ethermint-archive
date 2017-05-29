@@ -187,10 +187,10 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 
 	// Check the transaction doesn't exceed the current
 	// block limit gas.
-	// TODO
-	/*if pool.gasLimit().Cmp(tx.Gas()) < 0 {
-		return core.ErrGasLimit
-	}*/
+	gasLimit := app.backend.GasLimit()
+	if gasLimit.Cmp(tx.Gas()) < 0 {
+		return abciTypes.ErrInternalError.AppendLog(core.ErrGasLimitReached.Error())
+	}
 
 	// Transactions can't be negative. This may never happen
 	// using RLP decoded transactions but may occur if you create

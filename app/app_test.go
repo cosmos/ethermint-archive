@@ -1,7 +1,9 @@
 package app_test
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -22,12 +24,11 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"crypto/ecdsa"
-	"errors"
-	abciTypes "github.com/tendermint/abci/types"
 	"github.com/tendermint/ethermint/app"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
+
+	abciTypes "github.com/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
@@ -35,8 +36,7 @@ var (
 	receiverAddress = common.StringToAddress("0x1234123412341234123412341234123412341234")
 )
 
-// implements backend.Client, used for rpc calls to tendermint
-// TODO: consider using gomock or something
+// implements: tendermint.rpc.client.HTTPClient
 type MockClient struct {
 	sentBroadcastTx chan struct{} // fires when we call broadcast_tx_sync
 }
