@@ -1,0 +1,13 @@
+{
+  "app_hash": "",
+  "chain_id": "test-network",
+  "genesis_time": "0001-01-01T00:00:00.000Z",
+  "validators": [{
+    "pub_key": {
+      "type": "ed25519",
+      "data": "BDD0D78AEB73A5A13B056516CF90828AF8C0EE8C9ECBC58F98729BEE0A0A8868"
+    },
+    "amount": 10,
+    "name": "test-node"
+  }]
+}
