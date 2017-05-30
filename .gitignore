@@ -5,3 +5,4 @@ dev/data
 *.swo
 vendor/
 build/
+node_modules/
