@@ -6,7 +6,6 @@ dev/data
 vendor/
 build/
 
-
 # Created by https://www.gitignore.io/api/node
 
 ### Node ###
@@ -71,4 +70,3 @@ typings/
 
 
 # End of https://www.gitignore.io/api/node
-
