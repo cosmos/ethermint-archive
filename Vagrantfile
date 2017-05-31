@@ -14,10 +14,7 @@ Vagrant.configure("2") do |config|
 
   # setup
   config.vm.provision :shell, :inline => "apt-get update --fix-missing"
-  config.vm.provision :shell, :inline => "apt-get install -y --no-install-recommends wget curl"
-  config.vm.provision :shell, :inline => "wget -qO- https://get.docker.com/ | sh"
-  config.vm.provision :shell, :inline => "usermod -a -G docker vagrant"
-  config.vm.provision :shell, :inline => "apt-get autoremove -y"
+  config.vm.provision :shell, :inline => "apt-get install -y --no-install-recommends curl"
 
   # go-lang
   config.vm.provision :shell, :inline => "curl -O https://storage.googleapis.com/golang/go#{version}.linux-amd64.tar.gz"
@@ -29,6 +26,9 @@ Vagrant.configure("2") do |config|
   config.vm.provision :shell, :inline => "echo 'export PATH=$PATH:/usr/local/go/bin:/home/vagrant/go/bin' >> /home/vagrant/.bash_profile"
   config.vm.provision :shell, :inline => "echo 'export GOPATH=/home/vagrant/go' >> /home/vagrant/.bash_profile"
   config.vm.provision :shell, :inline => "echo 'export LC_ALL=#{locale}' >> /home/vagrant/.bash_profile"
+
+  # setup
+  config.vm.provision :shell, :inline => "apt-get autoremove -y"
 
   # ethermint
   config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go/src/github.com/tendermint"

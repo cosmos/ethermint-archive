@@ -23,6 +23,9 @@ build_race:
 dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
 
+publish:
+	@sh -c "'$(CURDIR)/scripts/publish.sh'"
+
 test:
 	@echo "--> Running go test"
 	@go test $(PACKAGES)
