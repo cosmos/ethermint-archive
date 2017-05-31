@@ -17,8 +17,8 @@ GIT_IMPORT="github.com/tendermint/ethermint/version"
 # Determine the arch/os combos we're building for
 XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
 XC_OS=${XC_OS:-"solaris darwin freebsd linux windows"}
+IGNORE=("darwin/arm solaris/amd64 freebsd/amd64")
 TARGETS=""
-
 for os in $XC_OS; do
     for arch in $XC_ARCH; do
         target="$os/$arch"
@@ -43,11 +43,12 @@ make get_vendor_deps
 
 # Build!
 echo "==> Building..."
-xgo --go="latest" \
-    --targets="${TARGETS}" \
-		-ldflags "-X ${GIT_IMPORT}.GitCommit='${GIT_COMMIT}' -X ${GIT_IMPORT}.GitDescribe='${GIT_DESCRIBE}'" \
-		--dest "build/pkg/{{.OS}}_{{.Arch}}/ethermint" \
-		github.com/tendermint/ethermint/cmd/ethermint
+xgo -go="latest" \
+    -targets="${TARGETS}" \
+	-ldflags "-X ${GIT_IMPORT}.GitCommit='${GIT_COMMIT}' -X ${GIT_IMPORT}.GitDescribe='${GIT_DESCRIBE}'" \
+	-dest "build/pkg" \
+	-tags="${BUILD_TAGS}" \
+	github.com/tendermint/ethermint/cmd/ethermint
 
 # Zip all the files.
 echo "==> Packaging..."
