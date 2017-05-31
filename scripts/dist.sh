@@ -28,7 +28,7 @@ fi
 
 # Do a hermetic build inside a Docker container.
 docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
+docker run --rm -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
 
 # Add "ethermint" and $VERSION prefix to package name.
 rm -rf ./build/dist
