@@ -1,26 +1,27 @@
 GOTOOLS = \
-					github.com/karalabe/xgo \
+					github.com/mitchellh/gox \
 					github.com/Masterminds/glide
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
-STATIC?=0
-LDFLAGS=-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`
-
-ifeq ($(STATIC), 1)
-	LDFLAGS+= -extldflags '-static'
-endif
+BUILD_TAGS?=ethermint
 
 all: install test
 
+install: get_vendor_deps
+	@go install --ldflags '-extldflags "-static"' \
+		--ldflags "-X github.com/tendermint/tendermint/version.GitCommit=`git rev-parse HEAD`" \
+		./cmd/ethermint
+
 build:
-	go build --ldflags "$(LDFLAGS)" \
-		-o ./build/ethermint ./cmd/ethermint/
+	@go build \
+		--ldflags "-X github.com/tendermint/tendermint/version.GitCommit=`git rev-parse HEAD`" \
+		-o ./build/ethermint ./cmd/ethermint
+
+build_race:
+	@go build -race -o build/ethermint ./cmd/ethermint
 
 # dist builds binaries for all platforms and packages them for distribution
-dist: clean_dist tools get_vendor_deps
-	@$(CURDIR)/scripts/dist.sh
-
-install: get_vendor_deps build
-	@cp ./build/ethermint  $(GOPATH)/bin/ethermint
+dist:
+	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
 
 test:
 	@echo "--> Running go test"
@@ -30,6 +31,16 @@ test_race:
 	@echo "--> Running go test --race"
 	@go test -race $(PACKAGES)
 
+draw_deps:
+# requires brew install graphviz or apt-get install graphviz
+	@go get github.com/RobotsAndPencils/goviz
+	@goviz -i github.com/tendermint/ethermint/cmd/ethermint -d 2 | dot -Tpng -o dependency-graph.png
+
+list_deps:
+	@go list -f '{{join .Deps "\n"}}' ./... | \
+		grep -v /vendor/ | sort | uniq | \
+		xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}'
+
 get_deps:
 	@echo "--> Running go get"
 	@go get -v -d $(PACKAGES)
@@ -37,25 +48,15 @@ get_deps:
 		grep -v /vendor/ | sort | uniq | \
 		xargs go get -v -d
 
-tools:
-	go get -v $(GOTOOLS)
-
-get_vendor_deps: tools
+get_vendor_deps: ensure_tools
+	@rm -rf vendor/
 	@echo "--> Running glide install"
 	@glide install --strip-vendor
 
-build-docker: clean
-	# For docker we build with static flag.
-	docker run -it --rm \
-		-v "$(PWD):/go/src/github.com/tendermint/ethermint" \
-		-w "/go/src/github.com/tendermint/ethermint" golang:latest make -e STATIC=1 build
-	docker build -t "tendermint/ethermint" -f docker/Dockerfile .
+tools:
+	go get -u -v $(GOTOOLS)
 
-clean:
-	-rm -f ./build/ethermint
+ensure_tools:
+	go get $(GOTOOLS)
 
-clean_dist:
-	-rm -rf ./build/pkg
-	-rm -rf ./build/dist
-  
-.PHONY: all build install test test_race get_deps get_vendor_deps tools build-docker clean clean_dist
+.PHONY: all install build build_race dist test test_race draw_deps list_deps get_deps get_vendor_deps tools ensure_tools
