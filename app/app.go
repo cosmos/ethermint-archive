@@ -109,9 +109,11 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 	err = app.backend.DeliverTx(tx)
 	if err != nil {
 		log.Warn("DeliverTx error", "err", err)
-		return abciTypes.ErrInternalError
+
+		return abciTypes.ErrInternalError.SetLog(err.Error())
 	}
 	app.CollectTx(tx)
+
 	return abciTypes.OK
 }
 
