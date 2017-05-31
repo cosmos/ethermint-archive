@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # We want to ensure that release builds never have any cgo dependencies so we
 # switch that off at the highest level.
-ENV CGO_ENABLED 0
+ENV CGO_ENABLED 1
 
 RUN mkdir -p $GOPATH/src/github.com/tendermint/ethermint
 WORKDIR $GOPATH/src/github.com/tendermint/ethermint

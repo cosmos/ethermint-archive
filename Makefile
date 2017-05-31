@@ -1,5 +1,5 @@
 GOTOOLS = \
-					github.com/mitchellh/gox \
+					github.com/karalabe/xgo \
 					github.com/Masterminds/glide
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 BUILD_TAGS?=ethermint
@@ -21,7 +21,7 @@ build_race:
 
 # dist builds binaries for all platforms and packages them for distribution
 dist:
-	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
+	@sh -c "'$(CURDIR)/scripts/dist.sh'"
 
 publish:
 	@sh -c "'$(CURDIR)/scripts/publish.sh'"
