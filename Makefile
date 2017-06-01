@@ -21,7 +21,7 @@ build_race:
 
 # dist builds binaries for all platforms and packages them for distribution
 dist:
-	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist_build.sh'"
+	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
 
 clean:
 	@rm -rf build/

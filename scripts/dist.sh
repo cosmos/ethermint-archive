@@ -27,8 +27,55 @@ if [ -z "$NOTAG" ]; then
 fi
 
 # Do a hermetic build inside a Docker container.
-docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
-docker run --rm -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
+# docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
+# docker run --rm -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
+# Get the git commit
+GIT_COMMIT="$(git rev-parse --short HEAD)"
+GIT_DESCRIBE="$(git describe --tags --always)"
+GIT_IMPORT="github.com/tendermint/ethermint/version"
+
+# Determine the arch/os combos we're building for
+XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
+XC_OS=${XC_OS:-"solaris darwin freebsd linux windows"}
+IGNORE=("darwin/arm solaris/amd64 freebsd/amd64")
+TARGETS=""
+for os in $XC_OS; do
+    for arch in $XC_ARCH; do
+        target="$os/$arch"
+
+        case ${IGNORE[@]} in *$target*) continue;; esac
+        TARGETS="$os/$arch,$TARGETS"
+    done
+done
+# Remove last comma
+TARGETS=${TARGETS::${#TARGETS}-1}
+
+# Delete the old dir
+echo "==> Removing old directory..."
+rm -rf build/pkg
+mkdir -p build/pkg
+
+# Make sure build tools are available.
+make tools
+
+# Get VENDORED dependencies
+make get_vendor_deps
+
+# Build!
+echo "==> Building..."
+xgo -go="latest" \
+    -targets="${TARGETS}" \
+	  -ldflags "-X ${GIT_IMPORT}.GitCommit='${GIT_COMMIT}' -X ${GIT_IMPORT}.GitDescribe='${GIT_DESCRIBE}'" \
+	  -dest "build/pkg" \
+	  -tags="${BUILD_TAGS}" \
+	  github.com/tendermint/ethermint/cmd/ethermint
+
+echo "==> Packaging..."
+for FILE in $(ls ./build/pkg); do
+    pushd ./build/pkg
+    zip "${FILE}.zip" $FILE
+    popd
+done
 
 # Add "ethermint" and $VERSION prefix to package name.
 rm -rf ./build/dist

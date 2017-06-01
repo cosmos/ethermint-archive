@@ -45,10 +45,10 @@ make get_vendor_deps
 echo "==> Building..."
 xgo -go="latest" \
     -targets="${TARGETS}" \
-	-ldflags "-X ${GIT_IMPORT}.GitCommit='${GIT_COMMIT}' -X ${GIT_IMPORT}.GitDescribe='${GIT_DESCRIBE}'" \
-	-dest "build/pkg" \
-	-tags="${BUILD_TAGS}" \
-	github.com/tendermint/ethermint/cmd/ethermint
+	  -ldflags "-X ${GIT_IMPORT}.GitCommit='${GIT_COMMIT}' -X ${GIT_IMPORT}.GitDescribe='${GIT_DESCRIBE}'" \
+	  -dest "build/pkg" \
+	  -tags="${BUILD_TAGS}" \
+	  github.com/tendermint/ethermint/cmd/ethermint
 
 # Zip all the files.
 echo "==> Packaging..."
