@@ -163,6 +163,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 
 	w.txIndex++
 
+	// The slices are allocated in updateHeaderWithTimeInfo
 	w.transactions = append(w.transactions, tx)
 	w.receipts = append(w.receipts, receipt)
 	w.allLogs = append(w.allLogs, logs...)
