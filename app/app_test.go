@@ -79,7 +79,7 @@ func TestBumpingNonces(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDatadir)
 
-	backend, app, err := makeTestApp(tempDatadir, addr, mockclient)
+	stack, backend, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
@@ -127,27 +127,167 @@ func TestBumpingNonces(t *testing.T) {
 		assert.Fail(t, "Timeout waiting for transaction on the tendermint rpc")
 	case <-mockclient.sentBroadcastTx:
 	}
+
+	stack.Stop()
+}
+
+func TestMultipleTxOneAcc(t *testing.T) {
+	// generate key
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
+
+	// used to intercept rpc calls to tendermint
+	mockclient := NewMockClient()
+
+	// setup temp data dir and the app instance
+	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
+	if err != nil {
+		t.Error("unable to create temporary datadir")
+	}
+	defer os.RemoveAll(tempDatadir)
+
+	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
+	if err != nil {
+		t.Errorf("Error making test EthermintApplication: %v", err)
+	}
+
+	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
+	height := uint64(1)
+
+	nonce1 := uint64(0)
+	tx1, err := createTransaction(privateKey, nonce1)
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedTx1, err := rlp.EncodeToBytes(tx1)
+
+	//create 2-nd tx from the same account
+	nonce2 := uint64(0)
+	tx2, err := createTransaction(privateKey, nonce2)
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedTx2, err := rlp.EncodeToBytes(tx2)
+
+	// check transaction
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
+
+	//check tx on 2nd tx should pass until we implement state in CheckTx
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
+
+	// set time greater than time of prev tx (zero)
+	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+
+	// check deliverTx for 1st tx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+
+	// and for 2nd tx (should fail because of wrong nonce2)
+	deliverTx2Result := app.DeliverTx(encodedTx2)
+
+	assert.Equal(t, abciTypes.ErrInternalError.Code, deliverTx2Result.Code)
+	assert.Equal(t, "invalid nonce: have 0, expected 1", deliverTx2Result.Log)
+
+	app.EndBlock(height)
+
+	// check commit
+	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+
+	node.Stop()
+}
+
+func TestMultipleTxTwoAcc(t *testing.T) {
+	// generate key
+	//account 1
+	privateKey1, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr1 := crypto.PubkeyToAddress(privateKey1.PublicKey)
+
+	//account 2
+	privateKey2, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr2 := crypto.PubkeyToAddress(privateKey2.PublicKey)
+
+	// used to intercept rpc calls to tendermint
+	mockclient := NewMockClient()
+
+	// setup temp data dir and the app instance
+	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
+	if err != nil {
+		t.Error("unable to create temporary datadir")
+	}
+	defer os.RemoveAll(tempDatadir)
+
+	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1, addr2}, mockclient)
+	if err != nil {
+		t.Errorf("Error making test EthermintApplication: %v", err)
+	}
+
+	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
+	height := uint64(1)
+	nonce1 := uint64(0)
+	tx1, err := createTransaction(privateKey1, nonce1)
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedtx1, err := rlp.EncodeToBytes(tx1)
+
+	//create 2-nd tx
+	nonce2 := uint64(0)
+	tx2, err := createTransaction(privateKey2, nonce2)
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedTx2, err := rlp.EncodeToBytes(tx2)
+
+	// check transaction
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx1))
+
+	// set time greater than time of prev tx (zero)
+	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+
+	// check deliverTx for 1st tx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedtx1))
+	// and for 2nd tx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
+
+	app.EndBlock(height)
+
+	// check commit
+	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+
+	node.Stop()
 }
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
-func makeTestApp(tempDatadir string, addr common.Address, mockclient *MockClient) (*ethereum.Backend, *app.EthermintApplication, error) {
-	stack, err := makeTestSystemNode(tempDatadir, addr, mockclient)
+func makeTestApp(tempDatadir string, addresses []common.Address, mockclient *MockClient) (*node.Node, *ethereum.Backend, *app.EthermintApplication, error) {
+	stack, err := makeTestSystemNode(tempDatadir, addresses, mockclient)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	ethUtils.StartNode(stack)
 
 	var backend *ethereum.Backend
 	if err = stack.Service(&backend); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	app, err := app.NewEthermintApplication(backend, nil, nil)
 
-	return backend, app, err
+	return stack, backend, app, err
 }
 
-func makeTestGenesis(addr common.Address) (*core.Genesis, error) {
+func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
 	gopath := os.Getenv("GOPATH")
 	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/dev/genesis.json")
 
@@ -167,13 +307,15 @@ func makeTestGenesis(addr common.Address) (*core.Genesis, error) {
 		return nil, errors.New("BigInt convertation error")
 	}
 
-	genesis.Alloc[addr] = core.GenesisAccount{Balance: balance}
+	for _, addr := range addresses {
+		genesis.Alloc[addr] = core.GenesisAccount{Balance: balance}
+	}
 
 	return genesis, nil
 }
 
 // mimics MakeSystemNode from ethereum/node.go
-func makeTestSystemNode(tempDatadir string, addr common.Address, mockclient *MockClient) (*node.Node, error) {
+func makeTestSystemNode(tempDatadir string, addresses []common.Address, mockclient *MockClient) (*node.Node, error) {
 	// Configure the node's service container
 	nodeConf := emtUtils.DefaultNodeConfig()
 	emtUtils.SetEthermintNodeConfig(&nodeConf)
@@ -183,7 +325,7 @@ func makeTestSystemNode(tempDatadir string, addr common.Address, mockclient *Moc
 	ethConf := eth.DefaultConfig
 	emtUtils.SetEthermintEthConfig(&ethConf)
 
-	genesis, err := makeTestGenesis(addr)
+	genesis, err := makeTestGenesis(addresses)
 	if err != nil {
 		return nil, err
 	}
