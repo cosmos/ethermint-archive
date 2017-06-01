@@ -23,6 +23,9 @@ build_race:
 dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
 
+docker_build_develop:
+	docker build -t "tendermint/ethermint:develop" -f scripts/docker/Dockerfile.develop .
+
 clean:
 	@rm -rf build/
 
