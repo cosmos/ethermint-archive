@@ -87,11 +87,11 @@ func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address
 	}, nil
 }
 
-func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64) {
+func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	p.work.updateHeaderWithTimeInfo(config, parentTime)
+	p.work.updateHeaderWithTimeInfo(config, parentTime, numTx)
 }
 
 func (p *pending) gasLimit() big.Int {
@@ -200,11 +200,14 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 	return blockHash, err
 }
 
-func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64) {
+func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
 	lastBlock := w.parent
 	w.header.Time = new(big.Int).SetUint64(parentTime)
 	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime,
 		lastBlock.Time().Uint64(), lastBlock.Number(), lastBlock.Difficulty())
+	w.transactions = make([]*ethTypes.Transaction, numTx)
+	w.receipts = make([]*ethTypes.Receipt, numTx)
+	w.allLogs = make([]*ethTypes.Log, numTx)
 }
 
 //----------------------------------------------------------------------
