@@ -3,6 +3,7 @@ GOTOOLS = \
 					github.com/Masterminds/glide
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 BUILD_TAGS?=ethermint
+VERSION_TAG=0.2.0
 
 all: install test
 
@@ -30,13 +31,11 @@ docker_push_develop:
 	docker push "tendermint/ethermint:develop"
 
 docker_build:
-	# TAG=0.2.0
-	docker build -t "tendermint/ethermint" -t "tendermint/ethermint:$(TAG)" -f scripts/docker/Dockerfile .
+	docker build -t "tendermint/ethermint" -t "tendermint/ethermint:$(VERSION_TAG)" -f scripts/docker/Dockerfile .
 
 docker_push:
-	# TAG=0.2.0
 	docker push "tendermint/ethermint:latest"
-	docker push "tendermint/ethermint:$(TAG)"
+	docker push "tendermint/ethermint:$(VERSION_TAG)"
 
 clean:
 	@rm -rf build/
