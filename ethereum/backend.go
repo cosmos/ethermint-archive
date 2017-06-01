@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -28,6 +29,9 @@ type Backend struct {
 	// backing ethereum structures
 	config   *eth.Config
 	ethereum *eth.Ethereum
+
+	// txBroadcastLoop subscription
+	txSub *event.TypeMuxSubscription
 
 	// pending ...
 	pending *pending
@@ -122,19 +126,20 @@ func (b *Backend) APIs() []rpc.API {
 		}
 		retApis = append(retApis, v)
 	}
-	go b.txBroadcastLoop()
 	return retApis
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
 func (b *Backend) Start(srvr *p2p.Server) error {
+	go b.txBroadcastLoop()
 	return nil
 }
 
 // Stop implements node.Service, terminating all internal goroutines used by the
 // Ethereum protocol.
 func (b *Backend) Stop() error {
+	b.txSub.Unsubscribe()
 	b.ethereum.Stop()
 	return nil
 }
