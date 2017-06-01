@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-# Get the version from the environment, or try to figure it out.
-if [ -z $VERSION ]; then
-	  VERSION=$(awk -F\" '/Version =/ { print $2; exit }' < version/version.go)
-fi
-if [ -z "$VERSION" ]; then
-    echo "Please specify a version."
-    exit 1
-fi
-echo "==> Building version $VERSION..."
-
 # Get the parent directory of where this script is.
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
@@ -19,16 +9,6 @@ DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 # Change into that dir because we expect that.
 cd "$DIR"
 
-# Generate the tag.
-if [ -z "$NOTAG" ]; then
-    echo "==> Tagging..."
-    git commit --allow-empty -a -m "Release v$VERSION"
-    git tag -a -m "Version $VERSION" "v${VERSION}" master
-fi
-
-# Do a hermetic build inside a Docker container.
-# docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
-# docker run --rm -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
 # Get the git commit
 GIT_COMMIT="$(git rev-parse --short HEAD)"
 GIT_DESCRIBE="$(git describe --tags --always)"
@@ -70,29 +50,15 @@ xgo -go="latest" \
 	  -tags="${BUILD_TAGS}" \
 	  github.com/tendermint/ethermint/cmd/ethermint
 
+# Zip all the files.
 echo "==> Packaging..."
-for FILE in $(ls ./build/pkg); do
-    pushd ./build/pkg
-    zip "${FILE}.zip" $FILE
-    popd
+for PLATFORM in $(find ./build/pkg -mindepth 1 -maxdepth 1 -type d); do
+		OSARCH=$(basename "${PLATFORM}")
+		echo "--> ${OSARCH}"
+
+		pushd "$PLATFORM" >/dev/null 2>&1
+		zip "../${OSARCH}.zip" ./*
+		popd >/dev/null 2>&1
 done
-
-# Add "ethermint" and $VERSION prefix to package name.
-rm -rf ./build/dist
-mkdir -p ./build/dist
-for FILENAME in $(find ./build/pkg -mindepth 1 -maxdepth 1 -type f); do
-    FILENAME=$(basename "$FILENAME")
-	  cp "./build/pkg/${FILENAME}" "./build/dist/ethermint_${VERSION}_${FILENAME}"
-done
-
-# Make the checksums.
-pushd ./build/dist
-shasum -a256 ./* > "./ethermint_${VERSION}_SHA256SUMS"
-popd
-
-# Done
-echo
-echo "==> Results:"
-ls -hl ./build/dist
 
 exit 0
