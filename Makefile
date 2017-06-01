@@ -23,6 +23,21 @@ build_race:
 dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
 
+docker_build_develop:
+	docker build -t "tendermint/ethermint:develop" -f scripts/docker/Dockerfile.develop .
+
+docker_push_develop:
+	docker push "tendermint/ethermint:develop"
+
+docker_build:
+	# TAG=0.2.0
+	docker build -t "tendermint/ethermint" -t "tendermint/ethermint:$(TAG)" -f scripts/docker/Dockerfile .
+
+docker_push:
+	# TAG=0.2.0
+	docker push "tendermint/ethermint:latest"
+	docker push "tendermint/ethermint:$(TAG)"
+
 clean:
 	@rm -rf build/
 
@@ -65,4 +80,4 @@ tools:
 ensure_tools:
 	go get $(GOTOOLS)
 
-.PHONY: all install build build_race dist test test_race draw_deps list_deps get_deps get_vendor_deps tools ensure_tools
+.PHONY: all install build build_race dist test test_race draw_deps list_deps get_deps get_vendor_deps tools ensure_tools docker_build docker_build_develop docker_push docker_push_develop
