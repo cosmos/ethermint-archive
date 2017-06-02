@@ -30,25 +30,33 @@ fi
 # docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
 # docker run --rm -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
 # Get the git commit
-GIT_COMMIT="$(git rev-parse --short HEAD)"
+GIT_COMMIT="$(git rev-parse HEAD)"
 GIT_DESCRIBE="$(git describe --tags --always)"
 GIT_IMPORT="github.com/tendermint/ethermint/version"
 
 # Determine the arch/os combos we're building for
 XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
 XC_OS=${XC_OS:-"solaris darwin freebsd linux windows"}
+
 IGNORE=("darwin/arm solaris/amd64 freebsd/amd64")
+NON_STATIC=("darwin/386 darwin/amd64")
+
 TARGETS=""
+NON_STATIC_TARGETS=""
+
 for os in $XC_OS; do
     for arch in $XC_ARCH; do
         target="$os/$arch"
 
         case ${IGNORE[@]} in *$target*) continue;; esac
-        TARGETS="$os/$arch,$TARGETS"
+        case ${NON_STATIC[@]} in *$target*)
+          NON_STATIC_TARGETS="$target,$NON_STATIC_TARGETS"
+          continue;;
+        esac
+
+        TARGETS="$target,$TARGETS"
     done
 done
-# Remove last comma
-TARGETS=${TARGETS::${#TARGETS}-1}
 
 # Delete the old dir
 echo "==> Removing old directory..."
@@ -62,13 +70,27 @@ make tools
 make get_vendor_deps
 
 # Build!
-echo "==> Building..."
-xgo -go="latest" \
+if [ ! -z "$TARGETS" ]; then
+  echo "==> Building Static Binaries..."
+  TARGETS=${TARGETS::${#TARGETS}-1}
+  xgo -go="latest" \
     -targets="${TARGETS}" \
-	-ldflags "-X ${GIT_IMPORT}.GitCommit='${GIT_COMMIT}' -X ${GIT_IMPORT}.GitDescribe='${GIT_DESCRIBE}'" \
-	-dest "build/pkg" \
-	-tags="${BUILD_TAGS}" \
-	github.com/tendermint/ethermint/cmd/ethermint
+    -ldflags "-extldflags '-static' -X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT} -X ${GIT_IMPORT}.GitDescribe=${GIT_DESCRIBE}" \
+    -dest "build/pkg" \
+    -tags="${BUILD_TAGS}" \
+    ${DIR}/cmd/ethermint
+fi
+
+if [ ! -z "$NON_STATIC_TARGETS" ]; then
+  echo "==> Building Non-Static Binaries..."
+  NON_STATIC_TARGETS=${NON_STATIC_TARGETS::${#NON_STATIC_TARGETS}-1}
+  xgo -go="latest" \
+    -targets="${NON_STATIC_TARGETS}" \
+    -ldflags "-X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT} -X ${GIT_IMPORT}.GitDescribe=${GIT_DESCRIBE}" \
+    -dest "build/pkg" \
+    -tags="${BUILD_TAGS}" \
+    ${DIR}/cmd/ethermint
+fi
 
 echo "==> Packaging..."
 for FILE in $(ls ./build/pkg); do
