@@ -9,12 +9,12 @@ all: install test
 
 install: get_vendor_deps
 	@go install --ldflags '-extldflags "-static"' \
-		--ldflags "-X github.com/tendermint/tendermint/version.GitCommit=`git rev-parse HEAD`" \
+		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
 		./cmd/ethermint
 
 build:
 	@go build \
-		--ldflags "-X github.com/tendermint/tendermint/version.GitCommit=`git rev-parse HEAD`" \
+		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
 		-o ./build/ethermint ./cmd/ethermint
 
 build_race:
