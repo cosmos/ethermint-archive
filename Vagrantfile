@@ -20,9 +20,10 @@ Vagrant.configure("2") do |config|
 
   # go-lang
   config.vm.provision :shell, :inline => "curl -O https://storage.googleapis.com/golang/go#{version}.linux-amd64.tar.gz"
-  config.vm.provision :shell, :inline => "tar -xvf go#{version}.linux-amd64.tar.gz"
+  config.vm.provision :shell, :inline => "mkdir -p /tmp/go"
+  config.vm.provision :shell, :inline => "tar -xvf go#{version}.linux-amd64.tar.gz -C /tmp/go"
   config.vm.provision :shell, :inline => "rm -rf /usr/local/go"
-  config.vm.provision :shell, :inline => "mv go /usr/local"
+  config.vm.provision :shell, :inline => "mv /tmp/go/go /usr/local"
   config.vm.provision :shell, :inline => "rm -f go#{version}.linux-amd64.tar.gz"
   config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go/bin"
   config.vm.provision :shell, :inline => "echo 'export PATH=$PATH:/usr/local/go/bin:/home/vagrant/go/bin' >> /home/vagrant/.bash_profile"
@@ -33,7 +34,6 @@ Vagrant.configure("2") do |config|
   config.vm.provision :shell, :inline => "apt-get autoremove -y"
 
   # ethermint
-  config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go/src/github.com/tendermint"
   config.vm.provision :shell, :inline => "chown -R vagrant:vagrant /home/vagrant/go"
   config.vm.provision :shell, :inline => "su - vagrant -c 'cd /home/vagrant/go/src/github.com/tendermint/ethermint && make get_vendor_deps'"
 end
