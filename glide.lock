@@ -1,5 +1,5 @@
 hash: 5c6a1c46dfe5893523b4e9d5386348ea275d902227b8aaae3423042d671c07ac
-updated: 2017-05-31T14:31:45.607370864+02:00
+updated: 2017-06-02T13:07:09.309780949+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: 44b539e174b9077192dc0f6f3ecbe6d2319102ac
@@ -156,7 +156,7 @@ imports:
   - leveldb/table
   - leveldb/util
 - name: github.com/tendermint/abci
-  version: 864d1f80b36b440bde030a5c18d8ac3aa8c2949d
+  version: b86da575718079396af1f7fe3609ea34be6f855d
   subpackages:
   - server
   - types
@@ -172,7 +172,7 @@ imports:
   subpackages:
   - data
 - name: github.com/tendermint/tendermint
-  version: aa22bd8464e36c81b79816f9feda6d2415392693
+  version: 989cb6dd2e576212bf3052a28849ee44c8411b04
   subpackages:
   - config
   - p2p
@@ -182,7 +182,7 @@ imports:
   - rpc/lib/types
   - types
 - name: github.com/tendermint/tmlibs
-  version: 306795ae1d8e4f4a10dcc8bdb32a00455843c9d5
+  version: a24a0ff0033b20c5cc0316893ec02ca29a7e3157
   subpackages:
   - common
   - events
