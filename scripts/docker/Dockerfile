@@ -23,6 +23,7 @@ RUN apk add --no-cache openssl && \
     wget https://s3.eu-central-1.amazonaws.com/ethermint/${EM_VERSION}/ethermint_${EM_VERSION}_ethermint-linux-amd64.zip && \
     echo "${EM_SHA256SUM}  ethermint_${EM_VERSION}_ethermint-linux-amd64.zip" | sha256sum -c && \
     unzip -d /bin ethermint_${EM_VERSION}_ethermint-linux-amd64.zip && \
+    mv /bin/ethermint-linux-amd64 /bin/ethermint && \
     rm -f ethermint_${EM_VERSION}_ethermint-linux-amd64.zip
 
 # Expose the data directory as a volume since there's mutable state in there
