@@ -1,6 +1,7 @@
 FROM alpine:3.6
 
 ENV DATA_ROOT /ethermint
+ENV TENDERMINT_ADDR tcp://0.0.0.0:46657
 
 RUN addgroup emuser && \
     adduser -S -G emuser emuser
@@ -28,4 +29,6 @@ VOLUME $DATA_ROOT
 
 EXPOSE 46658
 
-ENTRYPOINT ["ethermint"]
+#ENTRYPOINT ["ethermint"]
+
+CMD ethermint --datadir $DATA_ROOT --tendermint_addr $TENDERMINT_ADDR
