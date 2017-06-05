@@ -16,6 +16,7 @@ The smart contract on Ethereum would track the validator set by virtue of receiv
 #### Relay Nodes
 Relay nodes would need to be constantly online to relay the newest changes from each chain as well as any transaction requests. In order to get people to run these relay nodes they will need to have a financial incentive.
 A relay node could apply a percentage fee to each transaction that the smart contract would send to a separate address, which the relay node can include as extra data in the function call.
+The 0x paper on decentralised exchanges has some good ideas for relay nodes, which we should consider before developing our own logic.
 
 ### Approaches to generating CETH
 * Mine CETH when ETH is locked up on the Ethereum chain and burn CETH when it is sent from Ethermint to Ethereum
