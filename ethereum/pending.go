@@ -155,7 +155,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 	)
 	if err != nil {
 		return err
-		log.Warn("DeliverTx error", "err", err)
+		log.Info("DeliverTx error", "err", err)
 		return abciTypes.ErrInternalError
 	}
 
@@ -182,14 +182,13 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 	}
 	w.header.Root = hashArray
 
-	// tag logs with state root
-	for _, log := range w.allLogs {
-		log.BlockHash = hashArray
-	}
-
 	// create block object and compute final commit hash (hash of the ethereum block)
 	block := ethTypes.NewBlock(w.header, w.transactions, nil, w.receipts)
 	blockHash := block.Hash()
+
+	for _, log := range w.allLogs {
+		log.BlockHash = blockHash
+	}
 
 	// save the block to disk
 	log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)

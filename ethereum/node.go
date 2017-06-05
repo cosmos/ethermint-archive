@@ -10,18 +10,18 @@ import (
 
 var clientIdentifier = "geth" // Client identifier to advertise over the network
 
-// Config for p2p and network layer
+// NewNodeConfig for p2p and network layer
 func NewNodeConfig(ctx *cli.Context) *node.Config {
-	var node_config *node.Config
-	ethUtils.SetNodeConfig(ctx, node_config)
+	var nodeConfig *node.Config
+	ethUtils.SetNodeConfig(ctx, nodeConfig)
 
-	return node_config
+	return nodeConfig
 }
 
-// Config for the ethereum services
+// NewEthConfig for the ethereum services
 func NewEthConfig(ctx *cli.Context, stack *node.Node) *eth.Config {
-	var eth_config *eth.Config
-	ethUtils.SetEthConfig(ctx, stack, eth_config)
+	var ethConfig *eth.Config
+	ethUtils.SetEthConfig(ctx, stack, ethConfig)
 
-	return eth_config
+	return ethConfig
 }
