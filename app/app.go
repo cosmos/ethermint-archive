@@ -92,7 +92,7 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
 	log.Info("Received CheckTx", "tx", tx)
 	if err != nil {
-		return abciTypes.ErrEncodingError
+		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 
 	return app.validateTx(tx)
@@ -102,7 +102,7 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
 	if err != nil {
-		return abciTypes.ErrEncodingError
+		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 
 	log.Info("Got DeliverTx", "tx", tx)
@@ -110,7 +110,7 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 	if err != nil {
 		log.Warn("DeliverTx error", "err", err)
 
-		return abciTypes.ErrInternalError.SetLog(err.Error())
+		return abciTypes.ErrInternalError.AppendLog(err.Error())
 	}
 	app.CollectTx(tx)
 
@@ -138,7 +138,7 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 	blockHash, err := app.backend.Commit(app.Receiver())
 	if err != nil {
 		log.Warn("Error getting latest ethereum state", "err", err)
-		return abciTypes.ErrInternalError.SetLog(err.Error())
+		return abciTypes.ErrInternalError.AppendLog(err.Error())
 	}
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
@@ -148,15 +148,15 @@ func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.R
 	log.Info("Query")
 	var in jsonRequest
 	if err := json.Unmarshal(query.Data, &in); err != nil {
-		return abciTypes.ResponseQuery{Code: abciTypes.ErrEncodingError.Code}
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrEncodingError.Code, Log: err.Error()}
 	}
 	var result interface{}
 	if err := app.rpcClient.Call(&result, in.Method, in.Params...); err != nil {
-		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code}
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code, Log: err.Error()}
 	}
 	bytes, err := json.Marshal(result)
 	if err != nil {
-		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code}
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code, Log: err.Error()}
 	}
 	return abciTypes.ResponseQuery{Code: abciTypes.OK.Code, Value: bytes}
 }

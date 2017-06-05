@@ -74,7 +74,7 @@ All unexposed flags will be set internally in ethermint to an appropriate defaul
   
 ~~- [ ] MinerThreadsFlag~~
 
-- [ ] TargetGasLimitFlag
+- [x] TargetGasLimitFlag
   - this should be enabled to allow ethermint users to run economically
   - not clear yet how it will work with tendermint core
   

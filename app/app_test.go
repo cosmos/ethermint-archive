@@ -190,7 +190,6 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	deliverTx2Result := app.DeliverTx(encodedTx2)
 
 	assert.Equal(t, abciTypes.ErrInternalError.Code, deliverTx2Result.Code)
-	assert.Equal(t, "invalid nonce: have 0, expected 1", deliverTx2Result.Log)
 
 	app.EndBlock(height)
 
