@@ -205,9 +205,9 @@ func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime u
 	w.header.Time = new(big.Int).SetUint64(parentTime)
 	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime,
 		lastBlock.Time().Uint64(), lastBlock.Number(), lastBlock.Difficulty())
-	w.transactions = make([]*ethTypes.Transaction, numTx)
-	w.receipts = make([]*ethTypes.Receipt, numTx)
-	w.allLogs = make([]*ethTypes.Log, numTx)
+	w.transactions = make([]*ethTypes.Transaction, 0, numTx)
+	w.receipts = make([]*ethTypes.Receipt, 0, numTx)
+	w.allLogs = make([]*ethTypes.Log, 0, numTx)
 }
 
 //----------------------------------------------------------------------
