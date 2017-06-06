@@ -10,14 +10,17 @@ import (
 	"github.com/tendermint/abci/types"
 )
 
+// TxBasedValidatorsStrategy represents a strategy to reward validators with CETH
 type TxBasedValidatorsStrategy struct {
 	currentValidators []*types.Validator
 }
 
+// SetValidators updates the current validators
 func (strategy *TxBasedValidatorsStrategy) SetValidators(validators []*types.Validator) {
 	strategy.currentValidators = validators
 }
 
+// CollectTx collects the rewards for a transaction
 func (strategy *TxBasedValidatorsStrategy) CollectTx(tx *ethTypes.Transaction) {
 	if reflect.DeepEqual(tx.To(), common.HexToAddress("0000000000000000000000000000000000000001")) {
 		log.Info("Adding validator", "data", tx.Data())
@@ -31,6 +34,7 @@ func (strategy *TxBasedValidatorsStrategy) CollectTx(tx *ethTypes.Transaction) {
 	}
 }
 
+// GetUpdatedValidators returns the current validators
 func (strategy *TxBasedValidatorsStrategy) GetUpdatedValidators() []*types.Validator {
 	return strategy.currentValidators
 }

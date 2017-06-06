@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+// nolint: vetshadow
 func initCmd(ctx *cli.Context) error {
 
 	// ethereum genesis.json
@@ -26,7 +27,7 @@ func initCmd(ctx *cli.Context) error {
 	if err != nil {
 		ethUtils.Fatalf("Failed to read genesis file: %v", err)
 	}
-	defer file.Close()
+	defer file.Close() // nolint: errcheck
 
 	genesis := new(core.Genesis)
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {
