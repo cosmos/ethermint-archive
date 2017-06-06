@@ -1,7 +1,8 @@
 GOTOOLS = \
 					github.com/karalabe/xgo \
 					github.com/Masterminds/glide \
-					honnef.co/go/tools/cmd/megacheck
+					honnef.co/go/tools/cmd/megacheck \
+					github.com/alecthomas/gometalinter
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 BUILD_TAGS?=ethermint
 VERSION_TAG=0.2.0
@@ -59,6 +60,10 @@ test_race:
 
 megacheck: ensure_tools
 	@for pkg in ${PACKAGES}; do megacheck "$$pkg"; done
+
+metalinter: ensure_tools
+	@gometalinter --install
+	gometalinter --vendor --deadline=600s --enable-all --disable=lll ./...
 
 draw_deps:
 # requires brew install graphviz or apt-get install graphviz

@@ -14,8 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
-	abciTypes "github.com/tendermint/abci/types"
-
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
@@ -102,16 +100,16 @@ func (p *pending) gasLimit() big.Int {
 // Implements: miner.Pending API (our custom patch to go-ethereum)
 
 // Return a new block and a copy of the state from the latest work
-func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 
 	return ethTypes.NewBlock(
-		s.work.header,
-		s.work.transactions,
+		p.work.header,
+		p.work.transactions,
 		nil,
-		s.work.receipts,
-	), s.work.state.Copy()
+		p.work.receipts,
+	), p.work.state.Copy()
 }
 
 //----------------------------------------------------------------------
@@ -133,6 +131,7 @@ type work struct {
 	gp           *core.GasPool
 }
 
+// nolint: unparam
 func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
 	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
 	w.header.GasUsed = w.totalUsedGas
@@ -154,9 +153,8 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
 	)
 	if err != nil {
-		return err
 		log.Info("DeliverTx error", "err", err)
-		return abciTypes.ErrInternalError
+		return err
 	}
 
 	logs := w.state.GetLogs(tx.Hash())

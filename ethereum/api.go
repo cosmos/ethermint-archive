@@ -8,6 +8,7 @@ import (
 
 // We must implement our own net service since we don't have access to `internal/ethapi`
 
+// NetRPCService mirrors the implementation of `internal/ethapi`
 type NetRPCService struct {
 	networkVersion uint64
 }

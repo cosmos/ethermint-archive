@@ -78,7 +78,7 @@ func TestBumpingNonces(t *testing.T) {
 	if err != nil {
 		t.Error("unable to create temporary datadir")
 	}
-	defer os.RemoveAll(tempDatadir)
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	stack, backend, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
 	if err != nil {
@@ -129,7 +129,7 @@ func TestBumpingNonces(t *testing.T) {
 	case <-mockclient.sentBroadcastTx:
 	}
 
-	stack.Stop()
+	stack.Stop() // nolint: errcheck
 }
 
 func TestMultipleTxOneAcc(t *testing.T) {
@@ -148,7 +148,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	if err != nil {
 		t.Error("unable to create temporary datadir")
 	}
-	defer os.RemoveAll(tempDatadir)
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
 	if err != nil {
@@ -197,7 +197,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
-	node.Stop()
+	node.Stop() // nolint: errcheck
 }
 
 func TestMultipleTxTwoAcc(t *testing.T) {
@@ -224,7 +224,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	if err != nil {
 		t.Error("unable to create temporary datadir")
 	}
-	defer os.RemoveAll(tempDatadir)
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1, addr2}, mockclient)
 	if err != nil {
@@ -266,7 +266,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
-	node.Stop()
+	node.Stop() // nolint: errcheck
 }
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
@@ -295,7 +295,7 @@ func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer file.Close() // nolint: errcheck
 
 	genesis := new(core.Genesis)
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {

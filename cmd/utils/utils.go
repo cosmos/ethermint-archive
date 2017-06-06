@@ -7,6 +7,7 @@ import (
 	"runtime"
 )
 
+// HomeDir returns the user's home most likely home directory
 func HomeDir() string {
 	if home := os.Getenv("HOME"); home != "" {
 		return home
@@ -17,6 +18,7 @@ func HomeDir() string {
 	return ""
 }
 
+// DefaultDataDir tries to guess the default directory for ethermint data
 func DefaultDataDir() string {
 	// Try to place the data folder in the user's home dir
 	home := HomeDir()

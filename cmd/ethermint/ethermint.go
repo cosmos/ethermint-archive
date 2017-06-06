@@ -75,6 +75,8 @@ func ethermintCmd(ctx *cli.Context) error {
 	return nil
 }
 
+// nolint
+// startNode copies the logic from go-ethereum
 func startNode(ctx *cli.Context, stack *node.Node) {
 	ethUtils.StartNode(stack)
 
@@ -126,6 +128,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 }
 
 // tries unlocking the specified account a few times.
+// nolint: unparam
 func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int, passwords []string) (accounts.Account, string) {
 	account, err := ethUtils.MakeAddress(ks, address)
 	if err != nil {
