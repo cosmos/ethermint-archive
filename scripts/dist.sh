@@ -20,11 +20,11 @@ DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 cd "$DIR"
 
 # Generate the tag.
-if [ -z "$NOTAG" ]; then
-    echo "==> Tagging..."
-    git commit --allow-empty -a -m "Release v$VERSION"
-    git tag -a -m "Version $VERSION" "v${VERSION}" master
-fi
+# if [ -z "$NOTAG" ]; then
+#     echo "==> Tagging..."
+#     git commit --allow-empty -a -m "Release v$VERSION"
+#     git tag -a -m "Version $VERSION" "v${VERSION}" master
+# fi
 
 # Do a hermetic build inside a Docker container.
 # docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
