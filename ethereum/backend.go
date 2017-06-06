@@ -1,19 +1,23 @@
 package ethereum
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	abciTypes "github.com/tendermint/abci/types"
+
 	emtTypes "github.com/tendermint/ethermint/types"
+
+	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 //----------------------------------------------------------------------
@@ -26,25 +30,30 @@ type Backend struct {
 	config   *eth.Config
 	ethereum *eth.Ethereum
 
+	// txBroadcastLoop subscription
+	txSub *event.TypeMuxSubscription
+
 	// pending ...
 	pending *pending
 
 	// client for forwarding txs to tendermint
-	client Client
+	client rpcClient.HTTPClient
 }
 
-// New creates a new Backend
-func NewBackend(ctx *node.ServiceContext, config *eth.Config, client Client) (*Backend, error) {
+// NewBackend creates a new Backend
+func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.HTTPClient) (*Backend, error) {
 	p := newPending()
 
 	// eth.New takes a ServiceContext for the EventMux, the AccountManager,
 	// and some basic functions around the DataDir.
-	// TODO: Can we build it ourselves so it doesnt need to come from registering
-	// this as a Service on the node ?
 	ethereum, err := eth.New(ctx, config, p)
 	if err != nil {
 		return nil, err
 	}
+
+	// send special event to go-ethereum to switch homestead=true
+	currentBlock := ethereum.BlockChain().CurrentBlock()
+	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
 
 	// We don't need PoW/Uncle validation
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
@@ -59,20 +68,20 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client Client) (*B
 }
 
 // Ethereum returns the underlying the ethereum object
-func (s *Backend) Ethereum() *eth.Ethereum {
-	return s.ethereum
+func (b *Backend) Ethereum() *eth.Ethereum {
+	return b.ethereum
 }
 
 // Config returns the eth.Config
-func (s *Backend) Config() *eth.Config {
-	return s.config
+func (b *Backend) Config() *eth.Config {
+	return b.config
 }
 
 //----------------------------------------------------------------------
 // Handle block processing
 
 func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
-	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, tx)
+	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, b.ethereum.ApiBackend.ChainConfig(), tx)
 }
 
 func (b *Backend) AccumulateRewards(strategy *emtTypes.Strategy) {
@@ -90,22 +99,24 @@ func (b *Backend) ResetWork(receiver common.Address) error {
 }
 
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
-	b.pending.updateHeaderWithTimeInfo(b.Config().ChainConfig, tmHeader.Time)
+	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time, tmHeader.GetNumTxs())
+}
+
+// GasLimit returns the maximum gas per block
+func (b *Backend) GasLimit() big.Int {
+	return b.pending.gasLimit()
 }
 
 //----------------------------------------------------------------------
-// Implement node.Service
-// TODO: It would be great if we didn't need to register as a service
-// and just loaded the APIs into an RPC server ourselves
+// Implements: node.Service
 
 // APIs returns the collection of RPC services the ethereum package offers.
-func (s *Backend) APIs() []rpc.API {
-	apis := s.Ethereum().APIs()
+func (b *Backend) APIs() []rpc.API {
+	apis := b.Ethereum().APIs()
 	retApis := []rpc.API{}
 	for _, v := range apis {
 		if v.Namespace == "net" {
-			networkVersion := 1 // TODO: this should come from a flag
-			v.Service = &NetRPCService{networkVersion}
+			v.Service = NewNetRPCService(b.config.NetworkId)
 		}
 		if v.Namespace == "miner" {
 			continue
@@ -115,38 +126,28 @@ func (s *Backend) APIs() []rpc.API {
 		}
 		retApis = append(retApis, v)
 	}
-	go s.txBroadcastLoop()
 	return retApis
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
-func (s *Backend) Start(srvr *p2p.Server) error {
+func (b *Backend) Start(srvr *p2p.Server) error {
+	go b.txBroadcastLoop()
 	return nil
 }
 
 // Stop implements node.Service, terminating all internal goroutines used by the
 // Ethereum protocol.
-func (s *Backend) Stop() error {
-	s.ethereum.Stop()
+func (b *Backend) Stop() error {
+	b.txSub.Unsubscribe()
+	b.ethereum.Stop()
 	return nil
 }
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
-func (s *Backend) Protocols() []p2p.Protocol {
+func (b *Backend) Protocols() []p2p.Protocol {
 	return nil
-}
-
-//----------------------------------------------------------------------
-// We must implement our own net service since we don't have access to `internal/ethapi`
-
-type NetRPCService struct {
-	networkVersion int
-}
-
-func (n *NetRPCService) Version() string {
-	return fmt.Sprintf("%d", n.networkVersion)
 }
 
 //----------------------------------------------------------------------
@@ -155,11 +156,8 @@ func (n *NetRPCService) Version() string {
 // NullBlockProcessor does not validate anything
 type NullBlockProcessor struct{}
 
-// ValidateBlock does not validate anything
-func (NullBlockProcessor) ValidateBlock(*ethTypes.Block) error { return nil }
-
-// ValidateHeader does not validate anything
-func (NullBlockProcessor) ValidateHeader(*ethTypes.Header, *ethTypes.Header, bool) error { return nil }
+// ValidateBody does not validate anything
+func (NullBlockProcessor) ValidateBody(*ethTypes.Block) error { return nil }
 
 // ValidateState does not validate anything
 func (NullBlockProcessor) ValidateState(block, parent *ethTypes.Block, state *state.StateDB, receipts ethTypes.Receipts, usedGas *big.Int) error {

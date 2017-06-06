@@ -3,42 +3,73 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 
+	"github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/version"
-
-	cfg "github.com/tendermint/go-config"
-)
-
-const (
-	// Client identifier to advertise over the network
-	clientIdentifier = "Ethermint"
 )
 
 var (
-	// tendermint config
-	config cfg.Config
+	// The app that holds all commands and flags.
+	app = ethUtils.NewApp(version.Version, "the ethermint command line interface")
+	// flags that configure the go-ethereum node
+	nodeFlags = []cli.Flag{
+		ethUtils.DataDirFlag,
+		ethUtils.KeyStoreDirFlag,
+		ethUtils.NoUSBFlag,
+		// Performance tuning
+		ethUtils.CacheFlag,
+		ethUtils.TrieCacheGenFlag,
+		// Account settings
+		ethUtils.UnlockedAccountFlag,
+		ethUtils.PasswordFileFlag,
+		ethUtils.VMEnableDebugFlag,
+		// Logging and debug settings
+		ethUtils.NoCompactionFlag,
+		// Gas price oracle settings
+		ethUtils.GpoBlocksFlag,
+		ethUtils.GpoPercentileFlag,
+
+		ethUtils.TargetGasLimitFlag,
+	}
+
+	rpcFlags = []cli.Flag{
+		ethUtils.RPCEnabledFlag,
+		ethUtils.RPCListenAddrFlag,
+		ethUtils.RPCPortFlag,
+		ethUtils.RPCCORSDomainFlag,
+		ethUtils.RPCApiFlag,
+		ethUtils.IPCDisabledFlag,
+		ethUtils.WSEnabledFlag,
+		ethUtils.WSListenAddrFlag,
+		ethUtils.WSPortFlag,
+		ethUtils.WSApiFlag,
+		ethUtils.WSAllowedOriginsFlag,
+	}
+
+	// flags that configure the ABCI app
+	ethermintFlags = []cli.Flag{
+		utils.TendermintAddrFlag,
+		utils.ABCIAddrFlag,
+		utils.ABCIProtocolFlag,
+		utils.VerbosityFlag,
+		utils.ConfigFileFlag,
+	}
 )
 
-func main() {
-	glog.V(logger.Info).Infof("Starting ethermint")
-
-	cliApp := newCliApp(version.Version, "the ethermint command line interface")
-	cliApp.Action = ethermintCmd
-	cliApp.Commands = []cli.Command{
+func init() {
+	app.Action = ethermintCmd
+	app.HideVersion = true
+	app.Commands = []cli.Command{
 		{
 			Action:      initCmd,
 			Name:        "init",
 			Usage:       "init genesis.json",
 			Description: "Initialize the files",
 		},
-
 		{
 			Action:      versionCmd,
 			Name:        "version",
@@ -46,97 +77,30 @@ func main() {
 			Description: "Print the version",
 		},
 	}
-	cliApp.HideVersion = true // we have a command to print the version
 
-	cliApp.Before = func(ctx *cli.Context) error {
-		config = getTendermintConfig(ctx)
+	app.Flags = append(app.Flags, nodeFlags...)
+	app.Flags = append(app.Flags, rpcFlags...)
+	app.Flags = append(app.Flags, ethermintFlags...)
+
+	app.Before = func(ctx *cli.Context) error {
+		if err := utils.Setup(ctx); err != nil {
+			return err
+		}
+
+		ethUtils.SetupNetwork(ctx)
+
 		return nil
 	}
-	cliApp.After = func(ctx *cli.Context) error {
-		// logger.Flush()
-		return nil
-	}
-
-	if err := cliApp.Run(os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-}
-
-func newCliApp(version, usage string) *cli.App {
-	app := cli.NewApp()
-	app.Name = filepath.Base(os.Args[0])
-	app.Author = ""
-	//app.Authors = nil
-	app.Email = ""
-	app.Version = version
-	app.Usage = usage
-	app.Flags = []cli.Flag{
-		utils.IdentityFlag,
-		utils.UnlockedAccountFlag,
-		utils.PasswordFileFlag,
-		utils.BootnodesFlag,
-		utils.KeyStoreDirFlag,
-		// utils.BlockchainVersionFlag,
-		utils.CacheFlag,
-		utils.LightKDFFlag,
-		utils.JSpathFlag,
-		utils.ListenPortFlag,
-		utils.MaxPeersFlag,
-		utils.MaxPendingPeersFlag,
-		utils.EtherbaseFlag,
-		utils.TargetGasLimitFlag,
-		utils.GasPriceFlag,
-		utils.NATFlag,
-		// utils.NatspecEnabledFlag,
-		utils.NodeKeyFileFlag,
-		utils.NodeKeyHexFlag,
-		utils.RPCEnabledFlag,
-		utils.RPCListenAddrFlag,
-		utils.RPCPortFlag,
-		utils.RPCApiFlag,
-		utils.WSEnabledFlag,
-		utils.WSListenAddrFlag,
-		utils.WSPortFlag,
-		utils.WSApiFlag,
-		utils.WSAllowedOriginsFlag,
-		utils.IPCDisabledFlag,
-		utils.IPCApiFlag,
-		utils.IPCPathFlag,
-		utils.ExecFlag,
-		utils.PreloadJSFlag,
-		utils.TestNetFlag,
-		utils.VMForceJitFlag,
-		utils.VMJitCacheFlag,
-		utils.VMEnableJitFlag,
-		utils.NetworkIdFlag,
-		utils.RPCCORSDomainFlag,
-		utils.MetricsEnabledFlag,
-		utils.SolcPathFlag,
-		utils.GpoMinGasPriceFlag,
-		utils.GpoMaxGasPriceFlag,
-		utils.GpoFullBlockRatioFlag,
-		utils.GpobaseStepDownFlag,
-		utils.GpobaseStepUpFlag,
-		utils.GpobaseCorrectionFactorFlag,
-		VerbosityFlag, // not exposed by go-ethereum
-		DataDirFlag,   // so we control defaults
-
-		//ethermint flags
-		MonikerFlag,
-		NodeLaddrFlag,
-		LogLevelFlag,
-		SeedsFlag,
-		FastSyncFlag,
-		SkipUpnpFlag,
-		RpcLaddrFlag,
-		AddrFlag,
-		AbciFlag,
-	}
-	return app
 }
 
 func versionCmd(ctx *cli.Context) error {
 	fmt.Println(version.Version)
 	return nil
+}
+
+func main() {
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

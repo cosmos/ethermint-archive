@@ -1,0 +1,15 @@
+{
+  "name": "truffle-runner",
+  "version": "1.0.0",
+  "description": "Truffle Tests Runner ===",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "mocha": "^3.4.2",
+    "truffle": "^3.2.4"
+  }
+}

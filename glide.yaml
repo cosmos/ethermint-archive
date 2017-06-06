@@ -1,40 +1,17 @@
 package: github.com/tendermint/ethermint
 import:
-- package: github.com/ethereum/go-ethereum
-  repo: https://github.com/tendermint/go-ethereum.git
-  subpackages:
-  - cmd/utils
-  - common
-  - core
-  - core/state
-  - core/types
-  - core/vm
-  - eth
-  - ethdb
-  - event
-  - logger
-  - logger/glog
-  - node
-  - p2p
-  - params
-  - pow
-  - rlp
-  - rpc
-- package: github.com/spf13/pflag
-- package: github.com/tendermint/go-common
-- package: github.com/tendermint/go-config
-- package: github.com/tendermint/go-logger
-- package: github.com/tendermint/go-rpc
-  subpackages:
-  - client
 - package: github.com/tendermint/tendermint
-  subpackages:
-  - config/tendermint
-  - node
-  - rpc/core/types
-  - types
+  version: develop
+- package: github.com/tendermint/tmlibs
+  version: develop
 - package: github.com/tendermint/abci
-  subpackages:
-  - server
-  - types
+  version: develop
+- package: github.com/ethereum/go-ethereum
+  version: develop
+  repo: https://github.com/tendermint/go-ethereum.git
+- package: github.com/spf13/pflag
+  version: master
 - package: gopkg.in/urfave/cli.v1
+  version: 1.x
+- package: github.com/mattn/go-colorable
+  version: 0.x

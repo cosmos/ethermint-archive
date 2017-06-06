@@ -1,34 +1,24 @@
 package version
 
-import (
-	"fmt"
+// Major version component of the current release
+const Major = 0
 
-	"github.com/ethereum/go-ethereum/params"
-)
+// Minor version component of the current release
+const Minor = 2
 
-const (
-	Major = 0          // Major version component of the current release
-	Minor = 1          // Minor version component of the current release
-	Patch = 0          // Patch version component of the current release
-	Meta  = "unstable" // Version metadata to append to the version string
-)
+// Fix version component of the current release
+const Fix = 0
 
 var (
-	// The full version string
-	Version string
+	// Version is the full version string
+	Version = "0.2.0"
 
 	// GitCommit is set with --ldflags "-X main.gitCommit=$(git rev-parse HEAD)"
 	GitCommit string
 )
 
 func init() {
-	Version = fmt.Sprintf("%d.%d.%d", Major, Minor, Patch)
-	if Meta != "" {
-		Version += "-" + Meta
-	}
-
-	if GitCommit != "" {
+	if GitCommit != "" && len(GitCommit) >= 8 {
 		Version += "-" + GitCommit[:8]
 	}
-	Version += " Ethereum/" + params.Version
 }

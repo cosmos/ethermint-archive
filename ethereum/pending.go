@@ -5,16 +5,17 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
 	abciTypes "github.com/tendermint/abci/types"
+
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
@@ -31,12 +32,12 @@ func newPending() *pending {
 }
 
 // execute the transaction
-func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, tx *ethTypes.Transaction) error {
+func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, tx *ethTypes.Transaction) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	blockHash := common.Hash{}
-	return p.work.deliverTx(blockchain, config, blockHash, tx)
+	return p.work.deliverTx(blockchain, config, chainConfig, blockHash, tx)
 }
 
 // accumulate validator rewards
@@ -86,16 +87,19 @@ func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address
 	}, nil
 }
 
-func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64) {
+func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	p.work.updateHeaderWithTimeInfo(config, parentTime)
+	p.work.updateHeaderWithTimeInfo(config, parentTime, numTx)
+}
+
+func (p *pending) gasLimit() big.Int {
+	return big.Int(*p.work.gp)
 }
 
 //----------------------------------------------------------------------
-// Implements miner.Pending API (our custom patch to go-ethereum)
-// TODO: Remove PendingBlock
+// Implements: miner.Pending API (our custom patch to go-ethereum)
 
 // Return a new block and a copy of the state from the latest work
 func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
@@ -108,19 +112,6 @@ func (s *pending) Pending() (*ethTypes.Block, *state.StateDB) {
 		nil,
 		s.work.receipts,
 	), s.work.state.Copy()
-}
-
-// Return a new block from the latest work
-func (s *pending) PendingBlock() *ethTypes.Block {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
-	return ethTypes.NewBlock(
-		s.work.header,
-		s.work.transactions,
-		nil,
-		s.work.receipts,
-	)
 }
 
 //----------------------------------------------------------------------
@@ -143,17 +134,18 @@ type work struct {
 }
 
 func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
-	core.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
+	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
 	w.header.GasUsed = w.totalUsedGas
 }
 
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,
 // and appends the tx, receipt, and logs
-func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockHash common.Hash, tx *ethTypes.Transaction) error {
+func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, blockHash common.Hash, tx *ethTypes.Transaction) error {
 	w.state.StartRecord(tx.Hash(), blockHash, w.txIndex)
 	receipt, _, err := core.ApplyTransaction(
-		config.ChainConfig,
+		chainConfig,
 		blockchain,
+		nil, // defaults to address of the author of the header
 		w.gp,
 		w.state,
 		w.header,
@@ -163,15 +155,15 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockH
 	)
 	if err != nil {
 		return err
-		glog.V(logger.Debug).Infof("DeliverTx error: %v", err)
+		log.Info("DeliverTx error", "err", err)
 		return abciTypes.ErrInternalError
 	}
 
 	logs := w.state.GetLogs(tx.Hash())
 
-	w.txIndex += 1
+	w.txIndex++
 
-	// TODO: allocate correct size in BeginBlock instead of using append
+	// The slices are allocated in updateHeaderWithTimeInfo
 	w.transactions = append(w.transactions, tx)
 	w.receipts = append(w.receipts, receipt)
 	w.allLogs = append(w.allLogs, logs...)
@@ -182,6 +174,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockH
 // Commit the ethereum state, update the header, make a new block and add it
 // to the ethereum blockchain. The application root hash is the hash of the ethereum block.
 func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
+
 	// commit ethereum state and update the header
 	hashArray, err := w.state.Commit(false) // XXX: ugh hardforks
 	if err != nil {
@@ -189,31 +182,32 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 	}
 	w.header.Root = hashArray
 
-	// tag logs with state root
-	// NOTE: BlockHash ?
-	for _, log := range w.allLogs {
-		log.BlockHash = hashArray
-	}
-
 	// create block object and compute final commit hash (hash of the ethereum block)
 	block := ethTypes.NewBlock(w.header, w.transactions, nil, w.receipts)
 	blockHash := block.Hash()
 
+	for _, log := range w.allLogs {
+		log.BlockHash = blockHash
+	}
+
 	// save the block to disk
-	glog.V(logger.Debug).Infof("Committing block with state hash %X and root hash %X", hashArray, blockHash)
+	log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
 	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
 	if err != nil {
-		glog.V(logger.Debug).Infof("Error inserting ethereum block in chain: %v", err)
+		log.Info("Error inserting ethereum block in chain", "err", err)
 		return common.Hash{}, err
 	}
 	return blockHash, err
 }
 
-func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64) {
+func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
 	lastBlock := w.parent
 	w.header.Time = new(big.Int).SetUint64(parentTime)
-	w.header.Difficulty = core.CalcDifficulty(config, parentTime,
+	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime,
 		lastBlock.Time().Uint64(), lastBlock.Number(), lastBlock.Difficulty())
+	w.transactions = make([]*ethTypes.Transaction, 0, numTx)
+	w.receipts = make([]*ethTypes.Receipt, 0, numTx)
+	w.allLogs = make([]*ethTypes.Log, 0, numTx)
 }
 
 //----------------------------------------------------------------------
