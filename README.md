@@ -8,7 +8,7 @@
 
 Ethermint enables ethereum to run as an [ABCI](https://github.com/tendermint/abci) application on tendermint and the COSMOS hub. This application allows you to get all the benefits of ethereum without having to run your own miners.
 
-This means running an Ethereum EVM-based network that uses Tendermint consesnsus instead of proof-of-work.
+This means running an Ethereum EVM-based network that uses Tendermint consensus instead of proof-of-work.
 The way it's built makes it easy to use existing Ethereum tools (geth attach, web3) to interact with the node.
 
 ### Install
