@@ -45,6 +45,7 @@ type MockClient struct {
 func NewMockClient() *MockClient { return &MockClient{make(chan struct{})} }
 
 func (mc *MockClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
+	_ = result
 	switch method {
 	case "status":
 		result = &ctypes.ResultStatus{}
@@ -92,7 +93,7 @@ func TestBumpingNonces(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedtx, err := rlp.EncodeToBytes(tx1)
+	encodedtx, _ := rlp.EncodeToBytes(tx1)
 
 	// check transaction
 	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx))
@@ -117,7 +118,7 @@ func TestBumpingNonces(t *testing.T) {
 	// second transaction is sent via geth RPC, or at least pretending to be so
 	// with a correct nonce this time, it should pass
 	nonce2 := uint64(1)
-	tx2, err := createTransaction(privateKey, nonce2)
+	tx2, _ := createTransaction(privateKey, nonce2)
 
 	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
 
@@ -163,7 +164,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedTx1, err := rlp.EncodeToBytes(tx1)
+	encodedTx1, _ := rlp.EncodeToBytes(tx1)
 
 	//create 2-nd tx from the same account
 	nonce2 := uint64(0)
@@ -172,7 +173,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedTx2, err := rlp.EncodeToBytes(tx2)
+	encodedTx2, _ := rlp.EncodeToBytes(tx2)
 
 	// check transaction
 	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
@@ -238,7 +239,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedtx1, err := rlp.EncodeToBytes(tx1)
+	encodedtx1, _ := rlp.EncodeToBytes(tx1)
 
 	//create 2-nd tx
 	nonce2 := uint64(0)
@@ -247,7 +248,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedTx2, err := rlp.EncodeToBytes(tx2)
+	encodedTx2, _ := rlp.EncodeToBytes(tx2)
 
 	// check transaction
 	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx1))
@@ -291,10 +292,10 @@ func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
 	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/dev/genesis.json")
 
 	file, err := os.Open(genesisPath)
-	defer file.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 
 	genesis := new(core.Genesis)
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {

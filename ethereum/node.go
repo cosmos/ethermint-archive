@@ -8,8 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 )
 
-var clientIdentifier = "geth" // Client identifier to advertise over the network
-
 // NewNodeConfig for p2p and network layer
 func NewNodeConfig(ctx *cli.Context) *node.Config {
 	var nodeConfig *node.Config
