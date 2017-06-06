@@ -27,6 +27,8 @@ Whenever one ETH is sent to Ethermint the smart contract could mine one CETH and
 
 The genesis state of Ethermint could specify that the smart contract holds the total supply of ETH and the parameters could be set so that Ethermint follows exactly the same inflation as Ethereum. This would mean that for every transaction across the peg zones CETH and ETH are either locked up or released.
 
+The validators can run eth nodes where they verify each transaction and generate one CETH if it is deposited in the contract. 
+
 
 ## Questions
 * How can state updates on a Ethereum (PoW) be verified?
@@ -38,6 +40,7 @@ The genesis state of Ethermint could specify that the smart contract holds the t
 * How does the smart contract choose a relay node?
 * What is the market mechanism behind the pricing of relaying a transaction?
   * Maybe there is none and the fee is set as a percentage by the COSMOS validators
+* How will IBC work in relation to ethermint?
 
 ## Invariants
 * the amount of CETH in circulation is equal to the amount of ETH held by the smart contract on the Ethereum chain
