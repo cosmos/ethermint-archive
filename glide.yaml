@@ -1,13 +1,13 @@
 package: github.com/tendermint/ethermint
 import:
 - package: github.com/tendermint/tendermint
-  version: develop
+  version: 0.10.x
 - package: github.com/tendermint/tmlibs
-  version: develop
+  version: 0.2.x
 - package: github.com/tendermint/abci
-  version: develop
+  version: 0.5.x
 - package: github.com/ethereum/go-ethereum
-  version: develop
+  version: master
   repo: https://github.com/tendermint/go-ethereum.git
 - package: github.com/spf13/pflag
   version: master
