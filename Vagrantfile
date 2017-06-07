@@ -12,7 +12,7 @@ Vagrant.configure("2") do |config|
     v.cpus = 2
   end
 
-  config.vm.synced_folder ".", "/home/vagrant/go/src/github.com/tendermint/ethermint"
+  config.vm.synced_folder ".", "/home/vagrant/go/src/github.com/tendermint/ethermint", type: "rsync"
 
   # setup
   config.vm.provision :shell, :inline => "apt-get update --fix-missing"
