@@ -5,7 +5,7 @@ GOTOOLS = \
 					github.com/alecthomas/gometalinter
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 BUILD_TAGS?=ethermint
-VERSION_TAG=0.2.0
+VERSION_TAG=0.2.2
 
 all: install test
 
