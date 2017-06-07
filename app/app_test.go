@@ -289,7 +289,7 @@ func makeTestApp(tempDatadir string, addresses []common.Address, mockclient *Moc
 
 func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
 	gopath := os.Getenv("GOPATH")
-	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/dev/genesis.json")
+	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/setup/genesis.json")
 
 	file, err := os.Open(genesisPath)
 	if err != nil {
