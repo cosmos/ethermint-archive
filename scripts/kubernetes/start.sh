@@ -51,7 +51,6 @@ for i in `seq 1 $(($V-1))`; do
 done
 
 echo "Nodes: $N, Validators: $V, SEEDS: $S"
-exit
 
 cat $DIR/ethermint.template.yaml \
   | sed "s/{SEEDS}/$SEEDS/; s/{VALIDATORS}/$VALIDATORS/; s/{REPLICAS}/$N/;" \
