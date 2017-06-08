@@ -32,8 +32,9 @@ var (
 		// Gas price oracle settings
 		ethUtils.GpoBlocksFlag,
 		ethUtils.GpoPercentileFlag,
-
 		ethUtils.TargetGasLimitFlag,
+		// Gas Price
+		ethUtils.GasPriceFlag,
 	}
 
 	rpcFlags = []cli.Flag{
