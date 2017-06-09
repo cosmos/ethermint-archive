@@ -56,4 +56,5 @@ cat $DIR/ethermint.template.yaml \
   | sed "s/{SEEDS}/$SEEDS/; s/{VALIDATORS}/$VALIDATORS/; s/{REPLICAS}/$N/;" \
   | sed "s/{S}/$S/; s/{N}/$N/; s/{V}/$V/;" \
   > $DIR/ethermint.yaml
+
 kubectl create -f $DIR/ethermint.yaml

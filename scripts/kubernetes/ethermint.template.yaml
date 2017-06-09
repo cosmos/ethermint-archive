@@ -13,6 +13,8 @@ spec:
     name: p2p
   - port: 46657
     name: rpc
+  - port: 8545
+    name: geth-rpc
   clusterIP: None
   selector:
     app: tm
@@ -165,12 +167,18 @@ spec:
       - name: app
         imagePullPolicy: IfNotPresent
         image: adrianbrink/ethermint:develop
-        env:
-        - name: TENDERMINT_ADDR
-          value: unix:///socks/app.sock
+        ports:
+        - containerPort: 8545
+          name: geth-rpc
         volumeMounts:
         - name: socksdir
           mountPath: /socks
+        args: [ "ethermint",
+          "--datadir", "/ethermint",
+          "--tendermint_addr", "unix:///socks/app.sock",
+          "--rpc", "--rpcapi", "eth,net,web3,personal,miner,admin",
+          "--rpcaddr", "0.0.0.0", "--rpcport", "8545"
+        ] 
 
       - name: pub-key
         imagePullPolicy: IfNotPresent
