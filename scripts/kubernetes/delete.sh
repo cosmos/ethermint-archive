@@ -7,3 +7,4 @@ kubectl delete -f $DIR/ethermint.yaml
 
 echo "Deleteing Volume Claims"
 kubectl delete persistentvolumeclaim --selector="app=tm"
+kubectl delete service --selector "app=tm"
