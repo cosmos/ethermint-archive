@@ -51,10 +51,12 @@ for i in `seq 1 $(($V-1))`; do
 done
 
 echo "Nodes: $N, Validators: $V, SEEDS: $S"
+SETUP_DIR=$(realpath `basename $DIR`/../../setup)
 
 cat $DIR/ethermint.template.yaml \
   | sed "s/{SEEDS}/$SEEDS/; s/{VALIDATORS}/$VALIDATORS/; s/{REPLICAS}/$N/;" \
   | sed "s/{S}/$S/; s/{N}/$N/; s/{V}/$V/;" \
+  | sed "s#{HOSTPATH}#$SETUP_DIR#;" \
   > $DIR/ethermint.yaml
 
 kubectl create -f $DIR/ethermint.yaml

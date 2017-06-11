@@ -79,6 +79,19 @@ spec:
           "volumeMounts": [
             {"name": "tmdir", "mountPath": "/tendermint"}
           ]
+        },{
+          "name": "eth-init",
+          "image": "adrianbrink/ethermint:develop",
+          "imagePullPolicy": "IfNotPresent",
+          "command": ["bash", "-c", "
+            set -ex\n
+            cp -rv /ethinit/* /ethermint/\n
+            ethermint --datadir /ethermint init /ethermint/genesis.json\n
+          "],
+          "volumeMounts": [
+            {"name": "ethroot", "mountPath": "/ethermint"},
+            {"name": "ethermint-setup", "mountPath": "/ethinit"}
+          ]
         }]'
     spec:
       containers:
@@ -173,6 +186,8 @@ spec:
         volumeMounts:
         - name: socksdir
           mountPath: /socks
+        - name: ethroot
+          mountPath: /ethermint
         args: [ "ethermint",
           "--datadir", "/ethermint",
           "--tendermint_addr", "unix:///socks/app.sock",
@@ -216,10 +231,22 @@ spec:
           name: tm-config
       - name: socksdir
         emptyDir: {}
+      - name: ethermint-setup
+        hostPath:
+          path: {HOSTPATH}
 
   volumeClaimTemplates:
   - metadata:
       name: tmdir
+      annotations:
+        volume.alpha.kubernetes.io/storage-class: anything
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 2Gi
+  - metadata:
+      name: ethroot
       annotations:
         volume.alpha.kubernetes.io/storage-class: anything
     spec:
