@@ -15,4 +15,5 @@ validator set given a trusted genesis state.
 - update(Commit, Header, []Validators)
   - reject all updates where the Block is lower than latestHeight
   - validate consistency of block against chainID
-  - actual verification([]currentValidator, []newValidators, chainID, )
+  - actual verification([]currentValidator, []newValidators, chainID, commit, height)
+    - need to verify that precommits and check that more than 2/3 of old vals did precommit for the block with the new validator set
