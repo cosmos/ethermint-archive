@@ -2,13 +2,11 @@ package ethereum
 
 import (
 	"bytes"
-	"time"
-
 	"github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
+	"time"
 )
 
 //----------------------------------------------------------------------
@@ -18,7 +16,7 @@ import (
 func (b *Backend) txBroadcastLoop() {
 	b.txSub = b.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 
-	waitForServer(b.client)
+	WaitForServer(b.client)
 
 	for obj := range b.txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
@@ -30,22 +28,11 @@ func (b *Backend) txBroadcastLoop() {
 
 // BroadcastTx broadcasts a transaction to tendermint core
 func (b *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
-	var result interface{}
-	buf := new(bytes.Buffer)
-	if err := tx.EncodeRLP(buf); err != nil {
-		return err
-	}
-	params := map[string]interface{}{
-		"tx": buf.Bytes(),
-	}
-	_, err := b.client.Call("broadcast_tx_sync", params, &result)
-	return err
+	return BroadcastTransaction(b.client, tx)
 }
 
-//----------------------------------------------------------------------
 // wait for Tendermint to open the socket and run http endpoint
-
-func waitForServer(c rpcClient.HTTPClient) {
+func WaitForServer(c rpcClient.HTTPClient) {
 	var result interface{}
 
 	for {
@@ -57,4 +44,32 @@ func waitForServer(c rpcClient.HTTPClient) {
 		log.Info("Waiting for tendermint endpoint to start", "err", err)
 		time.Sleep(time.Second * 3)
 	}
+}
+
+func BroadcastTransaction(client rpcClient.HTTPClient, tx *ethTypes.Transaction) error {
+	var result interface{}
+	buf := new(bytes.Buffer)
+	if err := tx.EncodeRLP(buf); err != nil {
+		return err
+	}
+	params := map[string]interface{}{
+		"tx": buf.Bytes(),
+	}
+	_, err := client.Call("broadcast_tx_sync", params, &result)
+
+	return err
+}
+
+func BroadcastBlock(client rpcClient.HTTPClient, block *ethTypes.Block) error {
+	var result interface{}
+	buf := new(bytes.Buffer)
+	if err := block.EncodeRLP(buf); err != nil {
+		return err
+	}
+	params := map[string]interface{}{
+		"tx": buf.Bytes(),
+	}
+	_, err := client.Call("broadcast_tx_sync", params, &result)
+
+	return err
 }

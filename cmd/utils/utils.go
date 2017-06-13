@@ -46,7 +46,7 @@ func DefaultDataDir() string {
 }
 
 // MakeChain creates a chain manager from set command line flags.
-func MakeChain(genesisPath string, ctx *cli.Context) (chain *core.BlockChain, chainDb ethdb.Database) {
+func MakeChain(genesisPath string, ctx *cli.Context) (*core.BlockChain, ethdb.Database, *event.TypeMux) {
 	var err error
 
 	chainDb, config, _ := SetupGenesisBlock(genesisPath, ctx)
@@ -54,12 +54,13 @@ func MakeChain(genesisPath string, ctx *cli.Context) (chain *core.BlockChain, ch
 	engine := ethash.NewFaker()
 
 	vmcfg := vm.Config{EnablePreimageRecording: ctx.GlobalBool(ethUtils.VMEnableDebugFlag.Name)}
-	chain, err = core.NewBlockChain(chainDb, config, engine, new(event.TypeMux), vmcfg)
+	eventMux := new(event.TypeMux)
+	chain, err := core.NewBlockChain(chainDb, config, engine, eventMux, vmcfg)
 	if err != nil {
 		ethUtils.Fatalf("Can't create BlockChain: %v", err)
 	}
 
-	return chain, chainDb
+	return chain, chainDb, eventMux
 }
 
 // SetupGenesisBlock creates chain database and write genesis to it
