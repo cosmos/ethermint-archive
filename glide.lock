@@ -1,18 +1,18 @@
-hash: 943f379a429ada87d43257f3052f14ba665000203981a0079cfef762bde7fa61
-updated: 2017-06-06T11:39:46.481086482+02:00
+hash: 194457ea368087dcabb66f19e05b02f6a4158b52d50fc47404d8ac253efe5953
+updated: 2017-06-14T13:18:42.453154127+02:00
 imports:
 - name: github.com/aristanetworks/goarista
-  version: bdb9cf58cab530cff729f89c92e26c251575e43a
+  version: 6c446722131a3182ce8d354a85816742fd61a838
   subpackages:
   - monotime
 - name: github.com/btcsuite/btcd
-  version: 3d0dfed40b879733f608af4a3e155b9086db5368
+  version: 1bdb71328511a5225d6300c3c08a79172f667996
   subpackages:
   - btcec
 - name: github.com/edsrzf/mmap-go
   version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
-  version: 2df0515617a13fa2f087c0ba5647ebe122835c3c
+  version: f6e70471143b6385902c02612e1b6b9ad0d6a303
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
@@ -20,6 +20,7 @@ imports:
   - accounts/usbwallet
   - cmd/utils
   - common
+  - common/bitutil
   - common/hexutil
   - common/math
   - common/mclock
@@ -72,7 +73,7 @@ imports:
 - name: github.com/fatih/color
   version: 62e9147c64a1ed519147b62a56a14e83e2be02c1
 - name: github.com/go-kit/kit
-  version: 2bffe4dd140e9dbc27d83f225148bac581326a9b
+  version: a9ca6725cbbea455e61c6bc8a1ed28e81eb3493b
   subpackages:
   - log
   - log/level
@@ -82,7 +83,7 @@ imports:
 - name: github.com/go-stack/stack
   version: 7a2f19628aabfe68f0766b59e74d6315f8347d22
 - name: github.com/golang/protobuf
-  version: 5a0f697c9ed9d68fef0116532c6e05cfeae00e55
+  version: e325f446bebc2998605911c0a2650d9920361d4a
   subpackages:
   - proto
   - ptypes/any
@@ -114,7 +115,7 @@ imports:
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/pborman/uuid
-  version: 1b00554d822231195d1babd97ff4a781231955c9
+  version: e790cca94e6cc75c7064b1332e63811d4aae1a53
 - name: github.com/peterh/liner
   version: 88609521dc4b6c858fd4c98b628147da928ce4ac
 - name: github.com/pkg/errors
@@ -135,7 +136,7 @@ imports:
   - registry
   - token
 - name: github.com/rs/cors
-  version: bf64c5349c0f7e5e1554921e798e052958e0fe2f
+  version: 8dd4211afb5d08dbb39a533b9bb9e4b486351df6
 - name: github.com/spf13/pflag
   version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
 - name: github.com/syndtr/goleveldb
@@ -188,7 +189,7 @@ imports:
   - log
   - merkle
 - name: golang.org/x/crypto
-  version: e1a4589e7d3ea14a3352255d04b6f1a418845e5e
+  version: 850760c427c516be930bc91280636328f1a62286
   subpackages:
   - curve25519
   - nacl/box
@@ -201,7 +202,7 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: 59a0b19b5533c7977ddeb86b017bf507ed407b12
+  version: dfe83d419c9403b40b19d08cdba2afec27b002f7
   subpackages:
   - context
   - html
@@ -215,11 +216,11 @@ imports:
   - trace
   - websocket
 - name: golang.org/x/sys
-  version: b90f89a1e7a9c1f6b918820b3daa7f08488c8594
+  version: 0b25a408a50076fbbcae6b7ac0ea5fbb0b085e79
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: ccbd3f7822129ff389f8ca4858a9b9d4d910531c
+  version: 3491b61b9edc56653ad4333e605e2908e46a036b
   subpackages:
   - encoding
   - encoding/charmap
@@ -244,7 +245,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 8de2dff78c3b968a51c99ec526d934f686537437
+  version: 1ab4adf22dbaf4eb6cfd01eaa711612ffcf87890
   subpackages:
   - codes
   - credentials

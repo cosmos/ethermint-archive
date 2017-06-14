@@ -140,7 +140,7 @@ func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,
 // and appends the tx, receipt, and logs
 func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, blockHash common.Hash, tx *ethTypes.Transaction) error {
-	w.state.StartRecord(tx.Hash(), blockHash, w.txIndex)
+	w.state.Prepare(tx.Hash(), blockHash, w.txIndex)
 	receipt, _, err := core.ApplyTransaction(
 		chainConfig,
 		blockchain,
@@ -200,9 +200,13 @@ func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
 
 func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
 	lastBlock := w.parent
+	parentHeader := &ethTypes.Header{
+		Difficulty: lastBlock.Difficulty(),
+		Number:     lastBlock.Number(),
+		Time:       lastBlock.Time(),
+	}
 	w.header.Time = new(big.Int).SetUint64(parentTime)
-	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime,
-		lastBlock.Time().Uint64(), lastBlock.Number(), lastBlock.Difficulty())
+	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime, parentHeader)
 	w.transactions = make([]*ethTypes.Transaction, 0, numTx)
 	w.receipts = make([]*ethTypes.Receipt, 0, numTx)
 	w.allLogs = make([]*ethTypes.Log, 0, numTx)
