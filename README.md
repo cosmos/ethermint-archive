@@ -14,6 +14,15 @@ looking for casual banter.
 ### Code of Conduct
 Please read, understand and adhere to our [code of conduct](https://github.com/tendermint/ethermint/blob/develop/CODE_OF_CONDUCT.md).
 
+### Documentation
+We are using `godoc` for our documentation. In order to browse the [interactive documentation](http://localhost:6060/pkg/github.com/tendermint/ethermint/) please open a terminal window and navigate
+to the ethermint folder and run godoc.
+```bash
+cd $GOPATH/src/github.com/tendermint/ethermint
+
+godoc -http :6060
+```
+
 
 ----
 
