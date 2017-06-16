@@ -7,6 +7,7 @@
 
 ### Join the chat!
 [![](https://img.shields.io/badge/slack-join%20chat-brightgreen.svg)](http://forum.tendermint.com:3000/)
+
 We have a friendly community of like-minded people which are always eager to help someone in need of advice or just
 looking for casual banter.
 
