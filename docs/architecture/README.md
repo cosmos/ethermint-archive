@@ -1,16 +1,16 @@
-
-
-Current Design:
+# Current Design
 
 There are a few pieces:
 
-1) Setting up the ethereum stack
-2) Forwarding txs received via ethereum rpc to tendermint rpc
-3) Tendermint ABCI wrapper around ethereum stack
+1. Setting up the ethereum stack
+2. Forwarding txs received via ethereum rpc to tendermint rpc
+3. Tendermint ABCI wrapper around ethereum stack
 
 
-1)
-The general design is to bind enough of the ethereum flags that we can
+----
+
+
+1. The general design is to bind enough of the ethereum flags that we can
 use its highest level object, the `go-ethereum/node.Node`, which is just a generic container for services
 that run a p2p protocol and expose APIs over the RPC.
 We mostly follow the logic in `go-ethereum/cmd/utils`. Then we create a custom service to register on the Node, 
@@ -22,8 +22,7 @@ We should try to remove the dependence on the Node by setting up the Backend
 and starting the RPC servers ourselves. This should reduce the number of ethereum flags we have to wrestle with.
 Need to make sure there's nothing else we need from the Node that we can't set up and manage with low overhead ourselves.
 
-2) 
-We need to listen for new txs received by the ethereum RPCs and forward them to
+2. We need to listen for new txs received by the ethereum RPCs and forward them to
 tendermint. Currently, we subscribe to the `TxPreEvent` in go-ethereum, and
 forward any txs received to Tendermint's `/broadcast_tx_sync`.
 
@@ -35,8 +34,7 @@ with the Ethereum object and provides the simplest way to forward txs to tenderm
 It also buffers txs received out of order, waiting until they can be ordered properly 
 (but still fires the event asynchronously!)
 
-3)
-The simplest way to enable us to use all the web3 endpoints out of the box is to use the highest level
+3. The simplest way to enable us to use all the web3 endpoints out of the box is to use the highest level
 datastructures we can. So for the ABCI app, the application state consists of both the ethereum application state
 and the ethereum blockchain. So even though we are building a chain of blocks of txs at the tendermint level,
 for each tendermint block we also create and store an ethereum block to save in an ethereum blockchain managed
@@ -46,7 +44,7 @@ For CheckTx, we replicate the code from `ethereum/core/tx_pool.go:validateTx`, b
 so this can only reliably process one tx per block right now! This is a big TODO!
 
 For DeliverTx, we use our managed eth object, which provides a working state and env (config, header, gas) for applying transactions,
-and slices for keeping track of all txs, receipts and logs to be included in this block.
+and slices for keeping track of all TXs, receipts and logs to be included in this block.
 
 NOTE: The ethereum APIs expect to be able to get the most current "pending" block, ie. the block a miner is working on.
 The equivalent for us is a block that is in the midst of being processed by the ABCI app.
