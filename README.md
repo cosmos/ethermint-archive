@@ -41,7 +41,7 @@ unzip -d /usr/local/bin ${the name of the ethermint binary}.zip
 ```
 
 ### Docker
-TODO
+//TODO
 
 ### Source
 Ethermint builds with go1.8.3 and hence go1.8.3 needs to be installed. In order to manage your go installation we recommend [GVM](https://github.com/moovweb/gvm).
@@ -149,6 +149,57 @@ truffle migrate
 ```
 
 And you're off!
+
+
+----
+
+
+## Multi-Node Deployments
+If you are interested in using ethermint in a multi-node setup (like a blockchain really, doh) you can use our kubernetes
+scripts.
+
+Please install [minikube and all its dependencies](https://github.com/kubernetes/minikube).
+
+First you have to start minikube
+```bash
+minikube start
+```
+
+Starting a cluster of ethermint nodes goes like this
+```bash
+./scripts/kubernetes/start.sh 3 3 3
+```
+`start.sh N V S` will start *N* number of instances with *V* validator and *S* seed nodes.
+
+To get an overview of all the running nodes use the minikube dashboard
+```bash
+minikube dashboard
+```
+
+In order to connect to a node using the tooling described above you have to expose it first
+```bash
+./scripts/kubernetes/expose.sh 1
+```
+`expose.sh N` exposes N number of nodes. N can't be greater than the number of nodes you started previously.
+Minikube will assign a random port to every exposed node's services and hence you have to obtain that information as well.
+```bash
+minikube service tm-0 --format {{.IP}}:{{.Port}}
+```
+`tm-0` refers to the first ethermint node. The first IP:Port combination is for the go-ethereum RPC and the second one is for
+the tendermint RPC.
+
+To delete all nodes you can just run
+```bash
+./scripts/kubernetes/destroy.sh
+```
+
+Finally to shutdown kubernetes and minikube run
+```bash
+minikube stop
+```
+
+You might have wondered why you don't have to worry about starting tendermint and ethermint separately. Our scripts start
+both processes at the same time and expose it as one node. That is also the reason why the expose commands exposes both processes.
 
 
 ----
