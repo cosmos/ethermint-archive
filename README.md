@@ -11,7 +11,7 @@ We have a friendly community of like-minded people which are always eager to hel
 looking for casual banter.
 
 ### Code of Conduct
-Please read, understand and adhere to our [code of conduct](https://github.com/tendermint/ethermint/blob/feature/readme/CODE_OF_CONDUCT.md).
+Please read, understand and adhere to our [code of conduct](https://github.com/tendermint/ethermint/blob/develop/CODE_OF_CONDUCT.md).
 
 
 ----
