@@ -1,12 +1,17 @@
-# []Ethermint](https://github.com/tendermint/ethermint)
+# [![Ethermint](https://github.com/tendermint/ethermint)
 ### Ethereum powered by Tendermint consensus
 
 ### [Download the latest release](https://github.com/tendermint/ethermint/releases/tag/v0.2.2)
 
-[![](https://circleci.com/gh/tendermint/ethermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/ethermint/tree/master) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8-blue.svg)](https://github.com/moovweb/gvm) [[License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![](https://circleci.com/gh/tendermint/ethermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/ethermint/tree/master) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8-blue.svg)](https://github.com/moovweb/gvm) [![](https://img.shields.io/github/issues/badges/shields.svg)](https://github.com/tendermint/ethermint/issues) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ### Join the chat!
+We have a friendly community of like-minded people which are always eager to help someone in need of advice or just
+looking for casual banter.
 [![](https://img.shields.io/badge/slack-join%20chat-brightgreen.svg)](http://forum.tendermint.com:3000/)
+
+### [Code of Conduct](https://github.com/tendermint/ethermint/blob/feature/readme/CODE_OF_CONDUCT.md)
+Please read, understand and adhere to our code of conduct.
 
 
 ----
