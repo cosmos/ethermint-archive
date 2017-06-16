@@ -19,3 +19,7 @@ Checkout `file-example`.
 ## Test
   [Truffle Initial Repo](https://github.com/trufflesuite/truffle-init-default) tests were run against both networks. It contains simple MetaCoin implementation with it's test.  
   Diff tool checks whether the results are the same for `ethereum` and `ethermint`, if both networks fail certain test then it's expected behaviour.
+
+## Gas limit test
+
+Run `npm test`
