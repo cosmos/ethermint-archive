@@ -7,7 +7,7 @@ import:
 - package: github.com/tendermint/abci
   version: 0.5.x
 - package: github.com/ethereum/go-ethereum
-  version: master
+  version: develop
   repo: https://github.com/tendermint/go-ethereum.git
 - package: github.com/spf13/pflag
   version: master
