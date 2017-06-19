@@ -1,5 +1,5 @@
 hash: 194457ea368087dcabb66f19e05b02f6a4158b52d50fc47404d8ac253efe5953
-updated: 2017-06-14T13:18:42.453154127+02:00
+updated: 2017-06-19T13:49:49.320589906+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: 6c446722131a3182ce8d354a85816742fd61a838
@@ -12,7 +12,7 @@ imports:
 - name: github.com/edsrzf/mmap-go
   version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
-  version: f6e70471143b6385902c02612e1b6b9ad0d6a303
+  version: 9b2956f8cc67d9697ce76cfde6ec250182c1f22c
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
@@ -111,7 +111,7 @@ imports:
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/mattn/go-colorable
-  version: d228849504861217f796da67fae4f6e347643f15
+  version: 941b50ebc6efddf4c41c8e4537a5f68a4e686b24
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/pborman/uuid
@@ -181,7 +181,7 @@ imports:
   - rpc/lib/types
   - types
 - name: github.com/tendermint/tmlibs
-  version: 6b619742ac69388dd591c30f55aaee46197b086e
+  version: 7ce4da1eee6004d627e780c8fe91e96d9b99e459
   subpackages:
   - common
   - events
@@ -189,7 +189,7 @@ imports:
   - log
   - merkle
 - name: golang.org/x/crypto
-  version: 850760c427c516be930bc91280636328f1a62286
+  version: 93b5df3bf36996258d005da151953da2030e346b
   subpackages:
   - curve25519
   - nacl/box
@@ -202,7 +202,7 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: dfe83d419c9403b40b19d08cdba2afec27b002f7
+  version: 973f3f3bbd50e92b13faa6c53ec16f49b45e851c
   subpackages:
   - context
   - html
@@ -216,11 +216,11 @@ imports:
   - trace
   - websocket
 - name: golang.org/x/sys
-  version: 0b25a408a50076fbbcae6b7ac0ea5fbb0b085e79
+  version: fb4cac33e3196ff7f507ab9b2d2a44b0142f5b5a
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 3491b61b9edc56653ad4333e605e2908e46a036b
+  version: 9e2f80a6ba7ed4ba13e0cd4b1f094bf916875735
   subpackages:
   - encoding
   - encoding/charmap
@@ -245,7 +245,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 1ab4adf22dbaf4eb6cfd01eaa711612ffcf87890
+  version: c5c761dbca07f4d0efafd3f430a40dcdf1c1163f
   subpackages:
   - codes
   - credentials
