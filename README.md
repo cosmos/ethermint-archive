@@ -105,7 +105,7 @@ cd $GOPATH/src/github.com/tendermint/ethermint
 
 ethermint --datadir ~/.ethermint init setup/genesis.json
 
-cp -r setup/keystore ~/.ethermint/keystore
+cp -r setup/keystore ~/.ethermint
 ```
 In the last step we copy the private key from the initialisation folder into the actual ethereum folder. 
 
