@@ -22,7 +22,6 @@ import (
 	"github.com/tendermint/abci/server"
 
 	cmn "github.com/tendermint/tmlibs/common"
-	tmlog "github.com/tendermint/tmlibs/log"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
@@ -60,8 +59,7 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
-	srv.SetLogger(logger.With("module", "abci-server"))
+	srv.SetLogger(emtUtils.GetTMLogger().With("module", "abci-server"))
 
 	if _, err := srv.Start(); err != nil {
 		fmt.Println(err)
