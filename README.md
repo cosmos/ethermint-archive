@@ -211,6 +211,27 @@ You might have wondered why you don't have to worry about starting tendermint an
 both processes at the same time and expose it as one node. That is also the reason why the expose commands exposes both processes.
 
 
+---
+
+## Run Ethereum Network Stats
+
+* start tendermint and ethermint
+* run frontend:
+    * git clone https://github.com/cubedro/eth-netstats
+    * cd eth-netstats
+    * npm install
+    * sudo npm install -g grunt-cli 
+    * grunt
+    * WS_SECRET=YOURSECRET npm start
+    * see the interface at http://localhost:3000
+* run backend:
+    * git clone https://github.com/ramilexe/eth-net-intelligence-api
+    * cd eth-net-intelligence-api
+    * npm install
+    * edit app.json and set WS_SERVER, WS_SECRET and TENDERMINT_RPC_PORT
+    * run using [pm2](https://github.com/Unitech/pm2) `pm2 start processes.json`
+    * or without pm2 wrapper `WS_SECRET=YOURSECRET node app.js`
+
 ----
 
 
