@@ -36,7 +36,7 @@ describe('gasLimit', function () {
             gas: '100' //set low gas
         }, function (error, contract) {
 
-            assert.equal(error, "Error: Intrinsic gas too low");
+            assert.equal(error, "Error: intrinsic gas too low");
             done();
         });
     });
