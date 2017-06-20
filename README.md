@@ -215,6 +215,9 @@ both processes at the same time and expose it as one node. That is also the reas
 
 ## Run Ethereum Network Stats
 
+Ethereum stats system consist of two part: frontend and backend. To connect it to each other you need to set the same 
+secret key for both of them (parameter `WS_SECRET`). In my example here it is `YOURSECRET`
+
 * start tendermint and ethermint
 * run frontend:
     * git clone https://github.com/cubedro/eth-netstats
