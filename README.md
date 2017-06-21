@@ -215,27 +215,47 @@ both processes at the same time and expose it as one node. That is also the reas
 
 ---
 
+
 ## Run Ethereum Network Stats
 
-Ethereum stats system consist of two part: frontend and backend. To connect it to each other you need to set the same 
-secret key for both of them (parameter `WS_SECRET`). In my example here it is `YOURSECRET`
+The Ethereum network stats system consist of a frontend and a backend. In order for both of them to securely communicate
+with each other you have to set the environment variable `WS_SECRET`. You can just use any random string and in this
+example I will use `ethermint` as my `WS_SECRET`.
 
-* start tendermint and ethermint
-* run frontend:
-    * git clone https://github.com/cubedro/eth-netstats
-    * cd eth-netstats
-    * npm install
-    * sudo npm install -g grunt-cli 
-    * grunt
-    * WS_SECRET=YOURSECRET npm start
-    * see the interface at http://localhost:3000
-* run backend:
-    * git clone https://github.com/ramilexe/eth-net-intelligence-api
-    * cd eth-net-intelligence-api
-    * npm install
-    * edit app.json and set WS_SERVER, WS_SECRET and TENDERMINT_RPC_PORT
-    * run using [pm2](https://github.com/Unitech/pm2) `pm2 start processes.json`
-    * or without pm2 wrapper `WS_SECRET=YOURSECRET node app.js`
+First you have to start Ethermint and Tendermint as described above and second you have to install two global dependencies.
+```bash
+npm install -g grunt-cli
+```
+
+To start the frontend you have to clone another repository, so please navigate to a suitable destination folder.
+```bash
+git clone https://github.com/cubedro/eth-netstats
+
+cd eth-netstats
+
+npm install
+
+grunt
+
+WS_SECRET=ethermint npm start
+```
+Now you can see the frontend running at [http://localhost:3000](http://localhost:3000), but no information will be present
+since we haven't started the backend.
+
+To start the backend you have to clone another repository again, so please navigate to a suitable destination folder.
+```bash
+git clone https://github.com/tendermint/eth-net-intelligence-api.git
+
+cd eth-net-intelligence-api
+
+npm install
+
+WS_SECRET=ethermint node app.js
+```
+
+Now you should be able to navigate to [http://localhost:3000](http://localhost:3000) and see constant information about your
+ethermint node streaming by.
+
 
 ----
 
