@@ -1,18 +1,18 @@
-hash: 194457ea368087dcabb66f19e05b02f6a4158b52d50fc47404d8ac253efe5953
-updated: 2017-06-19T13:49:49.320589906+02:00
+hash: d74f138edf5d231d7cd195a75ad18d73301cde052231192014b7bd26df0c4ce3
+updated: 2017-06-23T10:59:26.414364995+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: 6c446722131a3182ce8d354a85816742fd61a838
   subpackages:
   - monotime
 - name: github.com/btcsuite/btcd
-  version: 1bdb71328511a5225d6300c3c08a79172f667996
+  version: a6965d493fdfb833b6b3a83c3958ab18968fe24e
   subpackages:
   - btcec
 - name: github.com/edsrzf/mmap-go
   version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
-  version: 9b2956f8cc67d9697ce76cfde6ec250182c1f22c
+  version: c71a185de835d24ffaea21bc045649eed8e0ce20
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
@@ -73,7 +73,7 @@ imports:
 - name: github.com/fatih/color
   version: 62e9147c64a1ed519147b62a56a14e83e2be02c1
 - name: github.com/go-kit/kit
-  version: a9ca6725cbbea455e61c6bc8a1ed28e81eb3493b
+  version: 0c52d4024a04395dabac42b65e5825d08d3335df
   subpackages:
   - log
   - log/level
@@ -83,14 +83,14 @@ imports:
 - name: github.com/go-stack/stack
   version: 7a2f19628aabfe68f0766b59e74d6315f8347d22
 - name: github.com/golang/protobuf
-  version: e325f446bebc2998605911c0a2650d9920361d4a
+  version: 6a1fa9404c0aebf36c879bc50152edcc953910d2
   subpackages:
   - proto
   - ptypes/any
 - name: github.com/golang/snappy
   version: 553a641470496b2327abcac10b36396bd98e45c9
 - name: github.com/gorilla/websocket
-  version: a91eba7f97777409bc2c443f5534d41dd20c5720
+  version: ea4d1f681babbce9545c9c5f3d5194a789c89f5b
 - name: github.com/hashicorp/golang-lru
   version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
   subpackages:
@@ -165,7 +165,7 @@ imports:
   - edwards25519
   - extra25519
 - name: github.com/tendermint/go-crypto
-  version: 7dff40942a64cdeefefa9446b2d104750b349f8a
+  version: d31cfbaeaa4d930798ec327b52917975f3203c11
 - name: github.com/tendermint/go-wire
   version: 5f88da3dbc1a72844e6dfaf274ce87f851d488eb
   subpackages:
@@ -189,7 +189,7 @@ imports:
   - log
   - merkle
 - name: golang.org/x/crypto
-  version: 93b5df3bf36996258d005da151953da2030e346b
+  version: adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d
   subpackages:
   - curve25519
   - nacl/box
@@ -202,7 +202,7 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: 973f3f3bbd50e92b13faa6c53ec16f49b45e851c
+  version: 057a25b06247e0c51ba15d8ae475feb2fcb72164
   subpackages:
   - context
   - html
@@ -220,7 +220,7 @@ imports:
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 9e2f80a6ba7ed4ba13e0cd4b1f094bf916875735
+  version: 4e9ab9ee170f2a39bd66c92b3e0a47ff47a4bc77
   subpackages:
   - encoding
   - encoding/charmap
@@ -245,7 +245,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: c5c761dbca07f4d0efafd3f430a40dcdf1c1163f
+  version: 1d797552aeb8789a732a9f8f5bee2ff2bae3e34c
   subpackages:
   - codes
   - credentials

@@ -32,7 +32,7 @@ var (
 		// Gas price oracle settings
 		ethUtils.GpoBlocksFlag,
 		ethUtils.GpoPercentileFlag,
-		ethUtils.TargetGasLimitFlag,
+		utils.TargetGasLimitFlag,
 		// Gas Price
 		ethUtils.GasPriceFlag,
 	}
