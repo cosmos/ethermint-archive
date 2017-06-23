@@ -14,7 +14,7 @@ import (
 // format of query data
 type jsonRequest struct {
 	Method string          `json:"method"`
-	Id     json.RawMessage `json:"id,omitempty"`
+	ID     json.RawMessage `json:"id,omitempty"`
 	Params []interface{}   `json:"params,omitempty"`
 }
 
@@ -31,6 +31,7 @@ func decodeTx(txBytes []byte) (*types.Transaction, error) {
 //-------------------------------------------------------
 // convenience methods for validators
 
+// Receiver returns the receiving address based on the selected strategy
 func (app *EthermintApplication) Receiver() common.Address {
 	if app.strategy != nil {
 		return app.strategy.Receiver()
@@ -38,12 +39,14 @@ func (app *EthermintApplication) Receiver() common.Address {
 	return common.Address{}
 }
 
+// SetValidators sets new validators on the strategy
 func (app *EthermintApplication) SetValidators(validators []*abciTypes.Validator) {
 	if app.strategy != nil {
 		app.strategy.SetValidators(validators)
 	}
 }
 
+// GetUpdatedValidators returns an updated validator set from the strategy
 func (app *EthermintApplication) GetUpdatedValidators() abciTypes.ResponseEndBlock {
 	if app.strategy != nil {
 		return abciTypes.ResponseEndBlock{Diffs: app.strategy.GetUpdatedValidators()}
@@ -51,6 +54,7 @@ func (app *EthermintApplication) GetUpdatedValidators() abciTypes.ResponseEndBlo
 	return abciTypes.ResponseEndBlock{}
 }
 
+// CollectTx invokes CollectTx on the strategy
 func (app *EthermintApplication) CollectTx(tx *types.Transaction) {
 	if app.strategy != nil {
 		app.strategy.CollectTx(tx)

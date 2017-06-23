@@ -1,11 +1,11 @@
 package utils
 
 import (
-	cli "gopkg.in/urfave/cli.v1"
-
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
+	cli "gopkg.in/urfave/cli.v1"
+	"math/big"
 
 	"github.com/tendermint/ethermint/ethereum"
 
@@ -15,6 +15,11 @@ import (
 const (
 	// Client identifier to advertise over the network
 	clientIdentifier = "ethermint"
+)
+
+var (
+	// Gas limit of the Genesis block.
+	GenesisGasLimit = big.NewInt(100000000)
 )
 
 type ethstatsConfig struct {
@@ -27,6 +32,7 @@ type gethConfig struct {
 	Ethstats ethstatsConfig
 }
 
+// MakeFullNode creates a full go-ethereum node
 func MakeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
@@ -59,6 +65,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	return stack, cfg
 }
 
+// DefaultNodeConfig returns the default configuration for a go-ethereum node
 func DefaultNodeConfig() node.Config {
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
@@ -68,11 +75,13 @@ func DefaultNodeConfig() node.Config {
 	return cfg
 }
 
+// SetEthermintNodeConfig takes a node configuration and applies ethermint specific configuration
 func SetEthermintNodeConfig(cfg *node.Config) {
 	cfg.P2P.MaxPeers = 0
 	cfg.P2P.NoDiscovery = true
 }
 
+// SetEthermintEthConfig takes a ethereum configuration and applies ethermint specific configuration
 func SetEthermintEthConfig(cfg *eth.Config) {
 	cfg.MaxPeers = 0
 	cfg.PowFake = true

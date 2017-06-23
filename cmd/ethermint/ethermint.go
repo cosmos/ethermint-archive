@@ -22,7 +22,6 @@ import (
 	"github.com/tendermint/abci/server"
 
 	cmn "github.com/tendermint/tmlibs/common"
-	tmlog "github.com/tendermint/tmlibs/log"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
@@ -60,8 +59,7 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	logger := tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout))
-	srv.SetLogger(logger.With("module", "abci-server"))
+	srv.SetLogger(emtUtils.GetTMLogger().With("module", "abci-server"))
 
 	if _, err := srv.Start(); err != nil {
 		fmt.Println(err)
@@ -75,6 +73,8 @@ func ethermintCmd(ctx *cli.Context) error {
 	return nil
 }
 
+// nolint
+// startNode copies the logic from go-ethereum
 func startNode(ctx *cli.Context, stack *node.Node) {
 	ethUtils.StartNode(stack)
 
@@ -126,6 +126,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 }
 
 // tries unlocking the specified account a few times.
+// nolint: unparam
 func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int, passwords []string) (accounts.Account, string) {
 	account, err := ethUtils.MakeAddress(ks, address)
 	if err != nil {
