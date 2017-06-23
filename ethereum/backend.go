@@ -53,7 +53,7 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.H
 
 	// send special event to go-ethereum to switch homestead=true
 	currentBlock := ethereum.BlockChain().CurrentBlock()
-	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock})
+	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock}) // nolint: vet, errcheck
 
 	// We don't need PoW/Uncle validation
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
@@ -80,24 +80,29 @@ func (b *Backend) Config() *eth.Config {
 //----------------------------------------------------------------------
 // Handle block processing
 
+// DeliverTx appends a transaction to the current block
 func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
 	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, b.ethereum.ApiBackend.ChainConfig(), tx)
 }
 
+// AccumulateRewards accumulates the rewards based on the given strategy
 func (b *Backend) AccumulateRewards(strategy *emtTypes.Strategy) {
 	b.pending.accumulateRewards(strategy)
 }
 
+// Commit finalises the current block
 func (b *Backend) Commit(receiver common.Address) (common.Hash, error) {
 	return b.pending.commit(b.ethereum.BlockChain(), receiver)
 }
 
+// ResetWork resets the current block to a fresh object
 func (b *Backend) ResetWork(receiver common.Address) error {
 	work, err := b.pending.resetWork(b.ethereum.BlockChain(), receiver)
 	b.pending.work = work
 	return err
 }
 
+// UpdateHeaderWithTimeInfo uses the tendermint header to update the ethereum header
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
 	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time, tmHeader.GetNumTxs())
 }
@@ -140,7 +145,7 @@ func (b *Backend) Start(srvr *p2p.Server) error {
 // Ethereum protocol.
 func (b *Backend) Stop() error {
 	b.txSub.Unsubscribe()
-	b.ethereum.Stop()
+	b.ethereum.Stop() // nolint: errcheck
 	return nil
 }
 

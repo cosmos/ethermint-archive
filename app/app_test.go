@@ -45,6 +45,7 @@ type MockClient struct {
 func NewMockClient() *MockClient { return &MockClient{make(chan struct{})} }
 
 func (mc *MockClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
+	_ = result
 	switch method {
 	case "status":
 		result = &ctypes.ResultStatus{}
@@ -77,7 +78,7 @@ func TestBumpingNonces(t *testing.T) {
 	if err != nil {
 		t.Error("unable to create temporary datadir")
 	}
-	defer os.RemoveAll(tempDatadir)
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	stack, backend, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
 	if err != nil {
@@ -92,7 +93,7 @@ func TestBumpingNonces(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedtx, err := rlp.EncodeToBytes(tx1)
+	encodedtx, _ := rlp.EncodeToBytes(tx1)
 
 	// check transaction
 	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx))
@@ -117,7 +118,7 @@ func TestBumpingNonces(t *testing.T) {
 	// second transaction is sent via geth RPC, or at least pretending to be so
 	// with a correct nonce this time, it should pass
 	nonce2 := uint64(1)
-	tx2, err := createTransaction(privateKey, nonce2)
+	tx2, _ := createTransaction(privateKey, nonce2)
 
 	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
 
@@ -128,7 +129,7 @@ func TestBumpingNonces(t *testing.T) {
 	case <-mockclient.sentBroadcastTx:
 	}
 
-	stack.Stop()
+	stack.Stop() // nolint: errcheck
 }
 
 func TestMultipleTxOneAcc(t *testing.T) {
@@ -147,7 +148,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	if err != nil {
 		t.Error("unable to create temporary datadir")
 	}
-	defer os.RemoveAll(tempDatadir)
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
 	if err != nil {
@@ -163,7 +164,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedTx1, err := rlp.EncodeToBytes(tx1)
+	encodedTx1, _ := rlp.EncodeToBytes(tx1)
 
 	//create 2-nd tx from the same account
 	nonce2 := uint64(0)
@@ -172,7 +173,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedTx2, err := rlp.EncodeToBytes(tx2)
+	encodedTx2, _ := rlp.EncodeToBytes(tx2)
 
 	// check transaction
 	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
@@ -196,7 +197,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
-	node.Stop()
+	node.Stop() // nolint: errcheck
 }
 
 func TestMultipleTxTwoAcc(t *testing.T) {
@@ -223,7 +224,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	if err != nil {
 		t.Error("unable to create temporary datadir")
 	}
-	defer os.RemoveAll(tempDatadir)
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1, addr2}, mockclient)
 	if err != nil {
@@ -238,7 +239,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedtx1, err := rlp.EncodeToBytes(tx1)
+	encodedtx1, _ := rlp.EncodeToBytes(tx1)
 
 	//create 2-nd tx
 	nonce2 := uint64(0)
@@ -247,7 +248,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedTx2, err := rlp.EncodeToBytes(tx2)
+	encodedTx2, _ := rlp.EncodeToBytes(tx2)
 
 	// check transaction
 	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx1))
@@ -265,7 +266,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
-	node.Stop()
+	node.Stop() // nolint: errcheck
 }
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
@@ -288,13 +289,13 @@ func makeTestApp(tempDatadir string, addresses []common.Address, mockclient *Moc
 
 func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
 	gopath := os.Getenv("GOPATH")
-	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/dev/genesis.json")
+	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/setup/genesis.json")
 
 	file, err := os.Open(genesisPath)
-	defer file.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close() // nolint: errcheck
 
 	genesis := new(core.Genesis)
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {

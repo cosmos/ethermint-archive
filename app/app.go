@@ -81,7 +81,7 @@ func (app *EthermintApplication) SetOption(key string, value string) (log string
 	return ""
 }
 
-// InitChain initalizes the validator set
+// InitChain initializes the validator set
 func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
 	log.Info("InitChain")
 	app.SetValidators(validators)
