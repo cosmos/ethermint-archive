@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "async": "^2.5.0",
     "bignumber.js": "^4.0.2",
     "config": "^1.26.1",
     "ethereumjs-tx": "^1.3.1",
