@@ -92,6 +92,9 @@ if [ ! -z "$NON_STATIC_TARGETS" ]; then
     ${DIR}/cmd/ethermint
 fi
 
+rm -rf ./build/dist
+mkdir -p ./build/dist
+
 echo "==> Packaging..."
 for FILE in $(ls ./build/pkg); do
     pushd ./build/pkg
@@ -104,7 +107,7 @@ rm -rf ./build/dist
 mkdir -p ./build/dist
 for FILENAME in $(find ./build/pkg -mindepth 1 -maxdepth 1 -type f); do
     FILENAME=$(basename "$FILENAME")
-	  cp "./build/pkg/${FILENAME}" "./build/dist/ethermint_${VERSION}_${FILENAME}"
+	  cp "./build/pkg/${FILENAME}" "./build/dist/${VERSION}_${FILENAME}"
 done
 
 # Make the checksums.
