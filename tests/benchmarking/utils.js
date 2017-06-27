@@ -37,22 +37,22 @@ exports.generateTransaction = (wallet, destination, nonce, gasPrice) => {
   return '0x' + tx.serialize().toString('hex')
 }
 
-exports.waitProcessedInterval = function (web3, intervalMs, cb) {
-  if (arguments.length === 2) {
-    cb = intervalMs
-    intervalMs = null
-  }
+exports.waitProcessedInterval = function (web3, intervalMs, blockTimeout, cb) {
+  let startingBlock = web3.eth.blockNumber
 
-  let blocks = 100
+  console.log('Starting block:', startingBlock)
   let interval = setInterval(() => {
-    if (blocks-- < 0) {
+    let blocksGone = web3.eth.blockNumber - startingBlock
+    if (blocksGone > blockTimeout) {
       clearInterval(interval)
-      cb(new Error('Pending full after 100 blocks'))
+      cb(new Error(`Pending full after ${blockTimeout} blocks`))
       return
     }
 
     let status = web3.txpool.status
-    console.log('Pending Txs: %s, Queued Txs: %s', status.pending, status.queued)
+    console.log(`Blocks Passed ${blocksGone}, ` +
+      `Pending Txs: ${status.pending}, Queued Txs: ${status.queued}`)
+
     if (status.pending === 0 && status.queued === 0) {
       clearInterval(interval)
       cb(null, new Date())

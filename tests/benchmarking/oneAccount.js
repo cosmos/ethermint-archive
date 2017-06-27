@@ -9,6 +9,7 @@ const wallet = Wallet.fromV3(config.get('wallet'), config.get('password'))
 const walletAddress = wallet.getAddressString()
 const initialNonce = web3.eth.getTransactionCount(walletAddress)
 const totalTxs = config.get('n')
+const blockTimeout = config.get('blockTimeout')
 
 // extend web3
 utils.extendWeb3(web3)
@@ -16,7 +17,9 @@ utils.extendWeb3(web3)
 const transactions = []
 
 console.log('Current block number:', web3.eth.blockNumber)
+console.log(`Will send ${totalTxs} transactions and wait for ${blockTimeout} blocks`)
 console.log('generating transactions')
+
 for (let i = 0; i < totalTxs; i++) {
   let nonce = i + initialNonce
   let tx = utils.generateTransaction(wallet, config.get('address'), nonce, web3.eth.gasPrice)
@@ -34,7 +37,7 @@ utils.sendTransactions(web3, transactions, (err, ms) => {
     return
   }
 
-  utils.waitProcessedInterval(web3, (err, endDate) => {
+  utils.waitProcessedInterval(web3, 100, blockTimeout, (err, endDate) => {
     if (err) {
       console.error('Couldn\'t process transactions in blocks')
       console.error(err)
@@ -46,7 +49,7 @@ utils.sendTransactions(web3, transactions, (err, ms) => {
     let timePassed = (endDate - start) / 1000
     let perSecond = processed / timePassed
 
-    console.log(`Processed ${processed} of ${sent} transactions
-    from one account in ${timePassed}, ${perSecond} tx/s`)
+    console.log(`Processed ${processed} of ${sent} transactions ` +
+    `from one account in ${timePassed}s, ${perSecond} tx/s`)
   })
 })
