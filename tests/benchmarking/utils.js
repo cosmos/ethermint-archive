@@ -37,9 +37,36 @@ exports.generateTransaction = (wallet, destination, nonce, gasPrice) => {
   return '0x' + tx.serialize().toString('hex')
 }
 
-exports.waitProcessed = (web3, cb) => {
-  let filter = web3.eth.filter('latest')
-  let blocks = 10
+exports.waitProcessedInterval = function (web3, intervalMs, cb) {
+  if (arguments.length === 2) {
+    cb = intervalMs
+    intervalMs = null
+  }
+
+  let blocks = 100
+  let interval = setInterval(() => {
+    if (blocks-- < 0) {
+      clearInterval(interval)
+      cb(new Error('Pending full after 100 blocks'))
+      return
+    }
+
+    let status = web3.txpool.status
+    console.log('Pending Txs: %s, Queued Txs: %s', status.pending, status.queued)
+    if (status.pending === 0 && status.queued === 0) {
+      clearInterval(interval)
+      cb(null, new Date())
+    }
+  }, intervalMs || 100)
+}
+
+exports.waitProcessedFilter = function (web3, filter, cb) {
+  if (arguments.length === 2) {
+    cb = filter
+    filter = web3.eth.filter('latest')
+  }
+
+  let blocks = 100
 
   filter.watch(function (err, res) {
     if (err) {
