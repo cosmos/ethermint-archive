@@ -20,9 +20,13 @@ console.log('Current block number:', web3.eth.blockNumber)
 console.log(`Will send ${totalTxs} transactions and wait for ${blockTimeout} blocks`)
 console.log('generating transactions')
 
+let privKey = wallet.getPrivateKey()
+let dest = config.get('address')
+let gasPrice = web3.eth.gasPrice
+
 for (let i = 0; i < totalTxs; i++) {
   let nonce = i + initialNonce
-  let tx = utils.generateTransaction(wallet, config.get('address'), nonce, web3.eth.gasPrice)
+  let tx = utils.generateTransaction(walletAddress, privKey, dest, nonce, gasPrice)
 
   console.log('generated tx: ' + i, 'nonce: ' + nonce)
   transactions.push(tx)

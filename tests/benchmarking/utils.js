@@ -20,19 +20,19 @@ exports.extendWeb3 = (web3) => {
   })
 }
 
-exports.generateTransaction = (wallet, destination, nonce, gasPrice) => {
+exports.generateTransaction = (address, privKey, destination, nonce, gasPrice) => {
   const txParams = {
     nonce: '0x' + nonce.toString(16),
     gasPrice: '0x' + gasPrice.toString(16),
     gas: '0x' + new BigNumber(21024).toString(16),
-    from: wallet.getAddressString(),
+    from: address,
     to: destination,
     value: '0x00',
     data: '0x'
   }
 
   let tx = new Tx(txParams)
-  tx.sign(wallet.getPrivateKey())
+  tx.sign(privKey)
 
   return '0x' + tx.serialize().toString('hex')
 }
