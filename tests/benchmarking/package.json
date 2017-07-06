@@ -1,0 +1,20 @@
+{
+  "name": "benchmarking",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^2.5.0",
+    "bignumber.js": "^4.0.2",
+    "config": "^1.26.1",
+    "ethereumjs-tx": "^1.3.1",
+    "ethereumjs-wallet": "^0.6.0",
+    "mocha": "^3.4.2",
+    "web3": "^0.19.0"
+  }
+}
