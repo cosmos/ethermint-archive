@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/ethereum/go-ethereum/ethdb"
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
@@ -47,16 +48,16 @@ func (p *pending) accumulateRewards(strategy *emtTypes.Strategy) {
 }
 
 // commit and reset the work
-func (p *pending) commit(blockchain *core.BlockChain, receiver common.Address) (common.Hash, error) {
+func (p *pending) commit(ethereum *eth.Ethereum, receiver common.Address) (common.Hash, error) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	blockHash, err := p.work.commit(blockchain)
+	blockHash, err := p.work.commit(ethereum.BlockChain(), ethereum.ChainDb())
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	work, err := p.resetWork(blockchain, receiver)
+	work, err := p.resetWork(ethereum.BlockChain(), receiver)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -171,10 +172,10 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 
 // Commit the ethereum state, update the header, make a new block and add it
 // to the ethereum blockchain. The application root hash is the hash of the ethereum block.
-func (w *work) commit(blockchain *core.BlockChain) (common.Hash, error) {
+func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Hash, error) {
 
 	// commit ethereum state and update the header
-	hashArray, err := w.state.Commit(false) // XXX: ugh hardforks
+	hashArray, err := w.state.CommitTo(db.NewBatch(), false) // XXX: ugh hardforks
 	if err != nil {
 		return common.Hash{}, err
 	}

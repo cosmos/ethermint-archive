@@ -1,6 +1,10 @@
 # Changelog
 
 ## 0.4.0
+### Breaking
+* pending.commit(...) takes an ethereum object instead of a blockchain object
+    * the change was necessary due to a change in the API exposed by geth
+
 ### Improvements
 * Update to geth v1.6.6
 
