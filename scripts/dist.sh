@@ -92,11 +92,36 @@ if [ ! -z "$NON_STATIC_TARGETS" ]; then
     ${DIR}/cmd/ethermint
 fi
 
-echo "==> Packaging..."
 for FILE in $(ls ./build/pkg); do
+    f=${FILE#*-}
+    if [[ $f == *"exe" ]]
+    then
+        f=${f%.*}
+    fi
+    echo $f
+    mkdir -p ./build/pkg/$f
+
+    name="ethermint"
+    if [[ $FILE == *"exe" ]]
+    then
+        name="ethermint.exe"
+    fi
+    echo $name
+
     pushd ./build/pkg
-    zip "${FILE}.zip" $FILE
+    mv $FILE $f/$name
     popd
+done
+
+# Zip all the files.
+echo "==> Packaging..."
+for PLATFORM in $(find ./build/pkg -mindepth 1 -maxdepth 1 -type d); do
+		OSARCH=$(basename "${PLATFORM}")
+		echo "--> ${OSARCH}"
+
+		pushd "$PLATFORM" >/dev/null 2>&1
+		zip "../${OSARCH}.zip" ./*
+		popd >/dev/null 2>&1
 done
 
 # Add "ethermint" and $VERSION prefix to package name.
