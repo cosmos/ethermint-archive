@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+### Improvements
+* Update to geth v1.6.6
+
+
 ## 0.3.0 (June 23, 2017)
 ### Improvements
 * Gas Limit improvements
