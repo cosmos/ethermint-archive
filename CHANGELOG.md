@@ -7,6 +7,8 @@
 
 ### Improvements
 * Update to geth v1.6.6
+* Add more money to the default account
+* Increase the wait times in the contract tests to guard against false positives
 
 
 ## 0.3.0 (June 23, 2017)
