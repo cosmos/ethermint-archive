@@ -1,5 +1,5 @@
-hash: 160703ef327f0c9e49087f1a7615b5b27b7dbae5a034fbb3d627f35422fa1793
-updated: 2017-07-06T14:50:27.525203755+02:00
+hash: 1011622440eaaa9e1510f0c744545394cccce06e1d198202497969486977fb75
+updated: 2017-07-06T15:09:15.621198636+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: 70dd518c9b1bf288c9aa65135940996d5f6e8c2f
@@ -12,7 +12,7 @@ imports:
 - name: github.com/edsrzf/mmap-go
   version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
-  version: 10a45cb59bd9bc9f717817afc029a57b222e558d
+  version: 7db2143396f73f418b50dc5571fec2c62c78b7e4
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
@@ -215,6 +215,10 @@ imports:
   - lex/httplex
   - trace
   - websocket
+- name: golang.org/x/sync
+  version: f52d1811a62927559de87708c8913c1650ce4f26
+  subpackages:
+  - syncmap
 - name: golang.org/x/sys
   version: 6faef541c73732f438fb660a212750a9ba9f9362
   subpackages:
