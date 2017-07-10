@@ -4,6 +4,9 @@
 ### Breaking
 * pending.commit(...) takes an ethereum object instead of a blockchain object
     * the change was necessary due to a change in the API exposed by geth
+* syncing RPC endpoint always returns true for go-ethereum
+    * once tendermint is patched it will return the accurate sync status of the
+      underlying tendermint core instance
 
 ### Improvements
 * Update to geth v1.6.6

@@ -129,6 +129,9 @@ func (b *Backend) APIs() []rpc.API {
 		if _, ok := v.Service.(*eth.PublicMinerAPI); ok {
 			continue
 		}
+		if _, ok := v.Service.(*eth.PublicEthereumAPI); ok {
+			v.Service = NewPublicEthereumAPI(b.Ethereum().ApiBackend, b.client)
+		}
 		retApis = append(retApis, v)
 	}
 	return retApis
