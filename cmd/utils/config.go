@@ -13,7 +13,7 @@ import (
 
 	"github.com/tendermint/ethermint/ethereum/geth"
 
-	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
+	rpcClient "github.com/tendermint/tendermint/rpc/client"
 )
 
 const (
