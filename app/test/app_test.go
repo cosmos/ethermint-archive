@@ -1,13 +1,8 @@
-package app_test
+package test
 
 import (
-	"crypto/ecdsa"
-	"encoding/json"
-	"errors"
 	"io/ioutil"
-	"math/big"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,10 +10,7 @@ import (
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/tendermint/ethermint/app"
@@ -272,6 +264,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 
 	node.Stop() // nolint: errcheck
 }
+<<<<<<< HEAD:app/app_test.go
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
 func makeTestApp(tempDatadir string, addresses []common.Address, mockclient *MockClient, logger tmLog.Logger) (*node.Node, *geth.Backend, *app.EthermintApplication, error) {
