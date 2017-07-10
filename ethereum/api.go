@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/eth"
 
-	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
+	rpcClient "github.com/tendermint/tendermint/rpc/client"
 )
 
 // We must implement our own net service since we don't have access to `internal/ethapi`
@@ -42,11 +42,11 @@ func (n *NetRPCService) Version() string {
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicEthereumAPI struct {
 	b      *eth.EthApiBackend
-	client rpcClient.HTTPClient
+	client rpcClient.Client
 }
 
 // NewPublicEthereumAPI creates a new Ethereum protocol API.
-func NewPublicEthereumAPI(b *eth.EthApiBackend, c rpcClient.HTTPClient) *PublicEthereumAPI {
+func NewPublicEthereumAPI(b *eth.EthApiBackend, c rpcClient.Client) *PublicEthereumAPI {
 	return &PublicEthereumAPI{b, c}
 }
 
@@ -66,5 +66,10 @@ func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 	// TODO: Relies on extra RPC endpoint from tendermint core
 	// For now just return true, since it is more predictable than the default
 	// ethereum implementation.
-	return true, nil
+	res, err := s.client.Status()
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Syncing, nil
 }
