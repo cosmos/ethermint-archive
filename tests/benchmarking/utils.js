@@ -20,19 +20,19 @@ exports.extendWeb3 = (web3) => {
   })
 }
 
-exports.generateTransaction = (address, privKey, destination, nonce, gasPrice) => {
+exports.generateTransaction = (txObject) => {
   const txParams = {
-    nonce: '0x' + nonce.toString(16),
-    gasPrice: '0x' + gasPrice.toString(16),
+    nonce: '0x' + txObject.nonce.toString(16),
+    gasPrice: '0x' + txObject.gasPrice.toString(16),
     gas: '0x' + new BigNumber(21024).toString(16),
-    from: address,
-    to: destination,
-    value: '0x00',
+    from: txObject.from,
+    to: txObject.to,
+    value: txObject.value ? '0x' + txObject.value.toString(16) : '0x00',
     data: '0x'
   }
 
   let tx = new Tx(txParams)
-  tx.sign(privKey)
+  tx.sign(txObject.privKey)
 
   return '0x' + tx.serialize().toString('hex')
 }
@@ -98,4 +98,10 @@ exports.sendTransactions = (web3, transactions, cb) => {
 
     cb(null, new Date() - start)
   })
+}
+
+exports.calculateTransactionsPrice = (gasPrice, txcount) => {
+  let gas = 21024 // Simple transaction gas requirement
+
+  return new BigNumber(gasPrice).times(gas).times(txcount)
 }
