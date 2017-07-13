@@ -1,18 +1,16 @@
 const config = require('config')
-const Web3 = require('web3')
 const Wallet = require('ethereumjs-wallet')
+const Web3pool = require('./web3pool')
 const utils = require('./utils')
 
-const web3 = new Web3(new Web3.providers.HttpProvider(config.get('provider')))
+const web3p = new Web3pool(config.get('providers'))
+const web3 = web3p.web3
 const wallet = Wallet.fromV3(config.get('wallet'), config.get('password'))
 
 const walletAddress = wallet.getAddressString()
 const initialNonce = web3.eth.getTransactionCount(walletAddress)
 const totalTxs = config.get('n')
 const blockTimeout = config.get('blockTimeout')
-
-// extend web3
-utils.extendWeb3(web3)
 
 const transactions = []
 
@@ -49,7 +47,7 @@ console.log('Generated.')
 
 // Send transactions
 const start = new Date()
-utils.sendTransactions(web3, transactions, (err, ms) => {
+utils.sendTransactions(web3p, transactions, (err, ms) => {
   if (err) {
     console.error('Couldn\'t send Transactions:')
     console.error(err)

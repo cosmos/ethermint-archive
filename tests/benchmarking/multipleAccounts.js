@@ -3,8 +3,10 @@ const Web3 = require('web3')
 const Wallet = require('ethereumjs-wallet')
 const utils = require('./utils')
 const async = require('async')
+const Web3pool = require('./web3pool')
 
-const web3 = new Web3(new Web3.providers.HttpProvider(config.get('provider')))
+const web3p = new Web3pool(config.get('providers'))
+const web3 = web3p.web3
 const wallet = Wallet.fromV3(config.get('wallet'), config.get('password'))
 const totalAccounts = config.get('accounts')
 
@@ -16,9 +18,6 @@ const balance = web3.eth.getBalance(walletAddress)
 const costPerAccount = utils.calculateTransactionsPrice(gasPrice, totalTxs)
 const distributingCost = utils.calculateTransactionsPrice(gasPrice, totalAccounts)
 const totalCost = distributingCost.plus(costPerAccount.times(totalAccounts))
-
-// extend web3
-utils.extendWeb3(web3)
 
 console.log(`Send ${totalTxs} transactions from each account, accounts: ${totalAccounts}`)
 console.log(`Cost of each account txs: ${web3.fromWei(costPerAccount, 'ether')}`)
@@ -51,64 +50,71 @@ for (let i = 0; i < totalAccounts; i++) {
 }
 console.log('Distributed Funds.')
 
-// Send Transactions
-let dest = config.get('address')
-let initialNonces = {}
-wallets.forEach((w) => {
-  let addr = w.getAddressString()
-  initialNonces[addr] = web3.eth.getTransactionCount(addr)
-})
-
-let runTransactionsFromAccount = (wallet, cb) => {
-  let address = wallet.getAddressString()
-  let privKey = wallet.getPrivateKey()
-  let initialNonce = initialNonces[address]
-  let transactions = []
-  let totalTxs = config.get('n')
-
-  console.log(`Generating ${totalTxs} transactions for ${address}`)
-  for (let i = 0; i < totalTxs; i++) {
-    let tx = utils.generateTransaction({
-      nonce: initialNonce + i,
-      gasPrice: gasPrice,
-      from: address,
-      to: dest,
-      privKey: privKey
-    })
-
-    transactions.push(tx)
+// wait for 200 blocks this case. Initial Fund distribution
+utils.waitMultipleProcessedInterval(web3p, 100, 200, (err, endDate) => {
+  if (err) {
+    console.error(err)
+    return
   }
-  console.log(`Generated, starting sending transactions from ${address}`)
+  // Send Transactions
+  let dest = config.get('address')
+  let initialNonces = {}
+  wallets.forEach((w) => {
+    let addr = w.getAddressString()
+    initialNonces[addr] = web3.eth.getTransactionCount(addr)
+  })
 
-  utils.sendTransactions(web3, transactions, cb)
-}
+  let runTransactionsFromAccount = (wallet, cb) => {
+    let address = wallet.getAddressString()
+    let privKey = wallet.getPrivateKey()
+    let initialNonce = initialNonces[address]
+    let transactions = []
+    let totalTxs = config.get('n')
 
-const start = new Date()
-const blockTimeout = config.get('blockTimeout')
-async.parallel(
-  wallets.map((w) => runTransactionsFromAccount.bind(null, w)),
-  (err, res) => {
-    if (err) {
-      console.log('Error on transactions:', err)
-      return
+    console.log(`Generating ${totalTxs} transactions for ${address}`)
+    for (let i = 0; i < totalTxs; i++) {
+      let tx = utils.generateTransaction({
+        nonce: initialNonce + i,
+        gasPrice: gasPrice,
+        from: address,
+        to: dest,
+        privKey: privKey
+      })
+
+      transactions.push(tx)
     }
+    console.log(`Generated, starting sending transactions from ${address}`)
 
-    utils.waitProcessedInterval(web3, 100, blockTimeout, (err, endDate) => {
+    utils.sendTransactions(web3p, transactions, cb)
+  }
+
+  const start = new Date()
+  const blockTimeout = config.get('blockTimeout')
+  async.parallel(
+    wallets.map((w) => runTransactionsFromAccount.bind(null, w)),
+    (err, res) => {
       if (err) {
-        console.error('Couldn\'t process transactions in blocks')
-        console.error(err)
+        console.log('Error on transactions:', err)
         return
       }
 
-      let sent = totalTxs * totalAccounts
-      let processed = Object.keys(initialNonces).reduce((sum, addr) => {
-        return sum + (web3.eth.getTransactionCount(addr) - initialNonces[addr])
-      }, 0)
-      let timePassed = (endDate - start) / 1000
-      let perSecond = processed / timePassed
+      utils.waitMultipleProcessedInterval(web3p, 100, blockTimeout, (err, endDate) => {
+        if (err) {
+          console.error('Couldn\'t process transactions in blocks')
+          console.error(err)
+          return
+        }
 
-      console.log(`Processed ${processed} of ${sent} transactions ` +
-      `from one account in ${timePassed}s, ${perSecond} tx/s`)
-    })
-  }
-)
+        let sent = totalTxs * totalAccounts
+        let processed = Object.keys(initialNonces).reduce((sum, addr) => {
+          return sum + (web3.eth.getTransactionCount(addr) - initialNonces[addr])
+        }, 0)
+        let timePassed = (endDate - start) / 1000
+        let perSecond = processed / timePassed
+
+        console.log(`Processed ${processed} of ${sent} transactions ` +
+        `from one account in ${timePassed}s, ${perSecond} tx/s`)
+      })
+    }
+  )
+})
