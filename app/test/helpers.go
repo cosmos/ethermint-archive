@@ -22,9 +22,32 @@ import (
 	data "github.com/tendermint/go-wire/data"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	ttypes "github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tmlibs/events"
+	"github.com/tendermint/tmlibs/log"
 )
 
-type MockClient struct{}
+var (
+	receiverAddress = common.StringToAddress("0x1234123412341234123412341234123412341234")
+)
+
+type MockClient struct {
+	sentBroadcastTx chan struct{} // fires when we call broadcast_tx_sync
+	syncing         bool
+}
+
+func NewMockClient() *MockClient {
+	return &MockClient{
+		make(chan struct{}),
+		false,
+	}
+}
+
+func NewMockSyncingClient() *MockClient {
+	return &MockClient{
+		make(chan struct{}),
+		true,
+	}
+}
 
 // ---------------------
 // ABCIClient implementation
@@ -46,7 +69,9 @@ func (mc *MockClient) BroadcastTxAsync(tx ttypes.Tx) (*ctypes.ResultBroadcastTx,
 }
 
 func (mc *MockClient) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadcastTx, error) {
-	return &ctypes.ResultBroadcastTx(tx), nil
+	close(mc.sentBroadcastTx)
+
+	return &ctypes.ResultBroadcastTx{}, nil
 }
 
 // ----------------------
@@ -83,7 +108,65 @@ func (mc *MockClient) BlockchainInfo(minHeight, maxHeight int) (*ctypes.ResultBl
 // StatusClient implementation
 
 func (mc *MockClient) Status() (*ctypes.ResultStatus, error) {
-	return &ctypes.ResultStatus{}, nil
+	return &ctypes.ResultStatus{Syncing: mc.syncing}, nil
+}
+
+// -----------------------
+// Service implementation
+
+func (mc *MockClient) Start() (bool, error) {
+	return true, nil
+}
+
+func (mc *MockClient) OnStart() error {
+	return nil
+}
+
+func (mc *MockClient) Stop() bool {
+	return true
+}
+
+func (mc *MockClient) OnStop() {
+	// nop
+}
+
+func (mc *MockClient) Reset() (bool, error) {
+	return true, nil
+}
+
+func (mc *MockClient) OnReset() error {
+	return nil
+}
+
+func (mc *MockClient) IsRunning() bool {
+	return true
+}
+
+func (mc *MockClient) String() string {
+	return "MockClient"
+}
+
+func (mc *MockClient) SetLogger(log.Logger) {
+
+}
+
+// -----------------------
+// types.EventSwitch implementation
+
+func (mc *MockClient) AddListenerForEvent(listenerID, event string, cb events.EventCallback) {
+	// nop
+}
+
+func (mc *MockClient) FireEvent(event string, data events.EventData) {
+	// nop
+}
+
+func (mc *MockClient) RemoveListenerForEvent(event string, listenerID string) {
+	// nop
+}
+
+func (mc *MockClient) RemoveListener(listenerID string) {
+	// nop
 }
 
 // mimics abciEthereumAction from cmd/ethermint/main.go

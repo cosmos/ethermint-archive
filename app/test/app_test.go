@@ -23,9 +23,7 @@ import (
 	tmLog "github.com/tendermint/tmlibs/log"
 )
 
-var (
-	receiverAddress = common.StringToAddress("0x1234123412341234123412341234123412341234")
-)
+
 
 // implements: tendermint.rpc.client.HTTPClient
 type MockClient struct {
