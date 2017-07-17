@@ -18,9 +18,7 @@ import (
 	abciTypes "github.com/tendermint/abci/types"
 )
 
-var (
-	receiverAddress = common.StringToAddress("0x1234123412341234123412341234123412341234")
-)
+
 
 func TestBumpingNonces(t *testing.T) {
 	// generate key
