@@ -17,7 +17,7 @@ import (
 
 	emtTypes "github.com/tendermint/ethermint/types"
 
-	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
+	rpcClient "github.com/tendermint/tendermint/rpc/client"
 )
 
 //----------------------------------------------------------------------
@@ -37,11 +37,11 @@ type Backend struct {
 	pending *pending
 
 	// client for forwarding txs to tendermint
-	client rpcClient.HTTPClient
+	client rpcClient.Client
 }
 
 // NewBackend creates a new Backend
-func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.HTTPClient) (*Backend, error) {
+func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.Client) (*Backend, error) {
 	p := newPending()
 
 	// eth.New takes a ServiceContext for the EventMux, the AccountManager,
@@ -128,6 +128,9 @@ func (b *Backend) APIs() []rpc.API {
 		}
 		if _, ok := v.Service.(*eth.PublicMinerAPI); ok {
 			continue
+		}
+		if _, ok := v.Service.(*eth.PublicEthereumAPI); ok {
+			v.Service = NewPublicEthereumAPI(b.Ethereum().ApiBackend, b.client)
 		}
 		retApis = append(retApis, v)
 	}
