@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+### Breaking
+* pending.commit(...) takes an ethereum object instead of a blockchain object
+    * the change was necessary due to a change in the API exposed by geth
+
+### Improvements
+* Update to geth v1.6.6
+* Add more money to the default account
+* Increase the wait times in the contract tests to guard against false positives
+
 ## 0.3.0 (June 23, 2017)
 ### Improvements
 * Gas Limit improvements

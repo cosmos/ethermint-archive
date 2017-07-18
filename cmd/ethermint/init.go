@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
+
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
@@ -34,7 +36,7 @@ func initCmd(ctx *cli.Context) error {
 		ethUtils.Fatalf("invalid genesis file: %v", err)
 	}
 
-	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(ethUtils.MakeDataDir(ctx), "ethermint/chaindata"), 0, 0)
+	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(emtUtils.MakeDataDir(ctx), "ethermint/chaindata"), 0, 0)
 	if err != nil {
 		ethUtils.Fatalf("could not open database: %v", err)
 	}

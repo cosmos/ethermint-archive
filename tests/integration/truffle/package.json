@@ -9,6 +9,7 @@
   "author": "",
   "license": "GPL-3.0",
   "dependencies": {
+    "chai": "^4.0.2",
     "mocha": "^3.4.2",
     "truffle": "^3.2.4"
   }
