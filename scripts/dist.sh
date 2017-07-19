@@ -19,16 +19,6 @@ DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 # Change into that dir because we expect that.
 cd "$DIR"
 
-# Generate the tag.
-# if [ -z "$NOTAG" ]; then
-#     echo "==> Tagging..."
-#     git commit --allow-empty -a -m "Release v$VERSION"
-#     git tag -a -m "Version $VERSION" "v${VERSION}" master
-# fi
-
-# Do a hermetic build inside a Docker container.
-# docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
-# docker run --rm -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
 # Get the git commit
 GIT_COMMIT="$(git rev-parse HEAD)"
 GIT_DESCRIBE="$(git describe --tags --always)"
