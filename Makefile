@@ -57,6 +57,10 @@ test:
 	@echo "--> Running go test"
 	@go test $(PACKAGES)
 
+test_coverage:
+	@echo "--> Running go test with coverage"
+	@bash ./tests/scripts/test_coverage.sh
+
 test_race:
 	@echo "--> Running go test --race"
 	@go test -race $(PACKAGES)
