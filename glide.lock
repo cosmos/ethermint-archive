@@ -1,12 +1,12 @@
 hash: 1011622440eaaa9e1510f0c744545394cccce06e1d198202497969486977fb75
-updated: 2017-07-06T15:09:15.621198636+02:00
+updated: 2017-07-19T11:31:35.316175226+02:00
 imports:
 - name: github.com/aristanetworks/goarista
-  version: 70dd518c9b1bf288c9aa65135940996d5f6e8c2f
+  version: 8ab803d6502ea1e05a8c9b73193b405291efb7ce
   subpackages:
   - monotime
 - name: github.com/btcsuite/btcd
-  version: 9822ffad6802d3b902442b727a238230194d961f
+  version: 47885ab8702485be6b6f87a03d4f3be0bc5c982c
   subpackages:
   - btcec
 - name: github.com/edsrzf/mmap-go
@@ -73,7 +73,7 @@ imports:
 - name: github.com/fatih/color
   version: 62e9147c64a1ed519147b62a56a14e83e2be02c1
 - name: github.com/go-kit/kit
-  version: 6a894fed38a999e1a0ce384f3a45589f1752d30d
+  version: 69950137349e3e6781c1a54e4f7fd3803bd36765
   subpackages:
   - log
   - log/level
@@ -81,16 +81,16 @@ imports:
 - name: github.com/go-logfmt/logfmt
   version: 390ab7935ee28ec6b286364bba9b4dd6410cb3d5
 - name: github.com/go-stack/stack
-  version: 7a2f19628aabfe68f0766b59e74d6315f8347d22
+  version: 54be5f394ed2c3e19dac9134a40a95ba5a017f7b
 - name: github.com/golang/protobuf
-  version: 6a1fa9404c0aebf36c879bc50152edcc953910d2
+  version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
   subpackages:
   - proto
   - ptypes/any
 - name: github.com/golang/snappy
   version: 553a641470496b2327abcac10b36396bd98e45c9
 - name: github.com/gorilla/websocket
-  version: ea4d1f681babbce9545c9c5f3d5194a789c89f5b
+  version: a69d9f6de432e2c6b296a947d8a5ee88f68522cf
 - name: github.com/hashicorp/golang-lru
   version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
   subpackages:
@@ -113,7 +113,7 @@ imports:
 - name: github.com/mattn/go-colorable
   version: 941b50ebc6efddf4c41c8e4537a5f68a4e686b24
 - name: github.com/mattn/go-isatty
-  version: 57fdcb988a5c543893cc61bce354a6e24ab70022
+  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/pborman/uuid
   version: e790cca94e6cc75c7064b1332e63811d4aae1a53
 - name: github.com/peterh/liner
@@ -171,7 +171,7 @@ imports:
   subpackages:
   - data
 - name: github.com/tendermint/tendermint
-  version: 7f3c697b6e4c624aa0f8d29ff97e9bfe20deb8f9
+  version: b467515719e686e4678e6da4e102f32a491b85a0
   subpackages:
   - config
   - p2p
@@ -189,7 +189,7 @@ imports:
   - log
   - merkle
 - name: golang.org/x/crypto
-  version: d625dfd80595a76324dea1452ceb9cfbcaee8e3e
+  version: 7f7c0c2d75ebb4e32a21396ce36e87b6dadc91c9
   subpackages:
   - curve25519
   - nacl/box
@@ -202,7 +202,7 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: 054b33e6527139ad5b1ec2f6232c3b175bd9a30c
+  version: 02ac38e2528ff4adea90f184d71a3faa04b4b1b0
   subpackages:
   - context
   - html
@@ -220,11 +220,11 @@ imports:
   subpackages:
   - syncmap
 - name: golang.org/x/sys
-  version: 6faef541c73732f438fb660a212750a9ba9f9362
+  version: cd2c276457edda6df7fb04895d3fd6a6add42926
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 2bf8f2a19ec09c670e931282edfe6567f6be21c9
+  version: 836efe42bb4aa16aaa17b9c155d8813d336ed720
   subpackages:
   - encoding
   - encoding/charmap
@@ -245,11 +245,11 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: aa2eb687b4d3e17154372564ad8d6bf11c3cf21f
+  version: b0a3dcfcd1a9bd48e63634bd8802960804cf8315
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 41d9b6ea2a6335f3a22074ed35c0542c9da1baf4
+  version: 71260d21715bff9c2ac999d546349d4f4b77ef1d
   subpackages:
   - codes
   - credentials
@@ -280,14 +280,14 @@ imports:
   version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  version: adab96458c51a58dc1783b3335dcce5461522e75
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
-  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
+  version: 05e8a0eda380579888eb53c394909df027f06991
   subpackages:
   - assert
