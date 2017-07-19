@@ -92,7 +92,7 @@ func (b *Backend) AccumulateRewards(strategy *emtTypes.Strategy) {
 
 // Commit finalises the current block
 func (b *Backend) Commit(receiver common.Address) (common.Hash, error) {
-	return b.pending.commit(b.ethereum, receiver)
+	return b.pending.commit(b.ethereum.BlockChain(), receiver)
 }
 
 // ResetWork resets the current block to a fresh object

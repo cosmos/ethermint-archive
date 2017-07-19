@@ -19,6 +19,16 @@ DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 # Change into that dir because we expect that.
 cd "$DIR"
 
+# Generate the tag.
+# if [ -z "$NOTAG" ]; then
+#     echo "==> Tagging..."
+#     git commit --allow-empty -a -m "Release v$VERSION"
+#     git tag -a -m "Version $VERSION" "v${VERSION}" master
+# fi
+
+# Do a hermetic build inside a Docker container.
+# docker build -t ethermint/ethermint-builder scripts/ethermint-builder/
+# docker run --rm -v "$(pwd)":/go/src/github.com/tendermint/ethermint ethermint/ethermint-builder ./scripts/dist_build.sh
 # Get the git commit
 GIT_COMMIT="$(git rev-parse HEAD)"
 GIT_DESCRIBE="$(git describe --tags --always)"
@@ -82,36 +92,11 @@ if [ ! -z "$NON_STATIC_TARGETS" ]; then
     ${DIR}/cmd/ethermint
 fi
 
-for FILE in $(ls ./build/pkg); do
-    f=${FILE#*-}
-    if [[ $f == *"exe" ]]
-    then
-        f=${f%.*}
-    fi
-    echo $f
-    mkdir -p ./build/pkg/$f
-
-    name="ethermint"
-    if [[ $FILE == *"exe" ]]
-    then
-        name="ethermint.exe"
-    fi
-    echo $name
-
-    pushd ./build/pkg
-    mv $FILE $f/$name
-    popd
-done
-
-# Zip all the files.
 echo "==> Packaging..."
-for PLATFORM in $(find ./build/pkg -mindepth 1 -maxdepth 1 -type d); do
-		OSARCH=$(basename "${PLATFORM}")
-		echo "--> ${OSARCH}"
-
-		pushd "$PLATFORM" >/dev/null 2>&1
-		zip "../${OSARCH}.zip" ./*
-		popd >/dev/null 2>&1
+for FILE in $(ls ./build/pkg); do
+    pushd ./build/pkg
+    zip "${FILE}.zip" $FILE
+    popd
 done
 
 # Add "ethermint" and $VERSION prefix to package name.

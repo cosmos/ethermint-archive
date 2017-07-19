@@ -29,7 +29,7 @@ fi
 KEYS=$(join_by , $(ls $KEYSTORE))
 PASS=./passwords
 FLAGS=(--datadir $DATADIR/$NETWORK \
-  --rpc --rpcapi eth,net,web3,personal,miner,admin,txpool \
+  --rpc --rpcapi eth,net,web3,personal,miner,admin \
   --rpcaddr 127.0.0.1 --rpcport $PORT \
   --ws --wsapi eth,net,web3,personal,miner,admin \
   --wsaddr 127.0.0.1 --wsport 8546 \

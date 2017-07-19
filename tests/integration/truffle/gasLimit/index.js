@@ -20,8 +20,6 @@ console.log("Solc version is " + solc.version());
 
 describe('gasLimit', function () {
     it('should return gas too low error', function (done) {
-        // mocha timeout
-        this.timeout(120 * 1000);
 
         const contractCompiled = solc.compile(contractSource);
 
@@ -37,7 +35,7 @@ describe('gasLimit', function () {
             data: '0x' + bytecode,
             gas: '100' //set low gas
         }, function (error, contract) {
-            console.log(error);
+
             assert.equal(error, "Error: intrinsic gas too low");
             done();
         });
@@ -52,7 +50,7 @@ describe('gasLimit', function () {
         const abi = JSON.parse(contractCompiled.contracts[':Test'].interface);
 
         const estimateGas = web3.eth.estimateGas({data: '0x' + bytecode,});
-        console.log('Gas needed: ' + estimateGas);
+        // console.log('Gas needed: ' + estimateGas);
 
         let callbackCount = 0;
 

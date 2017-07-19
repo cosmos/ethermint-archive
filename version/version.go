@@ -4,7 +4,7 @@ package version
 const Major = 0
 
 // Minor version component of the current release
-const Minor = 4
+const Minor = 3
 
 // Fix version component of the current release
 const Fix = 0

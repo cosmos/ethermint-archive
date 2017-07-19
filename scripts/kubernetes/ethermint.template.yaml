@@ -191,7 +191,7 @@ spec:
         args: [ "ethermint",
           "--datadir", "/ethermint",
           "--tendermint_addr", "unix:///socks/app.sock",
-          "--rpc", "--rpcapi", "eth,net,web3,personal,miner,admin,txpool",
+          "--rpc", "--rpcapi", "eth,net,web3,personal,miner,admin",
           "--rpcaddr", "0.0.0.0", "--rpcport", "8545"
         ] 
 

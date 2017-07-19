@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	cli "gopkg.in/urfave/cli.v1"
 	"math/big"
-	"os"
 
 	"github.com/tendermint/ethermint/ethereum"
 
@@ -16,8 +15,6 @@ import (
 const (
 	// Client identifier to advertise over the network
 	clientIdentifier = "ethermint"
-	// Environment variable for home dir
-	emHome = "EMHOME"
 )
 
 var (
@@ -75,12 +72,6 @@ func DefaultNodeConfig() node.Config {
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
 	cfg.IPCPath = "geth.ipc"
-
-	emHome := os.Getenv(emHome)
-	if emHome != "" {
-		cfg.DataDir = emHome
-	}
-
 	return cfg
 }
 
@@ -94,24 +85,4 @@ func SetEthermintNodeConfig(cfg *node.Config) {
 func SetEthermintEthConfig(cfg *eth.Config) {
 	cfg.MaxPeers = 0
 	cfg.PowFake = true
-}
-
-// MakeDataDir retrieves the currently requested data directory
-func MakeDataDir(ctx *cli.Context) string {
-	path := node.DefaultDataDir()
-
-	emHome := os.Getenv(emHome)
-	if emHome != "" {
-		path = emHome
-	}
-
-	if ctx.GlobalIsSet(ethUtils.DataDirFlag.Name) {
-		path = ctx.GlobalString(ethUtils.DataDirFlag.Name)
-	}
-
-	if path == "" {
-		ethUtils.Fatalf("Cannot determine default data directory, please set manually (--datadir)")
-	}
-
-	return path
 }

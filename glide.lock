@@ -1,18 +1,18 @@
-hash: 1011622440eaaa9e1510f0c744545394cccce06e1d198202497969486977fb75
-updated: 2017-07-19T11:31:35.316175226+02:00
+hash: d74f138edf5d231d7cd195a75ad18d73301cde052231192014b7bd26df0c4ce3
+updated: 2017-06-23T10:59:26.414364995+02:00
 imports:
 - name: github.com/aristanetworks/goarista
-  version: 8ab803d6502ea1e05a8c9b73193b405291efb7ce
+  version: 6c446722131a3182ce8d354a85816742fd61a838
   subpackages:
   - monotime
 - name: github.com/btcsuite/btcd
-  version: 47885ab8702485be6b6f87a03d4f3be0bc5c982c
+  version: a6965d493fdfb833b6b3a83c3958ab18968fe24e
   subpackages:
   - btcec
 - name: github.com/edsrzf/mmap-go
   version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
-  version: 7db2143396f73f418b50dc5571fec2c62c78b7e4
+  version: c71a185de835d24ffaea21bc045649eed8e0ce20
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
@@ -73,7 +73,7 @@ imports:
 - name: github.com/fatih/color
   version: 62e9147c64a1ed519147b62a56a14e83e2be02c1
 - name: github.com/go-kit/kit
-  version: 69950137349e3e6781c1a54e4f7fd3803bd36765
+  version: 0c52d4024a04395dabac42b65e5825d08d3335df
   subpackages:
   - log
   - log/level
@@ -81,16 +81,16 @@ imports:
 - name: github.com/go-logfmt/logfmt
   version: 390ab7935ee28ec6b286364bba9b4dd6410cb3d5
 - name: github.com/go-stack/stack
-  version: 54be5f394ed2c3e19dac9134a40a95ba5a017f7b
+  version: 7a2f19628aabfe68f0766b59e74d6315f8347d22
 - name: github.com/golang/protobuf
-  version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
+  version: 6a1fa9404c0aebf36c879bc50152edcc953910d2
   subpackages:
   - proto
   - ptypes/any
 - name: github.com/golang/snappy
   version: 553a641470496b2327abcac10b36396bd98e45c9
 - name: github.com/gorilla/websocket
-  version: a69d9f6de432e2c6b296a947d8a5ee88f68522cf
+  version: ea4d1f681babbce9545c9c5f3d5194a789c89f5b
 - name: github.com/hashicorp/golang-lru
   version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
   subpackages:
@@ -171,7 +171,7 @@ imports:
   subpackages:
   - data
 - name: github.com/tendermint/tendermint
-  version: b467515719e686e4678e6da4e102f32a491b85a0
+  version: ca632c9e90cf06a67bacedd43d76407ce7b3614e
   subpackages:
   - config
   - p2p
@@ -189,7 +189,7 @@ imports:
   - log
   - merkle
 - name: golang.org/x/crypto
-  version: 7f7c0c2d75ebb4e32a21396ce36e87b6dadc91c9
+  version: adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d
   subpackages:
   - curve25519
   - nacl/box
@@ -202,7 +202,7 @@ imports:
   - salsa20/salsa
   - scrypt
 - name: golang.org/x/net
-  version: 02ac38e2528ff4adea90f184d71a3faa04b4b1b0
+  version: 057a25b06247e0c51ba15d8ae475feb2fcb72164
   subpackages:
   - context
   - html
@@ -215,16 +215,12 @@ imports:
   - lex/httplex
   - trace
   - websocket
-- name: golang.org/x/sync
-  version: f52d1811a62927559de87708c8913c1650ce4f26
-  subpackages:
-  - syncmap
 - name: golang.org/x/sys
-  version: cd2c276457edda6df7fb04895d3fd6a6add42926
+  version: fb4cac33e3196ff7f507ab9b2d2a44b0142f5b5a
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: 836efe42bb4aa16aaa17b9c155d8813d336ed720
+  version: 4e9ab9ee170f2a39bd66c92b3e0a47ff47a4bc77
   subpackages:
   - encoding
   - encoding/charmap
@@ -245,11 +241,11 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: b0a3dcfcd1a9bd48e63634bd8802960804cf8315
+  version: aa2eb687b4d3e17154372564ad8d6bf11c3cf21f
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 71260d21715bff9c2ac999d546349d4f4b77ef1d
+  version: 1d797552aeb8789a732a9f8f5bee2ff2bae3e34c
   subpackages:
   - codes
   - credentials
@@ -280,7 +276,7 @@ imports:
   version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
 testImports:
 - name: github.com/davecgh/go-spew
-  version: adab96458c51a58dc1783b3335dcce5461522e75
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
@@ -288,6 +284,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 05e8a0eda380579888eb53c394909df027f06991
+  version: f6abca593680b2315d2075e0f5e2a9751e3f431a
   subpackages:
   - assert
