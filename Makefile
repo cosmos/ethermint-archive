@@ -5,7 +5,7 @@ GOTOOLS = \
 					github.com/alecthomas/gometalinter
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 BUILD_TAGS?=ethermint
-VERSION_TAG=0.2.2
+VERSION_TAG=0.4.0
 
 all: install test
 
@@ -32,15 +32,18 @@ dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
 
 docker_build_develop:
-	docker build -t "adrianbrink/ethermint:develop" -f scripts/docker/Dockerfile.develop .
+	docker build -t "tendermint/ethermint:develop" -t "adrianbrink/ethermint:develop" -f scripts/docker/Dockerfile.develop .
 
 docker_push_develop:
+	docker push "tendermint/ethermint:develop"
 	docker push "adrianbrink/ethermint:develop"
 
 docker_build:
-	docker build -t "adrianbrink/ethermint" -t "adrianbrink/ethermint:$(VERSION_TAG)" -f scripts/docker/Dockerfile .
+	docker build -t "tendermint/ethermint" -t "tendermint/ethermint:$(VERSION_TAG)" -t "adrianbrink/ethermint" -t "adrianbrink/ethermint:$(VERSION_TAG)" -f scripts/docker/Dockerfile .
 
 docker_push:
+	docker push "tendermint/ethermint:latest"
+	docker push "tendermint/ethermint:$(VERSION_TAG)"
 	docker push "adrianbrink/ethermint:latest"
 	docker push "adrianbrink/ethermint:$(VERSION_TAG)"
 

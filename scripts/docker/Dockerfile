@@ -1,7 +1,7 @@
 FROM alpine:3.6
 
 # This is the release of ethermint to pull in.
-ENV EM_VERSION 0.3.0
+ENV EM_VERSION 0.4.0
 # ENV EM_SHA256SUM c746b4485967af9f3bfd66238b1ca718a5d77baf2382cde027348313f502d34b
 
 ENV DATA_ROOT /ethermint

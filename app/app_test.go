@@ -113,7 +113,7 @@ func TestBumpingNonces(t *testing.T) {
 	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(encodedtx).Code)
 
 	// ...on both interfaces of the app
-	assert.Equal(t, core.ErrNonce, backend.Ethereum().ApiBackend.SendTx(ctx, tx1))
+	assert.Equal(t, core.ErrNonceTooLow, backend.Ethereum().ApiBackend.SendTx(ctx, tx1))
 
 	// second transaction is sent via geth RPC, or at least pretending to be so
 	// with a correct nonce this time, it should pass
