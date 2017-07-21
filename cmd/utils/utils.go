@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -33,4 +36,14 @@ func DefaultDataDir() string {
 	}
 	// As we cannot guess a stable location, return empty and handle later
 	return ""
+}
+
+// NewMemoryCache returns new state db based on memory db
+func NewMemoryCache() *state.StateDB {
+	// Create an empty state
+	db, _ := ethdb.NewMemDatabase()
+
+	state, _ := state.New(common.Hash{}, state.NewDatabase(db))
+
+	return state
 }

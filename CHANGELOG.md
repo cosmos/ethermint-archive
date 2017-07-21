@@ -17,7 +17,6 @@ the change was necessary due to a change in the API exposed by geth
 * proper linting and error detection
   * can be accessed with `make metalinter` and `make megacheck`
 
-
 ## 0.3.0 (June 23, 2017)
 ### Improvements
 * Gas Limit improvements

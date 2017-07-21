@@ -14,6 +14,7 @@ import (
 
 	abciTypes "github.com/tendermint/abci/types"
 
+	"github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
 )
@@ -33,6 +34,9 @@ type EthermintApplication struct {
 
 	// strategy for validator compensation
 	strategy *emtTypes.Strategy
+
+	// cache state for checking account balance until block committed
+	cacheState *state.StateDB
 }
 
 // NewEthermintApplication creates the abci application for ethermint
@@ -42,6 +46,7 @@ func NewEthermintApplication(backend *ethereum.Backend,
 		backend:      backend,
 		rpcClient:    client,
 		currentState: backend.Ethereum().BlockChain().State,
+		cacheState:   utils.NewMemoryCache(),
 		strategy:     strategy,
 	}
 
@@ -105,6 +110,8 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 
+	app.processAccount(tx)
+
 	log.Info("Got DeliverTx", "tx", tx)
 	err = app.backend.DeliverTx(tx)
 	if err != nil {
@@ -120,6 +127,9 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 // BeginBlock starts a new Ethereum block
 func (app *EthermintApplication) BeginBlock(hash []byte, tmHeader *abciTypes.Header) {
 	log.Info("BeginBlock")
+
+	// reset cache state
+	app.cacheState.Reset(common.Hash{})
 
 	// update the eth header with the tendermint header
 	app.backend.UpdateHeaderWithTimeInfo(tmHeader)
@@ -185,8 +195,12 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	// Make sure the account exist. Non existent accounts
 	// haven't got funds and well therefor never pass.
 	if !currentState.Exist(from) {
-		return abciTypes.ErrBaseUnknownAddress.
-			AppendLog(core.ErrInvalidSender.Error())
+		// if account doesn't exists in persistence state
+		// we check it in cache state
+		if !app.cacheState.Exist(from) {
+			return abciTypes.ErrBaseUnknownAddress.
+				AppendLog(core.ErrInvalidSender.Error())
+		}
 	}
 
 	// Check for nonce errors
@@ -213,9 +227,14 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
 	currentBalance := currentState.GetBalance(from)
-	if currentBalance.Cmp(tx.Cost()) < 0 {
+	// get balance in cache state
+	tmpBalance := app.cacheState.GetBalance(from)
+
+	// balance = current balance + tmp balance
+	balance := new(big.Int).Add(currentBalance, tmpBalance)
+	if balance.Cmp(tx.Cost()) < 0 {
 		return abciTypes.ErrInsufficientFunds.
-			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s", currentBalance, tx.Cost()))
+			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s", balance, tx.Cost()))
 
 	}
 
@@ -223,6 +242,28 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	if tx.Gas().Cmp(intrGas) < 0 {
 		return abciTypes.ErrBaseInsufficientFees.
 			SetLog(core.ErrIntrinsicGas.Error())
+	}
+
+	return abciTypes.OK
+}
+
+func (app *EthermintApplication) processAccount(tx *ethTypes.Transaction) abciTypes.Result {
+	currentState, err := app.currentState()
+	if err != nil {
+		return abciTypes.ErrInternalError.AppendLog(err.Error())
+	}
+
+	receiver := tx.To()
+
+	// check receiver's account exists
+	// if not - create in cache state
+	if !currentState.Exist(*receiver) {
+		app.cacheState.CreateAccount(*receiver)
+		app.cacheState.AddBalance(*receiver, tx.Value())
+
+	} else {
+		// account exists. Add balance to cache state
+		app.cacheState.AddBalance(*receiver, tx.Value())
 	}
 
 	return abciTypes.OK
