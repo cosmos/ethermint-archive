@@ -51,7 +51,7 @@ func NewEthermintApplication(backend *ethereum.Backend,
 
 // Info returns information about the last height and app_hash to the tendermint engine
 func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
-	log.Info("Info")
+	log.Debug("Info")
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
 	height := currentBlock.Number()
@@ -83,14 +83,14 @@ func (app *EthermintApplication) SetOption(key string, value string) (log string
 
 // InitChain initializes the validator set
 func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
-	log.Info("InitChain")
+	log.Debug("InitChain")
 	app.SetValidators(validators)
 }
 
 // CheckTx checks a transaction is valid but does not mutate the state
 func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
-	log.Info("Received CheckTx", "tx", tx)
+	log.Debug("Received CheckTx", "tx", tx)
 	if err != nil {
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
@@ -105,7 +105,7 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 
-	log.Info("Got DeliverTx", "tx", tx)
+	log.Debug("Got DeliverTx", "tx", tx)
 	err = app.backend.DeliverTx(tx)
 	if err != nil {
 		log.Warn("DeliverTx error", "err", err)
@@ -119,7 +119,7 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 
 // BeginBlock starts a new Ethereum block
 func (app *EthermintApplication) BeginBlock(hash []byte, tmHeader *abciTypes.Header) {
-	log.Info("BeginBlock")
+	log.Debug("BeginBlock")
 
 	// update the eth header with the tendermint header
 	app.backend.UpdateHeaderWithTimeInfo(tmHeader)
@@ -127,14 +127,14 @@ func (app *EthermintApplication) BeginBlock(hash []byte, tmHeader *abciTypes.Hea
 
 // EndBlock accumulates rewards for the validators and updates them
 func (app *EthermintApplication) EndBlock(height uint64) abciTypes.ResponseEndBlock {
-	log.Info("EndBlock")
+	log.Debug("EndBlock")
 	app.backend.AccumulateRewards(app.strategy)
 	return app.GetUpdatedValidators()
 }
 
 // Commit commits the block and returns a hash of the current state
 func (app *EthermintApplication) Commit() abciTypes.Result {
-	log.Info("Commit")
+	log.Debug("Commit")
 	blockHash, err := app.backend.Commit(app.Receiver())
 	if err != nil {
 		log.Warn("Error getting latest ethereum state", "err", err)
@@ -145,7 +145,7 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 
 // Query queries the state of EthermintApplication
 func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.ResponseQuery {
-	log.Info("Query")
+	log.Debug("Query")
 	var in jsonRequest
 	if err := json.Unmarshal(query.Data, &in); err != nil {
 		return abciTypes.ResponseQuery{Code: abciTypes.ErrEncodingError.Code, Log: err.Error()}
