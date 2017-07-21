@@ -43,7 +43,7 @@ func NewMemoryCache() *state.StateDB {
 	// Create an empty state
 	db, _ := ethdb.NewMemDatabase()
 
-	state, _ := state.New(common.Hash{}, db)
+	state, _ := state.New(common.Hash{}, state.NewDatabase(db))
 
 	return state
 }
