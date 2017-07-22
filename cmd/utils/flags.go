@@ -46,6 +46,6 @@ var (
 	TargetGasLimitFlag = cli.Uint64Flag{
 		Name:  "targetgaslimit",
 		Usage: "Target gas limit sets the artificial target gas floor for the blocks to mine",
-		Value: GenesisGasLimit.Uint64(),
+		Value: GenesisTargetGasLimit.Uint64(),
 	}
 )

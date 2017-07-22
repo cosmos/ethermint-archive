@@ -95,7 +95,7 @@ func init() {
 }
 
 func versionCmd(ctx *cli.Context) error {
-	fmt.Println(version.Version)
+	fmt.Println("ethermint: ", version.Version)
 	return nil
 }
 
