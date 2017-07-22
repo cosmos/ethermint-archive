@@ -11,14 +11,15 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	abciTypes "github.com/tendermint/abci/types"
-	tmLog "github.com/tendermint/tmlibs/log"
-
 	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
+
+	abciTypes "github.com/tendermint/abci/types"
+	tmLog "github.com/tendermint/tmlibs/log"
 )
 
 // EthermintApplication implements an ABCI application
+// #stable - 0.4.0
 type EthermintApplication struct {
 	// backend handles the ethereum state machine
 	// and wrangles other services started by an ethereum node (eg. tx pool)
@@ -37,6 +38,7 @@ type EthermintApplication struct {
 }
 
 // NewEthermintApplication creates a fully initialised instance of EthermintApplication
+// #stable - 0.4.0
 func NewEthermintApplication(backend *ethereum.Backend,
 	client *rpc.Client, strategy *emtTypes.Strategy) (*EthermintApplication, error) {
 	app := &EthermintApplication{
@@ -54,11 +56,13 @@ func NewEthermintApplication(backend *ethereum.Backend,
 }
 
 // SetLogger sets the logger for the ethermint application
+// #unstable
 func (app *EthermintApplication) SetLogger(log tmLog.Logger) {
 	app.logger = log
 }
 
 // Info returns information about the last height and app_hash to the tendermint engine
+// #stable - 0.4.0
 func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
@@ -86,18 +90,21 @@ func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 }
 
 // SetOption sets a configuration option
+// #stable - 0.4.0
 func (app *EthermintApplication) SetOption(key string, value string) string {
 	app.logger.Debug("SetOption", "key", key, "value", value) // nolint: errcheck
 	return ""
 }
 
 // InitChain initializes the validator set
+// #stable - 0.4.0
 func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
 	app.logger.Debug("InitChain") // nolint: errcheck
 	app.SetValidators(validators)
 }
 
 // CheckTx checks a transaction is valid but does not mutate the state
+// #stable - 0.4.0
 func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
 	app.logger.Debug("CheckTx: Received valid transaction", "tx", tx) // nolint: errcheck
@@ -110,6 +117,7 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 }
 
 // DeliverTx executes a transaction against the latest state
+// #stable - 0.4.0
 func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
 	if err != nil {
@@ -129,6 +137,7 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 }
 
 // BeginBlock starts a new Ethereum block
+// #stable - 0.4.0
 func (app *EthermintApplication) BeginBlock(hash []byte, tmHeader *abciTypes.Header) {
 	app.logger.Debug("BeginBlock") // nolint: errcheck
 
@@ -137,6 +146,7 @@ func (app *EthermintApplication) BeginBlock(hash []byte, tmHeader *abciTypes.Hea
 }
 
 // EndBlock accumulates rewards for the validators and updates them
+// #stable - 0.4.0
 func (app *EthermintApplication) EndBlock(height uint64) abciTypes.ResponseEndBlock {
 	app.logger.Debug("EndBlock", "height", height) // nolint: errcheck
 	app.backend.AccumulateRewards(app.strategy)
@@ -144,6 +154,7 @@ func (app *EthermintApplication) EndBlock(height uint64) abciTypes.ResponseEndBl
 }
 
 // Commit commits the block and returns a hash of the current state
+// #stable - 0.4.0
 func (app *EthermintApplication) Commit() abciTypes.Result {
 	app.logger.Debug("Commit") // nolint: errcheck
 	blockHash, err := app.backend.Commit(app.Receiver())
@@ -155,6 +166,7 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 }
 
 // Query queries the state of the EthermintApplication
+// #stable - 0.4.0
 func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.ResponseQuery {
 	app.logger.Debug("Query") // nolint: errcheck
 	var in jsonRequest

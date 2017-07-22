@@ -2,10 +2,12 @@ package utils
 
 import (
 	"flag"
-	"github.com/ethereum/go-ethereum/node"
-	"gopkg.in/urfave/cli.v1"
 	"os"
 	"testing"
+
+	"gopkg.in/urfave/cli.v1"
+
+	"github.com/ethereum/go-ethereum/node"
 )
 
 // we use EMHOME env variable if don't set datadir flag

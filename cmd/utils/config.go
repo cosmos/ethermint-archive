@@ -1,12 +1,15 @@
 package utils
 
 import (
+	"math/big"
+	"os"
+
+	cli "gopkg.in/urfave/cli.v1"
+
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
-	cli "gopkg.in/urfave/cli.v1"
-	"math/big"
-	"os"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/tendermint/ethermint/ethereum"
 
@@ -15,13 +18,14 @@ import (
 
 const (
 	// Client identifier to advertise over the network
-	clientIdentifier = "ethermint"
+	clientIdentifier = "go-ethereum"
 	// Environment variable for home dir
 	emHome = "EMHOME"
 )
 
 var (
 	// GenesisTargetGasLimit is the target gas limit of the Genesis block.
+	// #unstable
 	GenesisTargetGasLimit = big.NewInt(100000000)
 )
 
@@ -36,6 +40,7 @@ type gethConfig struct {
 }
 
 // MakeFullNode creates a full go-ethereum node
+// #unstable
 func MakeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
@@ -69,9 +74,11 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 }
 
 // DefaultNodeConfig returns the default configuration for a go-ethereum node
+// #unstable
 func DefaultNodeConfig() node.Config {
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
+	cfg.Version = params.Version
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
 	cfg.IPCPath = "geth.ipc"
@@ -85,18 +92,21 @@ func DefaultNodeConfig() node.Config {
 }
 
 // SetEthermintNodeConfig takes a node configuration and applies ethermint specific configuration
+// #unstable
 func SetEthermintNodeConfig(cfg *node.Config) {
 	cfg.P2P.MaxPeers = 0
 	cfg.P2P.NoDiscovery = true
 }
 
 // SetEthermintEthConfig takes a ethereum configuration and applies ethermint specific configuration
+// #unstable
 func SetEthermintEthConfig(cfg *eth.Config) {
 	cfg.MaxPeers = 0
 	cfg.PowFake = true
 }
 
 // MakeDataDir retrieves the currently requested data directory
+// #unstable
 func MakeDataDir(ctx *cli.Context) string {
 	path := node.DefaultDataDir()
 

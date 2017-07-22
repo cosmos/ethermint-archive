@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"golang.org/x/net/context"
+
+	"github.com/stretchr/testify/assert"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -29,9 +29,8 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 
 	abciTypes "github.com/tendermint/abci/types"
-	tmLog "github.com/tendermint/tmlibs/log"
-
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	tmLog "github.com/tendermint/tmlibs/log"
 )
 
 var (

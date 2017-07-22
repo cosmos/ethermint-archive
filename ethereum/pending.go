@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
 	//"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/ethereum/go-ethereum/ethdb"
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
@@ -101,6 +101,7 @@ func (p *pending) gasLimit() big.Int {
 // Implements: miner.Pending API (our custom patch to go-ethereum)
 
 // Return a new block and a copy of the state from the latest work
+// #unstable
 func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
