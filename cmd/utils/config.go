@@ -21,8 +21,8 @@ const (
 )
 
 var (
-	// Gas limit of the Genesis block.
-	GenesisGasLimit = big.NewInt(100000000)
+	// GenesisTargetGasLimit is the target gas limit of the Genesis block.
+	GenesisTargetGasLimit = big.NewInt(100000000)
 )
 
 type ethstatsConfig struct {

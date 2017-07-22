@@ -29,6 +29,7 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 
 	abciTypes "github.com/tendermint/abci/types"
+	tmLog "github.com/tendermint/tmlibs/log"
 
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -49,12 +50,10 @@ func (mc *MockClient) Call(method string, params map[string]interface{}, result 
 	switch method {
 	case "status":
 		result = &ctypes.ResultStatus{}
-
 		return result, nil
 	case "broadcast_tx_sync":
 		close(mc.sentBroadcastTx)
 		result = &ctypes.ResultBroadcastTx{}
-
 		return result, nil
 	}
 
@@ -67,6 +66,7 @@ func TestBumpingNonces(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error generating key %v", err)
 	}
+
 	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
 	ctx := context.Background()
 
@@ -84,6 +84,7 @@ func TestBumpingNonces(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
+	app.SetLogger(tmLog.TestingLogger())
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
@@ -132,6 +133,7 @@ func TestBumpingNonces(t *testing.T) {
 	stack.Stop() // nolint: errcheck
 }
 
+// TestMultipleTxOneAcc sends multiple TXs from the same account in the same block
 func TestMultipleTxOneAcc(t *testing.T) {
 	// generate key
 	privateKey, err := crypto.GenerateKey()
@@ -154,6 +156,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
+	app.SetLogger(tmLog.TestingLogger())
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
@@ -200,8 +203,8 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	node.Stop() // nolint: errcheck
 }
 
+// TestMultipleTxTwoAcc sends multiple TXs from two different accounts
 func TestMultipleTxTwoAcc(t *testing.T) {
-	// generate key
 	//account 1
 	privateKey1, err := crypto.GenerateKey()
 	if err != nil {
@@ -230,6 +233,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
+	app.SetLogger(tmLog.TestingLogger())
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
