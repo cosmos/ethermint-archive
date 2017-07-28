@@ -98,7 +98,7 @@ ensure_tools:
 	go get $(GOTOOLS)
 
 ethstats:
-	@git clone https://github.com/nodar-chkuaselidze/eth-net-intelligence-api $(CURDIR)/ethstats
+	@git clone https://github.com/tendermint/eth-net-intelligence-api $(CURDIR)/ethstats
 
 ethstats_setup: ethstats
 	@cd $(CURDIR)/ethstats && npm install && node scripts/configure.js
