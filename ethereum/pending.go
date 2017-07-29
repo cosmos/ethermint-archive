@@ -19,7 +19,15 @@ import (
 )
 
 //----------------------------------------------------------------------
-// pending manages concurrent access to the intermediate work object
+// Pending manages concurrent access to the intermediate work object
+// The ethereum tx pool fires TxPreEvent in a go-routine,
+// and the miner subscribes to this in another go-routine and processes the tx onto
+// an intermediate state. We used to use `unsafe` to overwrite the miner, but this
+// didn't work because it didn't affect the already launched go-routines.
+// So instead we introduce the Pending API in a small commit in go-ethereum
+// so we don't even start the miner there, and instead manage the intermediate state from here.
+// In the same commit we also fire the TxPreEvent synchronously so the order is preserved,
+// instead of using a go-routine.
 
 type pending struct {
 	mtx  *sync.Mutex
