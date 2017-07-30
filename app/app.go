@@ -95,7 +95,7 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 
-	return app.validateTx(tx)
+	return app.backend.CheckTx(tx)
 }
 
 // DeliverTx executes a transaction against the latest state

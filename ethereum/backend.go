@@ -80,6 +80,10 @@ func (b *Backend) Config() *eth.Config {
 //----------------------------------------------------------------------
 // Handle block processing
 
+func (b *Backend) CheckTx(tx *ethTypes.Transaction) abciTypes.Result {
+	return b.pending.checkTx(tx)
+}
+
 // DeliverTx appends a transaction to the current block
 func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
 	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, b.ethereum.ApiBackend.ChainConfig(), tx)
