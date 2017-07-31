@@ -18,3 +18,4 @@ test:
     - "echo $REPO && ls $REPO"
     - "cd $REPO && make install"
     - "cd $REPO && make test"
+    - "cd $REPO && make test_integrations"
