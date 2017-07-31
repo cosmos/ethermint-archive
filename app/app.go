@@ -2,20 +2,16 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-
-	"github.com/tendermint/ethermint/ethereum"
-	emtTypes "github.com/tendermint/ethermint/types"
 
 	abciTypes "github.com/tendermint/abci/types"
 	tmLog "github.com/tendermint/tmlibs/log"
+
+	"github.com/tendermint/ethermint/ethereum"
+	emtTypes "github.com/tendermint/ethermint/types"
 )
 
 // EthermintApplication implements an ABCI application
@@ -37,7 +33,7 @@ type EthermintApplication struct {
 	logger tmLog.Logger
 }
 
-// NewEthermintApplication creates a fully initialised instance of EthermintApplication
+// NewEthermintApplication creates the abci application for ethermint
 // #stable - 0.4.0
 func NewEthermintApplication(backend *ethereum.Backend,
 	client *rpc.Client, strategy *emtTypes.Strategy) (*EthermintApplication, error) {
@@ -48,11 +44,8 @@ func NewEthermintApplication(backend *ethereum.Backend,
 		strategy:     strategy,
 	}
 
-	if err := app.backend.ResetWork(app.Receiver()); err != nil {
-		return nil, err
-	}
-
-	return app, nil
+	err := app.backend.ResetWork(app.Receiver()) // init the block results
+	return app, err
 }
 
 // SetLogger sets the logger for the ethermint application
@@ -113,7 +106,7 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 
-	return app.validateTx(tx)
+	return app.backend.CheckTx(tx)
 }
 
 // DeliverTx executes a transaction against the latest state
@@ -182,71 +175,4 @@ func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.R
 		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code, Log: err.Error()}
 	}
 	return abciTypes.ResponseQuery{Code: abciTypes.OK.Code, Value: bytes}
-}
-
-//-------------------------------------------------------
-
-// validateTx checks the validity of a tx against the blockchain's current state.
-// it duplicates the logic in ethereum's tx_pool
-func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.Result {
-	currentState, err := app.currentState()
-	if err != nil {
-		return abciTypes.ErrInternalError.AppendLog(err.Error())
-	}
-
-	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
-	if tx.Protected() {
-		signer = ethTypes.NewEIP155Signer(tx.ChainId())
-	}
-
-	from, err := ethTypes.Sender(signer, tx)
-	if err != nil {
-		return abciTypes.ErrBaseInvalidSignature.
-			AppendLog(core.ErrInvalidSender.Error())
-	}
-
-	// Make sure the account exist. Non existent accounts
-	// haven't got funds and well therefor never pass.
-	if !currentState.Exist(from) {
-		return abciTypes.ErrBaseUnknownAddress.
-			AppendLog(core.ErrInvalidSender.Error())
-	}
-
-	// Check for nonce errors
-	currentNonce := currentState.GetNonce(from)
-	if currentNonce > tx.Nonce() {
-		return abciTypes.ErrBadNonce.
-			AppendLog(fmt.Sprintf("Got: %d, Current: %d", tx.Nonce(), currentNonce))
-	}
-
-	// Check the transaction doesn't exceed the current block limit gas.
-	gasLimit := app.backend.GasLimit()
-	if gasLimit.Cmp(tx.Gas()) < 0 {
-		return abciTypes.ErrInternalError.AppendLog(core.ErrGasLimitReached.Error())
-	}
-
-	// Transactions can't be negative. This may never happen
-	// using RLP decoded transactions but may occur if you create
-	// a transaction using the RPC for example.
-	if tx.Value().Cmp(common.Big0) < 0 {
-		return abciTypes.ErrBaseInvalidInput.
-			SetLog(core.ErrNegativeValue.Error())
-	}
-
-	// Transactor should have enough funds to cover the costs
-	// cost == V + GP * GL
-	currentBalance := currentState.GetBalance(from)
-	if currentBalance.Cmp(tx.Cost()) < 0 {
-		return abciTypes.ErrInsufficientFunds.
-			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s", currentBalance, tx.Cost()))
-
-	}
-
-	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true) // homestead == true
-	if tx.Gas().Cmp(intrGas) < 0 {
-		return abciTypes.ErrBaseInsufficientFees.
-			SetLog(core.ErrIntrinsicGas.Error())
-	}
-
-	return abciTypes.OK
 }
