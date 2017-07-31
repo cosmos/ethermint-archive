@@ -119,12 +119,15 @@ go-ethereum functionality.
 
 ```bash
 tendermint --home ~/.ethermint/tendermint node
+```
 
+After running tendermint you will see a series of error messages: `abci.socketClient failed to connect to tcp://127.0.0.1:46658.  Retrying... module=abci-client connection=query`. This is normal, tendermint is trying to find an ABCI app to which to connect. Next we run the ABCI app that tendermint will attach itself to by running:
+
+```bash
 ethermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
 ```
 
 The **password** for the default account is *1234*.
-
 
 ----
 

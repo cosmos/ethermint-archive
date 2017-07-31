@@ -11,10 +11,10 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/log"
+	//"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/ethereum/go-ethereum/ethdb"
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
@@ -101,6 +101,7 @@ func (p *pending) gasLimit() big.Int {
 // Implements: miner.Pending API (our custom patch to go-ethereum)
 
 // Return a new block and a copy of the state from the latest work
+// #unstable
 func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
@@ -154,7 +155,6 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
 	)
 	if err != nil {
-		log.Info("DeliverTx error", "err", err)
 		return err
 	}
 
@@ -190,10 +190,10 @@ func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Ha
 	blockHash := block.Hash()
 
 	// save the block to disk
-	log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
+	// log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
 	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
 	if err != nil {
-		log.Info("Error inserting ethereum block in chain", "err", err)
+		// log.Info("Error inserting ethereum block in chain", "err", err)
 		return common.Hash{}, err
 	}
 	return blockHash, err

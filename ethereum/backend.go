@@ -13,9 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	abciTypes "github.com/tendermint/abci/types"
-
 	emtTypes "github.com/tendermint/ethermint/types"
+
+	abciTypes "github.com/tendermint/abci/types"
 
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 )
@@ -25,6 +25,7 @@ import (
 // and maintains the connection to Tendermint for forwarding txs
 
 // Backend handles the chain database and VM
+// #stable - 0.4.0
 type Backend struct {
 	// backing ethereum structures
 	config   *eth.Config
@@ -41,6 +42,7 @@ type Backend struct {
 }
 
 // NewBackend creates a new Backend
+// #stable - 0.4.0
 func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.HTTPClient) (*Backend, error) {
 	p := newPending()
 
@@ -68,11 +70,13 @@ func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.H
 }
 
 // Ethereum returns the underlying the ethereum object
+// #stable
 func (b *Backend) Ethereum() *eth.Ethereum {
 	return b.ethereum
 }
 
 // Config returns the eth.Config
+// #stable
 func (b *Backend) Config() *eth.Config {
 	return b.config
 }
@@ -81,21 +85,25 @@ func (b *Backend) Config() *eth.Config {
 // Handle block processing
 
 // DeliverTx appends a transaction to the current block
+// #stable
 func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
 	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, b.ethereum.ApiBackend.ChainConfig(), tx)
 }
 
 // AccumulateRewards accumulates the rewards based on the given strategy
+// #unstable
 func (b *Backend) AccumulateRewards(strategy *emtTypes.Strategy) {
 	b.pending.accumulateRewards(strategy)
 }
 
 // Commit finalises the current block
+// #unstable
 func (b *Backend) Commit(receiver common.Address) (common.Hash, error) {
 	return b.pending.commit(b.ethereum, receiver)
 }
 
 // ResetWork resets the current block to a fresh object
+// #unstable
 func (b *Backend) ResetWork(receiver common.Address) error {
 	work, err := b.pending.resetWork(b.ethereum.BlockChain(), receiver)
 	b.pending.work = work
@@ -103,11 +111,13 @@ func (b *Backend) ResetWork(receiver common.Address) error {
 }
 
 // UpdateHeaderWithTimeInfo uses the tendermint header to update the ethereum header
+// #unstable
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
 	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time, tmHeader.GetNumTxs())
 }
 
 // GasLimit returns the maximum gas per block
+// #unstable
 func (b *Backend) GasLimit() big.Int {
 	return b.pending.gasLimit()
 }
@@ -116,6 +126,7 @@ func (b *Backend) GasLimit() big.Int {
 // Implements: node.Service
 
 // APIs returns the collection of RPC services the ethereum package offers.
+// #stable - 0.4.0
 func (b *Backend) APIs() []rpc.API {
 	apis := b.Ethereum().APIs()
 	retApis := []rpc.API{}
@@ -136,6 +147,7 @@ func (b *Backend) APIs() []rpc.API {
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
+// #stable
 func (b *Backend) Start(_ *p2p.Server) error {
 	go b.txBroadcastLoop()
 	return nil
@@ -143,6 +155,7 @@ func (b *Backend) Start(_ *p2p.Server) error {
 
 // Stop implements node.Service, terminating all internal goroutines used by the
 // Ethereum protocol.
+// #stable
 func (b *Backend) Stop() error {
 	b.txSub.Unsubscribe()
 	b.ethereum.Stop() // nolint: errcheck
@@ -151,6 +164,7 @@ func (b *Backend) Stop() error {
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
+// #stable
 func (b *Backend) Protocols() []p2p.Protocol {
 	return nil
 }
@@ -159,12 +173,15 @@ func (b *Backend) Protocols() []p2p.Protocol {
 // We need a block processor that just ignores PoW and uncles and so on
 
 // NullBlockProcessor does not validate anything
+// #unstable
 type NullBlockProcessor struct{}
 
 // ValidateBody does not validate anything
+// #unstable
 func (NullBlockProcessor) ValidateBody(*ethTypes.Block) error { return nil }
 
 // ValidateState does not validate anything
+// #unstable
 func (NullBlockProcessor) ValidateState(block, parent *ethTypes.Block, state *state.StateDB, receipts ethTypes.Receipts, usedGas *big.Int) error {
 	return nil
 }
