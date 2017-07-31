@@ -41,7 +41,7 @@ type gethConfig struct {
 
 // MakeFullNode creates a full go-ethereum node
 // #unstable
-func MakeFullNode(ctx *cli.Context) *node.Node {
+func MakeFullNode(ctx *cli.Context) *ethereum.Node {
 	stack, cfg := makeConfigNode(ctx)
 
 	tendermintLAddr := ctx.GlobalString(TendermintAddrFlag.Name)
@@ -54,7 +54,7 @@ func MakeFullNode(ctx *cli.Context) *node.Node {
 	return stack
 }
 
-func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
+func makeConfigNode(ctx *cli.Context) (*ethereum.Node, gethConfig) {
 	cfg := gethConfig{
 		Eth:  eth.DefaultConfig,
 		Node: DefaultNodeConfig(),
@@ -62,12 +62,12 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 
 	ethUtils.SetNodeConfig(ctx, &cfg.Node)
 	SetEthermintNodeConfig(&cfg.Node)
-	stack, err := node.New(&cfg.Node)
+	stack, err := ethereum.New(&cfg.Node)
 	if err != nil {
 		ethUtils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
-	ethUtils.SetEthConfig(ctx, stack, &cfg.Eth)
+	ethUtils.SetEthConfig(ctx, &stack.Node, &cfg.Eth)
 	SetEthermintEthConfig(&cfg.Eth)
 
 	return stack, cfg
