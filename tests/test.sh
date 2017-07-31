@@ -15,7 +15,7 @@ mkdir -p "$LOGS_DIR"
 
 echo
 echo "* [$(date +"%T")] building ethermint docker image"
-#bash "$DIR/docker/build.sh"
+bash "$DIR/docker/build.sh"
 
 echo
 echo "* [$(date +"%T")] building nodejs docker image"

@@ -5,6 +5,8 @@ machine:
   hosts:
     circlehost: 127.0.0.1
     localhost: 127.0.0.1
+  services:
+    - docker
 
 checkout:
   post:
