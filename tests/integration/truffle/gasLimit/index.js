@@ -3,9 +3,10 @@
 let chai = require('chai');
 let assert = chai.assert;
 let fs = require('fs');
+let config = require('config');
 let solc = require('solc');
 let Web3 = require('web3');
-let web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+let web3 = new Web3(new Web3.providers.HttpProvider("http://" + config.host + ":" + config.port));
 
 const account = web3.eth.accounts[0];
 
@@ -36,7 +37,7 @@ describe('gasLimit', function () {
             from: account,
             data: '0x' + bytecode,
             gas: '100' //set low gas
-        }, function (error, contract) {
+        }, function (error) {
             console.log(error);
             assert.equal(error, "Error: intrinsic gas too low");
             done();
