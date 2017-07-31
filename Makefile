@@ -61,6 +61,9 @@ test_race:
 	@echo "--> Running go test --race"
 	@go test -race $(PACKAGES)
 
+test_integrations:
+	@bash ./tests/test.sh
+
 megacheck: ensure_tools
 	@for pkg in ${PACKAGES}; do megacheck "$$pkg"; done
 
@@ -96,4 +99,4 @@ tools:
 ensure_tools:
 	go get $(GOTOOLS)
 
-.PHONY: all install build build_race dist test test_race draw_deps list_deps get_deps get_vendor_deps tools ensure_tools docker_build docker_build_develop docker_push docker_push_develop
+.PHONY: all install build build_race dist test test_race test_integrations draw_deps list_deps get_deps get_vendor_deps tools ensure_tools docker_build docker_build_develop docker_push docker_push_develop
