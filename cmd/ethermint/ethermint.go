@@ -40,18 +40,19 @@ func ethermintCmd(ctx *cli.Context) error {
 	}
 
 	// In-proc RPC connection so ABCI.Query can be forwarded over the ethereum rpc
-	rpcClient, err := node.Attach()
+	eRPC, err := node.Attach()
 	if err != nil {
 		ethUtils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
 
+	logger := emtUtils.NewEthermintLogger().With("module", "ethermint")
+
 	// Create the ABCI app
-	ethApp, err := abciApp.NewEthermintApplication(backend, rpcClient, nil)
+	ethApp, err := abciApp.NewEthermintApplication(backend, eRPC, nil, logger)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	ethApp.SetLogger(emtUtils.EthermintLogger().With("module", "ethermint"))
 
 	// Start the app on the ABCI server
 	srv, err := server.NewServer(addr, abci, ethApp)
@@ -60,7 +61,7 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	srv.SetLogger(emtUtils.EthermintLogger().With("module", "abci-server"))
+	srv.SetLogger(emtUtils.NewEthermintLogger().With("module", "abci-server"))
 
 	if _, err := srv.Start(); err != nil {
 		fmt.Println(err)
