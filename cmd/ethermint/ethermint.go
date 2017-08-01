@@ -17,10 +17,9 @@ import (
 
 	abciApp "github.com/tendermint/ethermint/app"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-	"github.com/tendermint/ethermint/ethereum"
+	"github.com/tendermint/ethermint/ethereum/geth"
 
 	"github.com/tendermint/abci/server"
-
 	cmn "github.com/tendermint/tmlibs/common"
 )
 
@@ -34,7 +33,7 @@ func ethermintCmd(ctx *cli.Context) error {
 	abci := ctx.GlobalString(emtUtils.ABCIProtocolFlag.Name)
 
 	// Fetch the registered service of this type
-	var backend *ethereum.Backend
+	var backend *geth.Backend
 	if err := node.Service(&backend); err != nil {
 		ethUtils.Fatalf("ethereum backend service not running: %v", err)
 	}

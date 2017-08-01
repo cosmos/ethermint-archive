@@ -1,4 +1,4 @@
-package ethereum
+package geth
 
 import (
 	"math/big"
@@ -14,8 +14,6 @@ import (
 	//"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
-
-	emtTypes "github.com/tendermint/ethermint/types"
 
 	abciTypes "github.com/tendermint/abci/types"
 )
@@ -110,14 +108,6 @@ func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, cha
 	return p.work.deliverTx(blockchain, config, chainConfig, blockHash, tx)
 }
 
-// accumulate validator rewards
-func (p *pending) accumulateRewards(strategy *emtTypes.Strategy) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	p.work.accumulateRewards(strategy)
-}
-
 // commit and reset the work
 func (p *pending) commit(ethereum *eth.Ethereum, receiver common.Address) (common.Hash, error) {
 	p.mtx.Lock()
@@ -210,12 +200,6 @@ type work struct {
 
 	totalUsedGas *big.Int
 	gp           *core.GasPool
-}
-
-// nolint: unparam
-func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
-	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
-	w.header.GasUsed = w.totalUsedGas
 }
 
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,
