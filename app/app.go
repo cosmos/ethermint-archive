@@ -8,8 +8,8 @@ import (
 	abci "github.com/tendermint/abci/types"
 	tmLog "github.com/tendermint/tmlibs/log"
 
-	"github.com/tendermint/ethermint/ethereum"
-	emtTypes "github.com/tendermint/ethermint/types"
+	"github.com/tendermint/ethermint/ethereum/geth"
+	"github.com/tendermint/ethermint/strategies"
 )
 
 // EthermintApplication implements an ABCI application.
@@ -24,22 +24,22 @@ type EthermintApplication struct {
 	// backend handles the ethereum state machine
 	// and wrangles other services started by an ethereum node (eg. tx pool)
 	// This is the running ethereum node.
-	backend *ethereum.Backend // backend ethereum struct
+	backend *geth.Backend // backend ethereum struct
 
 	// an ethereum rpc client we can forward queries to
 	// this client talks to the backend struct above
 	eRPC *eRPC.Client
 
 	// strategy for validator compensation
-	strategy *emtTypes.Strategy
+	strategy strategies.Strategy
 
 	logger tmLog.Logger
 }
 
 // NewEthermintApplication creates the abci application for ethermint
 // #stable - 0.4.0
-func NewEthermintApplication(backend *ethereum.Backend,
-	eRPC *eRPC.Client, strategy *emtTypes.Strategy,
+func NewEthermintApplication(backend *geth.Backend,
+	eRPC *eRPC.Client, strategy strategies.Strategy,
 	logger tmLog.Logger) (*EthermintApplication, error) {
 	app := &EthermintApplication{
 		backend:  backend,
@@ -48,7 +48,7 @@ func NewEthermintApplication(backend *ethereum.Backend,
 		logger:   logger,
 	}
 
-	err := app.backend.ResetWork(app.Receiver()) // init the block results
+	err := app.backend.ResetWork(app.strategy.Beneficiary()) // init the block results
 	return app, err
 }
 
@@ -108,7 +108,7 @@ func (a *EthermintApplication) CheckTx(txBytes []byte) abci.Result {
 // #stable - 0.4.0
 func (a *EthermintApplication) InitChain(validators []*abci.Validator) {
 	a.logger.Debug("InitChain") // nolint: errcheck
-	a.SetValidators(validators)
+	a.strategy.SetValidators(validators)
 }
 
 // BeginBlock starts a new Ethereum block
@@ -135,7 +135,6 @@ func (a *EthermintApplication) DeliverTx(txBytes []byte) abci.Result {
 		a.logger.Error("DeliverTx: Error delivering tx to ethereum backend", "tx", tx, "err", err) // nolint: errcheck
 		return abci.ErrInternalError.AppendLog(err.Error())
 	}
-	a.CollectTx(tx)
 
 	return abci.OK
 }
@@ -144,15 +143,15 @@ func (a *EthermintApplication) DeliverTx(txBytes []byte) abci.Result {
 // #stable - 0.4.0
 func (a *EthermintApplication) EndBlock(height uint64) abci.ResponseEndBlock {
 	a.logger.Debug("EndBlock", "height", height) // nolint: errcheck
-	a.backend.AccumulateRewards(a.strategy)
-	return a.GetUpdatedValidators()
+	validators := a.strategy.Validators()
+	return abci.ResponseEndBlock{Diffs: validators}
 }
 
 // Commit commits the block and returns a hash of the current state
 // #stable - 0.4.0
 func (a *EthermintApplication) Commit() abci.Result {
 	a.logger.Debug("Commit") // nolint: errcheck
-	blockHash, err := a.backend.Commit(a.Receiver())
+	blockHash, err := a.backend.Commit(a.strategy.Beneficiary())
 	if err != nil {
 		a.logger.Error("Error getting latest ethereum state", "err", err) // nolint: errcheck
 		return abci.ErrInternalError.AppendLog(err.Error())

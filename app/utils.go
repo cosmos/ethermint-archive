@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-
-	abciTypes "github.com/tendermint/abci/types"
 )
 
 // format of query data
@@ -28,6 +25,7 @@ func decodeTx(txBytes []byte) (*types.Transaction, error) {
 	return tx, nil
 }
 
+/*
 //-------------------------------------------------------
 // convenience methods for validators
 
@@ -64,3 +62,4 @@ func (app *EthermintApplication) CollectTx(tx *types.Transaction) {
 		app.strategy.CollectTx(tx)
 	}
 }
+*/

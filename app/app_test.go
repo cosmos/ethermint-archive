@@ -23,7 +23,8 @@ import (
 
 	"github.com/tendermint/ethermint/app"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-	"github.com/tendermint/ethermint/ethereum"
+	"github.com/tendermint/ethermint/ethereum/geth"
+	"github.com/tendermint/ethermint/strategies"
 
 	abciTypes "github.com/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -273,19 +274,20 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 }
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
-func makeTestApp(tempDatadir string, addresses []common.Address, mockclient *MockClient, logger tmLog.Logger) (*node.Node, *ethereum.Backend, *app.EthermintApplication, error) {
+func makeTestApp(tempDatadir string, addresses []common.Address, mockclient *MockClient, logger tmLog.Logger) (*node.Node, *geth.Backend, *app.EthermintApplication, error) {
 	stack, err := makeTestSystemNode(tempDatadir, addresses, mockclient)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	ethUtils.StartNode(stack)
 
-	var backend *ethereum.Backend
+	var backend *geth.Backend
 	if err = stack.Service(&backend); err != nil {
 		return nil, nil, nil, err
 	}
 
-	app, err := app.NewEthermintApplication(backend, nil, nil, logger)
+	strategy := strategies.NewValidatorStrategy(nil)
+	app, err := app.NewEthermintApplication(backend, nil, strategy, logger)
 
 	return stack, backend, app, err
 }
@@ -341,7 +343,7 @@ func makeTestSystemNode(tempDatadir string, addresses []common.Address, mockclie
 		return nil, err
 	}
 	return stack, stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return ethereum.NewBackend(ctx, &ethConf, mockclient)
+		return geth.NewBackend(ctx, &ethConf, mockclient)
 	})
 }
 
