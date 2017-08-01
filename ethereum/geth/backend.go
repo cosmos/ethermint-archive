@@ -40,7 +40,7 @@ import (
 
 	abci "github.com/tendermint/abci/types"
 
-	tmClient "github.com/tendermint/tendermint/rpc/lib/client"
+	tmClient "github.com/tendermint/tendermint/rpc/client"
 )
 
 //----------------------------------------------------------------------
@@ -62,13 +62,13 @@ type Backend struct {
 	pending *pending
 
 	// client for forwarding txs to tendermint
-	client tmClient.HTTPClient
+	client tmClient.Client
 }
 
 // NewBackend creates a new Backend
 // #stable - 0.4.0
 func NewBackend(ctx *node.ServiceContext, config *eth.Config,
-	client tmClient.HTTPClient) (*Backend, error) {
+	client tmClient.Client) (*Backend, error) {
 	p := newPending()
 
 	// eth.New takes a ServiceContext for the EventMux, the AccountManager,
