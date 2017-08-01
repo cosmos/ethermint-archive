@@ -18,6 +18,7 @@ import (
 	abciApp "github.com/tendermint/ethermint/app"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum/geth"
+	"github.com/tendermint/ethermint/strategies"
 
 	"github.com/tendermint/abci/server"
 	cmn "github.com/tendermint/tmlibs/common"
@@ -46,8 +47,10 @@ func ethermintCmd(ctx *cli.Context) error {
 
 	logger := emtUtils.NewEthermintLogger().With("module", "ethermint")
 
+	strategy := strategies.NewValidatorStrategy(nil)
+
 	// Create the ABCI app
-	ethApp, err := abciApp.NewEthermintApplication(backend, eRPC, nil, logger)
+	ethApp, err := abciApp.NewEthermintApplication(backend, eRPC, strategy, logger)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
