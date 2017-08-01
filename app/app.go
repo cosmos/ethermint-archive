@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/core/state"
@@ -64,7 +65,6 @@ var bigZero = big.NewInt(0)
 
 // Info returns information about the last height and app_hash to the tendermint engine
 // #stable - 0.4.0
-<<<<<<< HEAD
 func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
@@ -89,10 +89,6 @@ func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 		LastBlockHeight:  height.Uint64(),
 		LastBlockAppHash: hash[:],
 	}
-=======
-func (a *EthermintApplication) Info() abci.ResponseInfo {
-	return a.backend.Info()
->>>>>>> 4dc8924... Restructure app.go
 }
 
 // SetOption sets a configuration option
@@ -191,4 +187,24 @@ func (a *EthermintApplication) Commit() abci.Result {
 		return abci.ErrInternalError.AppendLog(err.Error())
 	}
 	return abci.NewResultOK(blockHash[:], "")
+}
+
+// -------------------------
+// Convenience Methods
+
+// format of query data
+type jsonRequest struct {
+	Method string          `json:"method"`
+	ID     json.RawMessage `json:"id,omitempty"`
+	Params []interface{}   `json:"params,omitempty"`
+}
+
+// rlp decode an etherum transaction
+func decodeTx(txBytes []byte) (*types.Transaction, error) {
+	tx := new(types.Transaction)
+	rlpStream := rlp.NewStream(bytes.NewBuffer(txBytes), 0)
+	if err := tx.DecodeRLP(rlpStream); err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
