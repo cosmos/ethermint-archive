@@ -1,8 +1,14 @@
 package utils
 
 import (
+	"bufio"
+	"errors"
+	"fmt"
+	"io"
 	"math/big"
 	"os"
+	"reflect"
+	"unicode"
 
 	cli "gopkg.in/urfave/cli.v1"
 
@@ -11,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/naoina/toml"
 	"github.com/tendermint/ethermint/ethereum"
 
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
@@ -28,6 +35,23 @@ var (
 	// #unstable
 	GenesisTargetGasLimit = big.NewInt(100000000)
 )
+
+// These settings ensure that TOML keys use the same names as Go struct fields.
+var tomlSettings = toml.Config{
+	NormFieldName: func(rt reflect.Type, key string) string {
+		return key
+	},
+	FieldToKey: func(rt reflect.Type, field string) string {
+		return field
+	},
+	MissingField: func(rt reflect.Type, field string) error {
+		link := ""
+		if unicode.IsUpper(rune(rt.Name()[0])) && rt.PkgPath() != "main" {
+			link = fmt.Sprintf(", see https://godoc.org/%s#%s for available fields", rt.PkgPath(), rt.Name())
+		}
+		return fmt.Errorf("field '%s' is not defined in %s%s", field, rt.String(), link)
+	},
+}
 
 type ethstatsConfig struct {
 	URL string `toml:",omitempty"`
@@ -61,6 +85,14 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	}
 
 	ethUtils.SetNodeConfig(ctx, &cfg.Node)
+
+	// Load config file.
+	if file := ctx.GlobalString(ConfigFileFlag.Name); file != "" {
+		if err := LoadConfig(file, &cfg); err != nil {
+			ethUtils.Fatalf("%v", err)
+		}
+	}
+
 	SetEthermintNodeConfig(&cfg.Node)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
@@ -89,6 +121,23 @@ func DefaultNodeConfig() node.Config {
 	}
 
 	return cfg
+}
+
+// LoadConfig takes configuration file path and full configuration and applies file configs to it
+// #unstable
+func LoadConfig(file string, cfg *gethConfig) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close() // nolint: errcheck
+
+	err = tomlSettings.NewDecoder(bufio.NewReader(f)).Decode(cfg)
+	// Add file name to errors that have a line number.
+	if _, ok := err.(*toml.LineError); ok {
+		err = errors.New(file + ", " + err.Error())
+	}
+	return err
 }
 
 // SetEthermintNodeConfig takes a node configuration and applies ethermint specific configuration
@@ -124,4 +173,23 @@ func MakeDataDir(ctx *cli.Context) string {
 	}
 
 	return path
+}
+
+// DumpConfig dumps toml file from the configurations to stdout
+// #unstable
+func DumpConfig(cfg *gethConfig) error {
+	comment := ""
+
+	if cfg.Eth.Genesis != nil {
+		cfg.Eth.Genesis = nil
+		comment += "# Note: this config doesn't contain the genesis block.\n\n"
+	}
+
+	out, err := tomlSettings.Marshal(&cfg)
+	if err != nil {
+		return err
+	}
+	io.WriteString(os.Stdout, comment) // nolint: errcheck
+	os.Stdout.Write(out)               // nolint: errcheck
+	return nil
 }

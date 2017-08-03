@@ -15,3 +15,5 @@ import:
   version: 1.x
 - package: github.com/mattn/go-colorable
   version: 0.x
+- package: github.com/naoina/toml
+  version: ~0.1.1
