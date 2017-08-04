@@ -5,14 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"reflect"
+	"strings"
 	"unicode"
 
 	cli "gopkg.in/urfave/cli.v1"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
@@ -57,15 +60,24 @@ type ethstatsConfig struct {
 	URL string `toml:",omitempty"`
 }
 
-type gethConfig struct {
-	Eth      eth.Config
-	Node     node.Config
-	Ethstats ethstatsConfig
+type additionalConfigs struct {
+	UnlockAccounts []string `toml:",omitempty"`
+	Passwords      string   `toml:",omitempty"`
+	TrieCacheGen   uint16   `toml:",omitempty"`
+	TargetGasLimit uint64   `toml:",omitempty"`
+}
+
+// GethConfig contains configuration structure
+type GethConfig struct {
+	Eth        eth.Config
+	Node       node.Config
+	Ethstats   ethstatsConfig
+	Additional additionalConfigs
 }
 
 // MakeFullNode creates a full go-ethereum node
 // #unstable
-func MakeFullNode(ctx *cli.Context) *node.Node {
+func MakeFullNode(ctx *cli.Context) (*node.Node, GethConfig) {
 	stack, cfg := makeConfigNode(ctx)
 
 	tendermintLAddr := ctx.GlobalString(TendermintAddrFlag.Name)
@@ -75,11 +87,11 @@ func MakeFullNode(ctx *cli.Context) *node.Node {
 		ethUtils.Fatalf("Failed to register the ABCI application service: %v", err)
 	}
 
-	return stack
+	return stack, cfg
 }
 
-func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
-	cfg := gethConfig{
+func makeConfigNode(ctx *cli.Context) (*node.Node, GethConfig) {
+	cfg := GethConfig{
 		Eth:  eth.DefaultConfig,
 		Node: DefaultNodeConfig(),
 	}
@@ -93,6 +105,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		}
 	}
 
+	SetAdditionalConfig(&cfg.Additional)
 	SetEthermintNodeConfig(&cfg.Node)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
@@ -125,7 +138,7 @@ func DefaultNodeConfig() node.Config {
 
 // LoadConfig takes configuration file path and full configuration and applies file configs to it
 // #unstable
-func LoadConfig(file string, cfg *gethConfig) error {
+func LoadConfig(file string, cfg *GethConfig) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -154,6 +167,20 @@ func SetEthermintEthConfig(cfg *eth.Config) {
 	cfg.PowFake = true
 }
 
+// SetAdditionalConfig will setup non-geth specific configurations
+// #unstable
+func SetAdditionalConfig(cfg *additionalConfigs) {
+	if cfg.TrieCacheGen != 0 {
+		state.MaxTrieCacheGen = cfg.TrieCacheGen
+	}
+
+	if cfg.TargetGasLimit != 0 {
+		params.TargetGasLimit = new(big.Int).SetUint64(cfg.TargetGasLimit)
+	} else {
+		params.TargetGasLimit = GenesisTargetGasLimit
+	}
+}
+
 // MakeDataDir retrieves the currently requested data directory
 // #unstable
 func MakeDataDir(ctx *cli.Context) string {
@@ -175,9 +202,26 @@ func MakeDataDir(ctx *cli.Context) string {
 	return path
 }
 
+// MakePasswordList reads password lines from the file specified in the config file
+func MakePasswordList(path string) []string {
+	if path == "" {
+		return nil
+	}
+	text, err := ioutil.ReadFile(path)
+	if err != nil {
+		ethUtils.Fatalf("Failed to read password file: %v", err)
+	}
+	lines := strings.Split(string(text), "\n")
+	// Sanitise DOS line endings.
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], "\r")
+	}
+	return lines
+}
+
 // DumpConfig dumps toml file from the configurations to stdout
 // #unstable
-func DumpConfig(cfg *gethConfig) error {
+func DumpConfig(cfg *GethConfig) error {
 	comment := ""
 
 	if cfg.Eth.Genesis != nil {

@@ -26,8 +26,8 @@ import (
 
 func ethermintCmd(ctx *cli.Context) error {
 	// Setup the go-ethereum node and start it
-	node := emtUtils.MakeFullNode(ctx)
-	startNode(ctx, node)
+	node, cfg := emtUtils.MakeFullNode(ctx)
+	startNode(ctx, node, cfg)
 
 	// Setup the ABCI server and start it
 	addr := ctx.GlobalString(emtUtils.ABCIAddrFlag.Name)
@@ -76,14 +76,14 @@ func ethermintCmd(ctx *cli.Context) error {
 
 // nolint
 // startNode copies the logic from go-ethereum
-func startNode(ctx *cli.Context, stack *node.Node) {
+func startNode(ctx *cli.Context, stack *node.Node, cfg emtUtils.GethConfig) {
 	ethUtils.StartNode(stack)
 
 	// Unlock any account specifically requested
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 
-	passwords := ethUtils.MakePasswordList(ctx)
-	unlocks := strings.Split(ctx.GlobalString(ethUtils.UnlockedAccountFlag.Name), ",")
+	passwords := emtUtils.MakePasswordList(cfg.Additional.Passwords)
+	unlocks := cfg.Additional.UnlockAccounts
 	for i, account := range unlocks {
 		if trimmed := strings.TrimSpace(account); trimmed != "" {
 			unlockAccount(ctx, ks, trimmed, i, passwords)

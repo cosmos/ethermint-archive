@@ -16,41 +16,6 @@ import (
 var (
 	// The app that holds all commands and flags.
 	app = ethUtils.NewApp(version.Version, "the ethermint command line interface")
-	// flags that configure the go-ethereum node
-	nodeFlags = []cli.Flag{
-		ethUtils.DataDirFlag,
-		ethUtils.KeyStoreDirFlag,
-		ethUtils.NoUSBFlag,
-		// Performance tuning
-		ethUtils.CacheFlag,
-		ethUtils.TrieCacheGenFlag,
-		// Account settings
-		ethUtils.UnlockedAccountFlag,
-		ethUtils.PasswordFileFlag,
-		ethUtils.VMEnableDebugFlag,
-		// Logging and debug settings
-		ethUtils.NoCompactionFlag,
-		// Gas price oracle settings
-		ethUtils.GpoBlocksFlag,
-		ethUtils.GpoPercentileFlag,
-		utils.TargetGasLimitFlag,
-		// Gas Price
-		ethUtils.GasPriceFlag,
-	}
-
-	rpcFlags = []cli.Flag{
-		ethUtils.RPCEnabledFlag,
-		ethUtils.RPCListenAddrFlag,
-		ethUtils.RPCPortFlag,
-		ethUtils.RPCCORSDomainFlag,
-		ethUtils.RPCApiFlag,
-		ethUtils.IPCDisabledFlag,
-		ethUtils.WSEnabledFlag,
-		ethUtils.WSListenAddrFlag,
-		ethUtils.WSPortFlag,
-		ethUtils.WSApiFlag,
-		ethUtils.WSAllowedOriginsFlag,
-	}
 
 	// flags that configure the ABCI app
 	ethermintFlags = []cli.Flag{
@@ -85,8 +50,6 @@ func init() {
 		},
 	}
 
-	app.Flags = append(app.Flags, nodeFlags...)
-	app.Flags = append(app.Flags, rpcFlags...)
 	app.Flags = append(app.Flags, ethermintFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
