@@ -1,5 +1,17 @@
 # Changelog
 
+## In-Progress
+* implements correct syncing status as a custom RPC endpoint  
+  * we override the geth RPC endpoint and give it a custom one that uses the tendermint rpc
+* rewrite tests into separate directory
+* stop P2P layer from starting
+* unsafe_reset_all command
+* allow multiple transactions per block
+* cleanup strategy to prepare for IBC implementation
+* refactor Ethereum backend structure
+* test improvements
+* benchmark improvements
+
 ## 0.4.0
 ### Breaking
 * pending.commit(...) takes an ethereum object instead of a blockchain object
