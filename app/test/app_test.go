@@ -51,7 +51,7 @@ func TestBumpingNonces(t *testing.T) {
 	// generate key
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
-		t.Errorf("Error generating key %v", err)
+		t.Fatalf("Error generating key %v", err)
 	}
 
 	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
@@ -63,14 +63,14 @@ func TestBumpingNonces(t *testing.T) {
 	// setup temp data dir and the app instance
 	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
 	if err != nil {
-		t.Error("unable to create temporary datadir")
+		t.Fatal("unable to create temporary datadir")
 	}
 	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	logger := tmLog.TestingLogger()
 	stack, _, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient, logger)
 	if err != nil {
-		t.Errorf("Error making test EthermintApplication: %v", err)
+		t.Fatalf("Error making test EthermintApplication: %v", err)
 	}
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
@@ -78,8 +78,7 @@ func TestBumpingNonces(t *testing.T) {
 	nonce1 := uint64(0)
 	tx1, err := createTransaction(privateKey, nonce1)
 	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
+		t.Fatalf("Error creating transaction: %v", err)
 	}
 	encodedtx, _ := rlp.EncodeToBytes(tx1)
 
@@ -128,7 +127,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	// generate key
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
-		t.Errorf("Error generating key %v", err)
+		t.Fatalf("Error generating key %v", err)
 	}
 	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
 
@@ -138,14 +137,14 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	// setup temp data dir and the app instance
 	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
 	if err != nil {
-		t.Error("unable to create temporary datadir")
+		t.Fatal("unable to create temporary datadir")
 	}
 	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	logger := tmLog.TestingLogger()
 	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient, logger)
 	if err != nil {
-		t.Errorf("Error making test EthermintApplication: %v", err)
+		t.Fatalf("Error making test EthermintApplication: %v", err)
 	}
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
@@ -154,7 +153,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	nonce1 := uint64(0)
 	tx1, err := createTransaction(privateKey, nonce1)
 	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
+		t.Fatalf("Error creating transaction: %v", err)
 
 	}
 	encodedTx1, _ := rlp.EncodeToBytes(tx1)
@@ -163,7 +162,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	nonce2 := uint64(0)
 	tx2, err := createTransaction(privateKey, nonce2)
 	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
+		t.Fatalf("Error creating transaction: %v", err)
 
 	}
 	encodedTx2, _ := rlp.EncodeToBytes(tx2)
@@ -198,14 +197,14 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	//account 1
 	privateKey1, err := crypto.GenerateKey()
 	if err != nil {
-		t.Errorf("Error generating key %v", err)
+		t.Fatalf("Error generating key %v", err)
 	}
 	addr1 := crypto.PubkeyToAddress(privateKey1.PublicKey)
 
 	//account 2
 	privateKey2, err := crypto.GenerateKey()
 	if err != nil {
-		t.Errorf("Error generating key %v", err)
+		t.Fatalf("Error generating key %v", err)
 	}
 	addr2 := crypto.PubkeyToAddress(privateKey2.PublicKey)
 
@@ -215,14 +214,14 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	// setup temp data dir and the app instance
 	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
 	if err != nil {
-		t.Error("unable to create temporary datadir")
+		t.Fatal("unable to create temporary datadir")
 	}
 	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	logger := tmLog.TestingLogger()
 	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1, addr2}, mockclient, logger)
 	if err != nil {
-		t.Errorf("Error making test EthermintApplication: %v", err)
+		t.Fatalf("Error making test EthermintApplication: %v", err)
 	}
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
@@ -230,7 +229,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	nonce1 := uint64(0)
 	tx1, err := createTransaction(privateKey1, nonce1)
 	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
+		t.Fatalf("Error creating transaction: %v", err)
 
 	}
 	encodedtx1, _ := rlp.EncodeToBytes(tx1)
@@ -239,7 +238,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	nonce2 := uint64(0)
 	tx2, err := createTransaction(privateKey2, nonce2)
 	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
+		t.Fatalf("Error creating transaction: %v", err)
 
 	}
 	encodedTx2, _ := rlp.EncodeToBytes(tx2)
