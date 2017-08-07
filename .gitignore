@@ -1,5 +1,6 @@
 ### Custom ###
 cmd/ethermint/ethermint
+docs/_build
 data
 dev/data
 *.swp
