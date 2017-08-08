@@ -8,6 +8,7 @@ vendor/
 build/
 dist/
 scripts/kubernetes/ethermint.yaml
+coverage.txt
 
 ### Go ###
 # Binaries for programs and plugins
