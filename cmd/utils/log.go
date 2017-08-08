@@ -44,10 +44,10 @@ type ethermintLogger struct {
 	keyvals []interface{}
 }
 
-// NewEthermintLogger returns a new instance of an ethermint logger. With() should
+// EthermintLogger returns a new instance of an ethermint logger. With() should
 // be called upon the returned instance to set default keys
 // #unstable
-func NewEthermintLogger() tmlog.Logger {
+func EthermintLogger() tmlog.Logger {
 	logger := ethermintLogger{keyvals: make([]interface{}, 0)}
 	return logger
 }

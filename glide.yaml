@@ -1,7 +1,7 @@
 package: github.com/tendermint/ethermint
 import:
 - package: github.com/tendermint/tendermint
-  version: 05c0dfac120c5a44f674c80ec3afb3c913ec5264
+  version: 0.10.x
 - package: github.com/tendermint/tmlibs
   version: 0.2.x
 - package: github.com/tendermint/abci

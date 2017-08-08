@@ -1,5 +1,5 @@
-hash: 77c677723f09e621b9f8a19cc5b817c6c20f1f4c56b6c45926bf1d96ef846834
-updated: 2017-08-01T10:18:22.773737676-04:00
+hash: 1011622440eaaa9e1510f0c744545394cccce06e1d198202497969486977fb75
+updated: 2017-07-19T11:31:35.316175226+02:00
 imports:
 - name: github.com/aristanetworks/goarista
   version: 8ab803d6502ea1e05a8c9b73193b405291efb7ce
@@ -9,8 +9,6 @@ imports:
   version: 47885ab8702485be6b6f87a03d4f3be0bc5c982c
   subpackages:
   - btcec
-- name: github.com/ebuchman/fail-test
-  version: 95f809107225be108efcf10a3509e4ea6ceef3c4
 - name: github.com/edsrzf/mmap-go
   version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
@@ -108,14 +106,12 @@ imports:
   - ssdp
 - name: github.com/jackpal/go-nat-pmp
   version: 28a68d0c24adce1da43f8df6a57340909ecd7fdd
-- name: github.com/jmhodges/levigo
-  version: c42d9e0ca023e2198120196f842701bb4c55d7b9
 - name: github.com/karalabe/hid
   version: 875879887cf0560a993b57e04615944e1dd02a73
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/mattn/go-colorable
-  version: 167de6bfdfba052fa6b2d3664c8f5272e23c9072
+  version: 941b50ebc6efddf4c41c8e4537a5f68a4e686b24
 - name: github.com/mattn/go-isatty
   version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/pborman/uuid
@@ -161,8 +157,6 @@ imports:
 - name: github.com/tendermint/abci
   version: 864d1f80b36b440bde030a5c18d8ac3aa8c2949d
   subpackages:
-  - client
-  - example/dummy
   - server
   - types
 - name: github.com/tendermint/ed25519
@@ -171,47 +165,25 @@ imports:
   - edwards25519
   - extra25519
 - name: github.com/tendermint/go-crypto
-  version: 03d2b2446e8587f159e52070b1f1e0def971a2c7
+  version: d31cfbaeaa4d930798ec327b52917975f3203c11
 - name: github.com/tendermint/go-wire
   version: 5f88da3dbc1a72844e6dfaf274ce87f851d488eb
   subpackages:
   - data
-- name: github.com/tendermint/merkleeyes
-  version: 2826c6f74de3228ee15e8713fe36270765184ab9
-  subpackages:
-  - iavl
 - name: github.com/tendermint/tendermint
-  version: 05c0dfac120c5a44f674c80ec3afb3c913ec5264
+  version: b467515719e686e4678e6da4e102f32a491b85a0
   subpackages:
-  - blockchain
   - config
-  - consensus
-  - mempool
-  - node
   - p2p
   - p2p/upnp
-  - proxy
-  - rpc/client
-  - rpc/core
   - rpc/core/types
-  - rpc/grpc
-  - rpc/lib
   - rpc/lib/client
-  - rpc/lib/server
   - rpc/lib/types
-  - state
-  - state/txindex
-  - state/txindex/kv
-  - state/txindex/null
   - types
-  - version
 - name: github.com/tendermint/tmlibs
   version: 7ce4da1eee6004d627e780c8fe91e96d9b99e459
   subpackages:
-  - autofile
-  - clist
   - common
-  - db
   - events
   - flowrate
   - log
@@ -308,11 +280,11 @@ imports:
   version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
 testImports:
 - name: github.com/davecgh/go-spew
-  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
+  version: adab96458c51a58dc1783b3335dcce5461522e75
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
-  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
 - name: github.com/stretchr/testify

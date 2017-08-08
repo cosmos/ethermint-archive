@@ -1,4 +1,4 @@
-package geth
+package ethereum
 
 import (
 	"math/big"
@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	abciTypes "github.com/tendermint/abci/types"
+	emtTypes "github.com/tendermint/ethermint/types"
 )
 
 //----------------------------------------------------------------------
@@ -38,67 +38,6 @@ func newPending() *pending {
 	return &pending{mtx: &sync.Mutex{}}
 }
 
-func (p *pending) checkTx(tx *ethTypes.Transaction) abciTypes.Result {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	currentState := p.work.intermediaryState
-
-	// TODO: Check whether the tx has a higher than minimum gasprice
-
-	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
-	if tx.Protected() {
-		signer = ethTypes.NewEIP155Signer(tx.ChainId())
-	}
-
-	from, err := ethTypes.Sender(signer, tx)
-	if err != nil {
-		return abciTypes.ErrBaseInvalidSignature.
-			AppendLog(core.ErrInvalidSender.Error())
-	}
-
-	if currentState.GetNonce(from) > tx.Nonce() {
-		return abciTypes.ErrBadNonce.
-			AppendLog(core.ErrNonceTooLow.Error())
-	}
-
-	// Check the transaction doesn't exceed the current block limit gas.
-	gasLimit := p.gasLimit()
-	if gasLimit.Cmp(tx.Gas()) < 0 {
-		return abciTypes.ErrInternalError.
-			AppendLog(core.ErrGasLimitReached.Error())
-	}
-
-	// Transactions can't be negative. This may never happen
-	// using RLP decoded transactions but may occur if you create
-	// a transaction using the RPC for example.
-	if tx.Value().Sign() < 0 {
-		return abciTypes.ErrBaseInvalidInput.
-			AppendLog(core.ErrNegativeValue.Error())
-	}
-
-	// Transactor should have enough funds to cover the costs
-	// cost == V + GP * GL
-	if currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		return abciTypes.ErrInsufficientFunds.
-			AppendLog(core.ErrInsufficientFunds.Error())
-	}
-
-	// homestead == true
-	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true)
-	if tx.Gas().Cmp(intrGas) < 0 {
-		return abciTypes.ErrBaseInsufficientFees.
-			SetLog(core.ErrIntrinsicGas.Error())
-	}
-
-	if tx.Size() > 32*1024 {
-		return abciTypes.ErrBaseInvalidInput.
-			AppendLog(core.ErrOversizedData.Error())
-	}
-
-	return abciTypes.OK
-}
-
 // execute the transaction
 func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, tx *ethTypes.Transaction) error {
 	p.mtx.Lock()
@@ -106,6 +45,14 @@ func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, cha
 
 	blockHash := common.Hash{}
 	return p.work.deliverTx(blockchain, config, chainConfig, blockHash, tx)
+}
+
+// accumulate validator rewards
+func (p *pending) accumulateRewards(strategy *emtTypes.Strategy) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	p.work.accumulateRewards(strategy)
 }
 
 // commit and reset the work
@@ -137,20 +84,13 @@ func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address
 	currentBlock := blockchain.CurrentBlock()
 	ethHeader := newBlockHeader(receiver, currentBlock)
 
-	iState, err := blockchain.State()
-	if err != nil {
-		return nil, err
-	}
-	intermediaryState := iState.Copy()
-
 	return &work{
-		header:            ethHeader,
-		parent:            currentBlock,
-		state:             state,
-		intermediaryState: intermediaryState,
-		txIndex:           0,
-		totalUsedGas:      big.NewInt(0),
-		gp:                new(core.GasPool).AddGas(ethHeader.GasLimit),
+		header:       ethHeader,
+		parent:       currentBlock,
+		state:        state,
+		txIndex:      0,
+		totalUsedGas: big.NewInt(0),
+		gp:           new(core.GasPool).AddGas(ethHeader.GasLimit),
 	}, nil
 }
 
@@ -188,10 +128,9 @@ func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
 // The work struct handles block processing.
 // It's updated with each DeliverTx and reset on Commit
 type work struct {
-	header            *ethTypes.Header
-	parent            *ethTypes.Block
-	state             *state.StateDB
-	intermediaryState *state.StateDB
+	header *ethTypes.Header
+	parent *ethTypes.Block
+	state  *state.StateDB
 
 	txIndex      int
 	transactions []*ethTypes.Transaction
@@ -200,6 +139,12 @@ type work struct {
 
 	totalUsedGas *big.Int
 	gp           *core.GasPool
+}
+
+// nolint: unparam
+func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
+	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
+	w.header.GasUsed = w.totalUsedGas
 }
 
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,

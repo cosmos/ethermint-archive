@@ -13,13 +13,14 @@ import (
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
 
 	abciApp "github.com/tendermint/ethermint/app"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-	"github.com/tendermint/ethermint/ethereum/geth"
-	"github.com/tendermint/ethermint/strategies"
+	"github.com/tendermint/ethermint/ethereum"
 
 	"github.com/tendermint/abci/server"
+
 	cmn "github.com/tendermint/tmlibs/common"
 )
 
@@ -33,27 +34,24 @@ func ethermintCmd(ctx *cli.Context) error {
 	abci := ctx.GlobalString(emtUtils.ABCIProtocolFlag.Name)
 
 	// Fetch the registered service of this type
-	var backend *geth.Backend
+	var backend *ethereum.Backend
 	if err := node.Service(&backend); err != nil {
 		ethUtils.Fatalf("ethereum backend service not running: %v", err)
 	}
 
 	// In-proc RPC connection so ABCI.Query can be forwarded over the ethereum rpc
-	eRPC, err := node.Attach()
+	rpcClient, err := node.Attach()
 	if err != nil {
 		ethUtils.Fatalf("Failed to attach to the inproc geth: %v", err)
 	}
 
-	logger := emtUtils.NewEthermintLogger().With("module", "ethermint")
-
-	strategy := strategies.NewValidatorStrategy(nil)
-
 	// Create the ABCI app
-	ethApp, err := abciApp.NewEthermintApplication(backend, eRPC, strategy, logger)
+	ethApp, err := abciApp.NewEthermintApplication(backend, rpcClient, nil)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	ethApp.SetLogger(emtUtils.EthermintLogger().With("module", "ethermint"))
 
 	// Start the app on the ABCI server
 	srv, err := server.NewServer(addr, abci, ethApp)
@@ -62,7 +60,7 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	srv.SetLogger(emtUtils.NewEthermintLogger().With("module", "abci-server"))
+	srv.SetLogger(emtUtils.EthermintLogger().With("module", "abci-server"))
 
 	if _, err := srv.Start(); err != nil {
 		fmt.Println(err)
@@ -78,8 +76,8 @@ func ethermintCmd(ctx *cli.Context) error {
 
 // nolint
 // startNode copies the logic from go-ethereum
-func startNode(ctx *cli.Context, stack *geth.Node) {
-	emtUtils.StartNode(stack)
+func startNode(ctx *cli.Context, stack *node.Node) {
+	ethUtils.StartNode(stack)
 
 	// Unlock any account specifically requested
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
