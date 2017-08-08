@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/tendermint/ethermint/ethereum/geth"
+	"github.com/tendermint/ethermint/ethereum"
 
-	rpcClient "github.com/tendermint/tendermint/rpc/client"
+	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 const (
@@ -41,12 +41,12 @@ type gethConfig struct {
 
 // MakeFullNode creates a full go-ethereum node
 // #unstable
-func MakeFullNode(ctx *cli.Context) *geth.Node {
+func MakeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
 	tendermintLAddr := ctx.GlobalString(TendermintAddrFlag.Name)
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return geth.NewBackend(ctx, &cfg.Eth, rpcClient.NewHTTP(tendermintLAddr, "/websocket"))
+		return ethereum.NewBackend(ctx, &cfg.Eth, rpcClient.NewURIClient(tendermintLAddr))
 	}); err != nil {
 		ethUtils.Fatalf("Failed to register the ABCI application service: %v", err)
 	}
@@ -54,7 +54,7 @@ func MakeFullNode(ctx *cli.Context) *geth.Node {
 	return stack
 }
 
-func makeConfigNode(ctx *cli.Context) (*geth.Node, gethConfig) {
+func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	cfg := gethConfig{
 		Eth:  eth.DefaultConfig,
 		Node: DefaultNodeConfig(),
@@ -62,12 +62,12 @@ func makeConfigNode(ctx *cli.Context) (*geth.Node, gethConfig) {
 
 	ethUtils.SetNodeConfig(ctx, &cfg.Node)
 	SetEthermintNodeConfig(&cfg.Node)
-	stack, err := geth.New(&cfg.Node)
+	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		ethUtils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
-	ethUtils.SetEthConfig(ctx, &stack.Node, &cfg.Eth)
+	ethUtils.SetEthConfig(ctx, stack, &cfg.Eth)
 	SetEthermintEthConfig(&cfg.Eth)
 
 	return stack, cfg
