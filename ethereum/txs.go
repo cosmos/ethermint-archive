@@ -29,6 +29,7 @@ func (b *Backend) txBroadcastLoop() {
 }
 
 // BroadcastTx broadcasts a transaction to tendermint core
+// #unstable
 func (b *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
 	var result interface{}
 	buf := new(bytes.Buffer)

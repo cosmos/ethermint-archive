@@ -1,5 +1,6 @@
 ### Custom ###
 cmd/ethermint/ethermint
+docs/_build
 data
 dev/data
 *.swp
@@ -8,6 +9,8 @@ vendor/
 build/
 dist/
 scripts/kubernetes/ethermint.yaml
+ethstats/
+coverage.txt
 
 ### Go ###
 # Binaries for programs and plugins
