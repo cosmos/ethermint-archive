@@ -7,8 +7,11 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"gopkg.in/urfave/cli.v1"
+
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/tendermint/ethermint/ethereum"
 )
 
@@ -60,4 +63,11 @@ func DefaultDataDir() string {
 	}
 	// As we cannot guess a stable location, return empty and handle later
 	return ""
+}
+
+func ResetAll(ctx *cli.Context) {
+	dbDir := filepath.Join(MakeDataDir(ctx), "ethermint")
+	os.RemoveAll(dbDir)
+
+	log.Info("Successfully removed all data", "dir", dbDir)
 }
