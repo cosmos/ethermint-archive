@@ -78,6 +78,11 @@ func init() {
 			Usage:       "",
 			Description: "Print the version",
 		},
+		{
+			Action: resetCmd,
+			Name:   "unsafe_reset_all",
+			Usage:  "(unsafe) Remove ethermint database",
+		},
 	}
 
 	app.Flags = append(app.Flags, nodeFlags...)
