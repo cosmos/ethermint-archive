@@ -106,13 +106,14 @@ these instructions.
 ```bash
 tendermint init --home ~/.ethermint/tendermint
 
-cd $GOPATH/src/github.com/tendermint/ethermint
-
-ethermint --datadir ~/.ethermint init setup/genesis.json
-
-cp -r setup/keystore ~/.ethermint
+ethermint --datadir ~/.ethermint init
 ```
-In the last step we copy the private key from the initialisation folder into the actual ethereum folder. 
+
+* Note:
+You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
+```bash
+cp -r keystore ~/.ethermint
+```
 
 
 ### Running
