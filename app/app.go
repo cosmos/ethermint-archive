@@ -61,6 +61,8 @@ func (app *EthermintApplication) SetLogger(log tmLog.Logger) {
 	app.logger = log
 }
 
+var bigZero = big.NewInt(0)
+
 // Info returns information about the last height and app_hash to the tendermint engine
 // #stable - 0.4.0
 func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
@@ -74,7 +76,7 @@ func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	// This check determines whether it is the first time ethermint gets started.
 	// If it is the first time, then we have to respond with an empty hash, since
 	// that is what tendermint expects.
-	if height.Cmp(big.NewInt(0)) == 0 {
+	if height.Cmp(bigZero) == 0 {
 		return abciTypes.ResponseInfo{
 			Data:             "ABCIEthereum",
 			LastBlockHeight:  height.Uint64(),
