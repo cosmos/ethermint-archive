@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -24,9 +25,30 @@ import (
 )
 
 func ethermintCmd(ctx *cli.Context) error {
-	// Setup the go-ethereum node and start it
+	// Step 1: Setup the go-ethereum node and start it
 	node := emtUtils.MakeFullNode(ctx)
 	startNode(ctx, node)
+
+	// Step 2: If we can invoke `tendermint node`, let's do so
+	// in order to make ethermint as self contained as possible.
+	// See Issue https://github.com/tendermint/ethermint/issues/244
+	canInvokeTendermintNode := canInvokeTendermint(ctx)
+	if canInvokeTendermintNode {
+		tendermintHome := tendermintHomeFromEthermint(ctx)
+		tendermintArgs := []string{"--home", tendermintHome, "node"}
+		go func() {
+			if _, err := invokeTendermintNoTimeout(tendermintArgs...); err != nil {
+				// We shouldn't go *Fatal* because
+				// `tendermint node` might have already been invoked.
+				log.Info("tendermint init", "error", err)
+			} else {
+				log.Info("Successfully invoked `tendermint node`", "args", tendermintArgs)
+			}
+		}()
+		pauseDuration := 3 * time.Second
+		log.Info(fmt.Sprintf("Invoked `tendermint node` sleeping for %s", pauseDuration), "args", tendermintArgs)
+		time.Sleep(pauseDuration)
+	}
 
 	// Setup the ABCI server and start it
 	addr := ctx.GlobalString(emtUtils.ABCIAddrFlag.Name)

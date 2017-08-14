@@ -54,4 +54,13 @@ var (
 		Usage: "Target gas limit sets the artificial target gas floor for the blocks to mine",
 		Value: GenesisTargetGasLimit.Uint64(),
 	}
+
+	// WithTendermint flag asks to start Tendermint
+	// `tendermint init` and `tendermint node` when `ethermint init`
+	// and `ethermint` are invoked respectively.
+	WithTendermintFlag = cli.BoolFlag{
+		Name: "with-tendermint",
+		Usage: "If set, it will invoke `tendermint init` and `tendermint node` " +
+			"when `ethermint init` and `ethermint` are invoked respectively",
+	}
 )

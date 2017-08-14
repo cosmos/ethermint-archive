@@ -59,6 +59,7 @@ var (
 		utils.ABCIProtocolFlag,
 		utils.VerbosityFlag,
 		utils.ConfigFileFlag,
+		utils.WithTendermintFlag,
 	}
 )
 
