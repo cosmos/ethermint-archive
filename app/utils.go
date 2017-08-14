@@ -32,6 +32,7 @@ func decodeTx(txBytes []byte) (*types.Transaction, error) {
 // convenience methods for validators
 
 // Receiver returns the receiving address based on the selected strategy
+// #unstable
 func (app *EthermintApplication) Receiver() common.Address {
 	if app.strategy != nil {
 		return app.strategy.Receiver()
@@ -40,6 +41,7 @@ func (app *EthermintApplication) Receiver() common.Address {
 }
 
 // SetValidators sets new validators on the strategy
+// #unstable
 func (app *EthermintApplication) SetValidators(validators []*abciTypes.Validator) {
 	if app.strategy != nil {
 		app.strategy.SetValidators(validators)
@@ -47,6 +49,7 @@ func (app *EthermintApplication) SetValidators(validators []*abciTypes.Validator
 }
 
 // GetUpdatedValidators returns an updated validator set from the strategy
+// #unstable
 func (app *EthermintApplication) GetUpdatedValidators() abciTypes.ResponseEndBlock {
 	if app.strategy != nil {
 		return abciTypes.ResponseEndBlock{Diffs: app.strategy.GetUpdatedValidators()}
@@ -55,6 +58,7 @@ func (app *EthermintApplication) GetUpdatedValidators() abciTypes.ResponseEndBlo
 }
 
 // CollectTx invokes CollectTx on the strategy
+// #unstable
 func (app *EthermintApplication) CollectTx(tx *types.Transaction) {
 	if app.strategy != nil {
 		app.strategy.CollectTx(tx)

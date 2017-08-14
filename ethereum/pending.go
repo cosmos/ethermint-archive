@@ -11,15 +11,23 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/log"
+	//"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/ethereum/go-ethereum/ethdb"
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
 //----------------------------------------------------------------------
-// pending manages concurrent access to the intermediate work object
+// Pending manages concurrent access to the intermediate work object
+// The ethereum tx pool fires TxPreEvent in a go-routine,
+// and the miner subscribes to this in another go-routine and processes the tx onto
+// an intermediate state. We used to use `unsafe` to overwrite the miner, but this
+// didn't work because it didn't affect the already launched go-routines.
+// So instead we introduce the Pending API in a small commit in go-ethereum
+// so we don't even start the miner there, and instead manage the intermediate state from here.
+// In the same commit we also fire the TxPreEvent synchronously so the order is preserved,
+// instead of using a go-routine.
 
 type pending struct {
 	mtx  *sync.Mutex
@@ -101,6 +109,7 @@ func (p *pending) gasLimit() big.Int {
 // Implements: miner.Pending API (our custom patch to go-ethereum)
 
 // Return a new block and a copy of the state from the latest work
+// #unstable
 func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
@@ -154,7 +163,6 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
 	)
 	if err != nil {
-		log.Info("DeliverTx error", "err", err)
 		return err
 	}
 
@@ -190,10 +198,10 @@ func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Ha
 	blockHash := block.Hash()
 
 	// save the block to disk
-	log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
+	// log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
 	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
 	if err != nil {
-		log.Info("Error inserting ethereum block in chain", "err", err)
+		// log.Info("Error inserting ethereum block in chain", "err", err)
 		return common.Hash{}, err
 	}
 	return blockHash, err

@@ -2,9 +2,11 @@ package utils
 
 import (
 	"flag"
-	"gopkg.in/urfave/cli.v1"
 	"os"
 	"testing"
+
+	"gopkg.in/urfave/cli.v1"
+
 	"github.com/ethereum/go-ethereum/node"
 )
 
@@ -12,7 +14,7 @@ import (
 func TestEMHome(t *testing.T) {
 	// set env variable
 	emHomedir := "/tmp/dir1"
-	os.Setenv(emHome, emHomedir)
+	os.Setenv(emHome, emHomedir) // nolint: errcheck
 
 	// context with empty flag set
 	context := getContextNoFlag()
@@ -27,7 +29,7 @@ func TestEMHome(t *testing.T) {
 func TestEmHomeDataDir(t *testing.T) {
 	// set env variable
 	emHomedir := "/tmp/dir1"
-	os.Setenv(emHome, emHomedir)
+	os.Setenv(emHome, emHomedir) // nolint: errcheck
 
 	// context with datadir flag
 	dir := "/tmp/dir2"
@@ -51,6 +53,7 @@ func getContextNoFlag() *cli.Context {
 	return ctx
 }
 
+// nolint: unparam
 func getContextDataDirFlag(dir string) *cli.Context {
 	set := flag.NewFlagSet("test", 0)
 	globalSet := flag.NewFlagSet("test", 0)
@@ -59,7 +62,7 @@ func getContextDataDirFlag(dir string) *cli.Context {
 	globalCtx := cli.NewContext(nil, globalSet, nil)
 	ctx := cli.NewContext(nil, set, globalCtx)
 
-	globalSet.Parse([]string{"--datadir", dir})
+	globalSet.Parse([]string{"--datadir", dir}) // nolint: errcheck
 
 	return ctx
 }

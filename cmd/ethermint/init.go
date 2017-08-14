@@ -1,19 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/urfave/cli.v1"
 
-	"encoding/json"
-
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
-	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 )
 
 // nolint: vetshadow
