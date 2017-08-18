@@ -12,6 +12,7 @@ const account = web3.eth.accounts[0];
 
 console.log('Block number: ' + web3.eth.blockNumber)
 console.log('Account: ' + account)
+console.log('Account balance: ' + web3.eth.getBalance(account))
 
 //unlock account
 web3.personal.unlockAccount(account, "1234");
@@ -39,7 +40,7 @@ describe('gasLimit', function () {
             gas: '100' //set low gas
         }, function (error) {
             console.log(error);
-            assert.equal(error, "Error: insufficient funds for gas * price + value");
+            assert.equal(error, "Error: intrinsic gas too low");
             done();
         });
     });
