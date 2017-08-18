@@ -13,6 +13,7 @@ docker info
 docker pull tendermint/tendermint
 docker run -it --rm tendermint/tendermint version
 docker run -it --rm -v "/tmp:/tendermint" tendermint/tendermint init
+ls -rtl /tmp
 docker run -d \
     -v "/tmp:/tendermint" \
     tendermint/tendermint node --proxy_app=dummy
