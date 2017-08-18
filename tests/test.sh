@@ -6,6 +6,10 @@ set -eux
 # count of tendermint/ethermint node
 N=1
 
+# Docker version and info
+docker version
+docker info
+
 # Get the directory of where this script is.
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
@@ -44,16 +48,16 @@ ETHERMINT_IP=$($DIR/p2p/ip.sh 2)
 docker pull tendermint/tendermint && \
 docker run -d \
     --net=ethermint_net \
-    --ip="$TENDERMINT_IP" \
+    --ip "$TENDERMINT_IP" \
     --rm --name tendermint_1 \
-    -v "$LOGS_DIR/tendermint:/tendermint" \
+    -v "$DIR/data/tendermint_1:/tendermint" \
     tendermint/tendermint node --moniker=node1 --proxy_app tcp://$ETHERMINT_IP:46658 && \
 
 echo
 echo "* [$(date +"%T")] run ethermint container"
 docker run -d \
     --net=ethermint_net \
-    --ip=$ETHERMINT_IP \
+    --ip $ETHERMINT_IP \
     --rm --name ethermint_1 \
     ethermint_tester ethermint --datadir=/ethermint/data --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin --tendermint_addr tcp://$TENDERMINT_IP:46657
 
