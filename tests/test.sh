@@ -1,6 +1,10 @@
 #!/bin/bash
 
-set -eu
+# -x for debug
+set -eux
+
+# count of tendermint/ethermint node
+N=1
 
 # Get the directory of where this script is.
 SOURCE="${BASH_SOURCE[0]}"
@@ -21,36 +25,51 @@ echo
 echo "* [$(date +"%T")] building nodejs docker image"
 bash "$DIR/integration/truffle/build.sh"
 
+# stop existing container and remove network
+set +e
+bash "$DIR/p2p/stop_tests.sh" $N
+set -e
+
 echo
 echo "* [$(date +"%T")] create docker network"
 docker network create --driver bridge --subnet 172.58.0.0/16 ethermint_net
 
 echo
 echo "* [$(date +"%T")] run tendermint container"
+
+#TODO add loop.
+TENDERMINT_IP=$($DIR/p2p/ip.sh 1)
+ETHERMINT_IP=$($DIR/p2p/ip.sh 2)
+
 docker pull tendermint/tendermint && \
 docker run -d \
     --net=ethermint_net \
-    --ip=$($DIR/p2p/ip.sh 1) \
+    --ip="$TENDERMINT_IP" \
     --rm --name tendermint_1 \
     -v "$LOGS_DIR/tendermint:/tendermint" \
-    tendermint/tendermint node --moniker=node1 --proxy_app tcp://$($DIR/p2p/ip.sh 2):46658 && \
+    tendermint/tendermint node --moniker=node1 --proxy_app tcp://$ETHERMINT_IP:46658 && \
 
 echo
 echo "* [$(date +"%T")] run ethermint container"
 docker run -d \
     --net=ethermint_net \
-    --ip=$($DIR/p2p/ip.sh 2) \
+    --ip=$ETHERMINT_IP \
     --rm --name ethermint_1 \
-    ethermint_tester ethermint --datadir=/ethermint/data --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin --tendermint_addr tcp://$($DIR/p2p/ip.sh 1):46657
+    ethermint_tester ethermint --datadir=/ethermint/data --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin --tendermint_addr tcp://$TENDERMINT_IP:46657
 
 
 echo
 echo "* [$(date +"%T")] run tests"
-docker run --rm -it -e NODE_ENV=test -e WEB3_HOST=$($DIR/p2p/ip.sh 2) -e WEB3_PORT=8545 ethermint_js_test npm test
+docker run --net=ethermint_net \
+    --rm -it \
+    -e NODE_ENV=test \
+    -e WEB3_HOST=$ETHERMINT_IP \
+    -e WEB3_PORT=8545 \
+    ethermint_js_test npm test
 
 echo
 echo "* [$(date +"%T")] stop containers"
-bash "$DIR/p2p/stop_tests.sh"
+bash "$DIR/p2p/stop_tests.sh" $N
 
 echo
 echo "* [$(date +"%T")] done"

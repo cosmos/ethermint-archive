@@ -1,12 +1,7 @@
 FROM golang:1.8.3
 
-# Add testing deps for curl
-#RUN echo 'deb http://httpredir.debian.org/debian testing main non-free contrib' >> /etc/apt/sources.list
-
-# Grab deps (jq, hexdump, xxd, killall)
-#RUN apt-get update && \
-#  apt-get install -y --no-install-recommends \
-#  jq bsdmainutils vim-common psmisc netcat curl
+RUN mkdir /ethermint && \
+    chmod 777 /ethermint
 
 # Setup ethermint repo
 ENV REPO $GOPATH/src/github.com/tendermint/ethermint
@@ -23,6 +18,11 @@ RUN make get_vendor_deps
 COPY . $REPO
 
 RUN make install
+
+RUN mkdir -p /ethermint/setup
+COPY setup/genesis.json /ethermint/setup/
+RUN ethermint -datadir /ethermint/data init /ethermint/setup/genesis.json
+COPY setup/keystore /ethermint/data/keystore
 
 # expose the volume for debugging
 VOLUME $REPO
