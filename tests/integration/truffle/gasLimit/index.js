@@ -61,7 +61,7 @@ describe('gasLimit', function () {
         testContract.new({
             from: account,
             data: '0x' + bytecode,
-            gas: '15379400' //set enough gas
+            gas: '5379400' //set enough gas
         }, function (error, contract) {
             callbackCount++;
 
