@@ -1,14 +1,26 @@
 # Changelog
 
+## In-Progress
+* add semver guarantees to all exported APIs
+* add getting started documentation to the docs folder
+* add readthedocs to the docs folder
+
 ## 0.4.0
 ### Breaking
 * pending.commit(...) takes an ethereum object instead of a blockchain object
-    * the change was necessary due to a change in the API exposed by geth
+the change was necessary due to a change in the API exposed by geth
 
 ### Improvements
-* Update to geth v1.6.6
-* Add more money to the default account
-* Increase the wait times in the contract tests to guard against false positives
+* update to geth v1.6.6
+* add more money to the default account
+* increase the wait times in the contract tests to guard against false positives
+* added EMHOME variable
+* binaries now correctly unzip to `ethermint`
+* added benchmarking suite
+* general improvements to the build process
+* better documentation
+* proper linting and error detection
+  * can be accessed with `make metalinter` and `make megacheck`
 
 
 ## 0.3.0 (June 23, 2017)

@@ -1,7 +1,9 @@
 machine:
   environment:
-    GOPATH: /home/ubuntu/.go_workspace
+    GOPATH: $HOME/.go_workspace
     REPO: $GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+    PROJECT_PARENT_PATH: "$GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME"
+    PROJECT_PATH: "$PROJECT_PARENT_PATH/$CIRCLE_PROJECT_REPONAME"
   hosts:
     circlehost: 127.0.0.1
     localhost: 127.0.0.1
@@ -19,5 +21,9 @@ test:
     - "go version"
     - "echo $REPO && ls $REPO"
     - "cd $REPO && make install"
-    - "cd $REPO && make test"
+    - "cd $REPO && make test_coverage"
     - "cd $REPO && make test_integrations"
+
+
+  post:
+    - cd "$PROJECT_PATH" && bash <(curl -s https://codecov.io/bash)

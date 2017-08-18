@@ -7,6 +7,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/version"
@@ -95,7 +96,8 @@ func init() {
 }
 
 func versionCmd(ctx *cli.Context) error {
-	fmt.Println(version.Version)
+	fmt.Println("ethermint: ", version.Version)
+	fmt.Println("go-ethereum: ", params.Version)
 	return nil
 }
 

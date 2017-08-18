@@ -49,6 +49,7 @@ docker_push:
 
 clean:
 	@rm -rf build/
+	@rm -rf ethstats/
 
 publish:
 	@sh -c "'$(CURDIR)/scripts/publish.sh'"
@@ -56,6 +57,10 @@ publish:
 test:
 	@echo "--> Running go test"
 	@go test $(PACKAGES)
+
+test_coverage:
+	@echo "--> Running go test with coverage"
+	@bash ./tests/scripts/test_coverage.sh
 
 test_race:
 	@echo "--> Running go test --race"
@@ -99,4 +104,20 @@ tools:
 ensure_tools:
 	go get $(GOTOOLS)
 
-.PHONY: all install build build_race dist test test_race test_integrations draw_deps list_deps get_deps get_vendor_deps tools ensure_tools docker_build docker_build_develop docker_push docker_push_develop
+ethstats:
+	@git clone https://github.com/tendermint/eth-net-intelligence-api $(CURDIR)/ethstats
+
+ethstats_setup: ethstats
+	@cd $(CURDIR)/ethstats && npm install && node scripts/configure.js
+
+ethstats_start:
+	@cd $(CURDIR)/ethstats && pm2 start ./app.json
+
+ethstats_stop:
+	@cd $(CURDIR)/ethstats && pm2 stop ./app.json
+
+.PHONY: all install build build_race dist \
+	test test_race test_integrations \
+	draw_deps list_deps get_deps get_vendor_deps tools ensure_tools \
+	docker_build docker_build_develop docker_push docker_push_develop \
+	ethstats_setup ethstats_run ethstats_stop
