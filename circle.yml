@@ -30,12 +30,13 @@ checkout:
 
 test:
   override:
-    - "go version"
-    - "echo $REPO && ls $REPO"
-    - "cd $REPO && make install"
-    - "cd $REPO && make test_coverage"
-    - "cd $REPO && make test_integrations"
+    - go version
+    - echo "$REPO" && ls "$REPO"
+    - cd "$REPO" && make install
+    - cd "$REPO" && make test_coverage
+    - cd "$REPO" && make test_integrations 2>&1 | tee test_integrations.log
 
 
   post:
+    - cd "$PROJECT_PATH" && mv test_integrations.log "${CIRCLE_ARTIFACTS}"
     - cd "$PROJECT_PATH" && bash <(curl -s https://codecov.io/bash)
