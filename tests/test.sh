@@ -22,11 +22,35 @@ echo "* [$(date +"%T")] building nodejs docker image"
 bash "$DIR/integration/truffle/build.sh"
 
 echo
+echo "* [$(date +"%T")] create docker network"
+docker network create --driver bridge --subnet 172.58.0.0/16 ethermint_net
+
+echo
 echo "* [$(date +"%T")] run tendermint container"
 docker pull tendermint/tendermint && \
-     docker run -it --rm -v "$LOGS_DIR/tendermint:/tendermint" tendermint/tendermint init && \
-     docker run -it --rm -v "$LOGS_DIR/tendermint:/tendermint" tendermint/tendermint node --moniker=node1 --proxy_app tcp://ethermint1:46658
+docker run -d \
+    --net=ethermint_net \
+    --ip=$($DIR/p2p/ip.sh 1) \
+    --rm --name tendermint_1 \
+    -v "$LOGS_DIR/tendermint:/tendermint" \
+    tendermint/tendermint node --moniker=node1 --proxy_app tcp://$($DIR/p2p/ip.sh 2):46658 && \
+
+echo
+echo "* [$(date +"%T")] run ethermint container"
+docker run -d \
+    --net=ethermint_net \
+    --ip=$($DIR/p2p/ip.sh 2) \
+    --rm --name ethermint_1 \
+    ethermint_tester ethermint --datadir=/ethermint/data --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin --tendermint_addr tcp://$($DIR/p2p/ip.sh 1):46657
 
 
+echo
+echo "* [$(date +"%T")] run tests"
+docker run --rm -it -e NODE_ENV=test -e WEB3_HOST=$($DIR/p2p/ip.sh 2) -e WEB3_PORT=8545 ethermint_js_test npm test
 
-#docker run --rm -it -e NODE_ENV=test -e WEB3_HOST=127.0.0.1 -e WEB3_PORT=8545 ethermint_js_test npm test
+echo
+echo "* [$(date +"%T")] stop containers"
+bash "$DIR/p2p/stop_tests.sh"
+
+echo
+echo "* [$(date +"%T")] done"
