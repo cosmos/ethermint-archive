@@ -10,6 +10,15 @@ N=1
 docker version
 docker info
 
+docker pull tendermint/tendermint
+docker run -it --rm tendermint/tendermint version
+docker run -it --rm -v "/tmp:/tendermint" tendermint/tendermint init
+docker run -d \
+    -v "/tmp:/tendermint" \
+    tendermint/tendermint node --proxy_app=dummy
+
+exit 0
+
 # Get the directory of where this script is.
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
