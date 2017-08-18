@@ -46,7 +46,7 @@ docker run -d \
     --ip "$TENDERMINT_IP" \
     --name tendermint_1 \
     -v "$DATA_DIR/tendermint_1:/tendermint" \
-    tendermint/tendermint:develop node --proxy_app tcp://$ETHERMINT_IP:46658
+    tendermint/tendermint node --proxy_app tcp://$ETHERMINT_IP:46658
 
 echo
 echo "* [$(date +"%T")] run ethermint container"
@@ -55,6 +55,9 @@ docker run -d \
     --ip $ETHERMINT_IP \
     --name ethermint_1 \
     ethermint_tester ethermint --datadir=/ethermint/data --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin --tendermint_addr tcp://$TENDERMINT_IP:46657
+
+#wait for tendermint & ethermint start
+sleep 60
 
 echo
 echo "* [$(date +"%T")] run tests"
