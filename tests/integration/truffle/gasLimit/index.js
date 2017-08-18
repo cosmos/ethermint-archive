@@ -39,7 +39,7 @@ describe('gasLimit', function () {
             gas: '100' //set low gas
         }, function (error) {
             console.log(error);
-            assert.equal(error, "Error: intrinsic gas too low");
+            assert.equal(error, "Error: insufficient funds for gas * price + value");
             done();
         });
     });
