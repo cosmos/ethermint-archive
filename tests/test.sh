@@ -10,26 +10,12 @@ N=1
 docker version
 docker info
 
-docker pull tendermint/tendermint
-docker run -it --rm tendermint/tendermint version
-docker run -it --rm -v "/tmp:/tendermint" tendermint/tendermint init
-ls -rtl /tmp
-docker run -d \
-    -v "/tmp:/tendermint" \
-    tendermint/tendermint node --proxy_app=dummy
-
-exit 0
-
 # Get the directory of where this script is.
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-LOGS_DIR="$DIR/logs"
-echo
-echo "* [$(date +"%T")] cleaning up $LOGS_DIR"
-rm -rf "$LOGS_DIR"
-mkdir -p "$LOGS_DIR"
+DATA_DIR="$DIR/tendermint_data"
 
 echo
 echo "* [$(date +"%T")] building ethermint docker image"
@@ -55,14 +41,12 @@ echo "* [$(date +"%T")] run tendermint container"
 TENDERMINT_IP=$($DIR/p2p/ip.sh 1)
 ETHERMINT_IP=$($DIR/p2p/ip.sh 2)
 
-docker pull tendermint/tendermint && \
-docker run -it --rm -v "$DIR/data/tendermint:/tendermint" tendermint/tendermint:develop init && \
 docker run -d \
     --net=ethermint_net \
     --ip "$TENDERMINT_IP" \
     --name tendermint_1 \
-    -v "$DIR/data/tendermint:/tendermint" \
-    tendermint/tendermint:develop node --moniker=node1 --proxy_app tcp://$ETHERMINT_IP:46658 && \
+    -v "$DATA_DIR/tendermint_1:/tendermint" \
+    tendermint/tendermint:develop node --proxy_app tcp://$ETHERMINT_IP:46658
 
 echo
 echo "* [$(date +"%T")] run ethermint container"
@@ -71,7 +55,6 @@ docker run -d \
     --ip $ETHERMINT_IP \
     --name ethermint_1 \
     ethermint_tester ethermint --datadir=/ethermint/data --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin --tendermint_addr tcp://$TENDERMINT_IP:46657
-
 
 echo
 echo "* [$(date +"%T")] run tests"
