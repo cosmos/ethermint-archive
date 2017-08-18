@@ -46,6 +46,7 @@ TENDERMINT_IP=$($DIR/p2p/ip.sh 1)
 ETHERMINT_IP=$($DIR/p2p/ip.sh 2)
 
 docker pull tendermint/tendermint && \
+docker run -it --rm -v "$DIR/data/tendermint_1:/tendermint" tendermint/tendermint init && \
 docker run -d \
     --net=ethermint_net \
     --ip "$TENDERMINT_IP" \
