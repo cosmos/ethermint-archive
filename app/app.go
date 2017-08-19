@@ -26,7 +26,9 @@ type EthermintApplication struct {
 	backend *ethereum.Backend // backend ethereum struct
 
 	// a closure to return the latest current state from the ethereum blockchain
-	currentState func() (*state.StateDB, error)
+	getCurrentState func() (*state.StateDB, error)
+
+	cacheState *state.StateDB
 
 	// an ethereum rpc client we can forward queries to
 	rpcClient *rpc.Client
@@ -41,11 +43,18 @@ type EthermintApplication struct {
 // #stable - 0.4.0
 func NewEthermintApplication(backend *ethereum.Backend,
 	client *rpc.Client, strategy *emtTypes.Strategy) (*EthermintApplication, error) {
+
+	state, err := backend.Ethereum().BlockChain().State()
+	if err != nil {
+		return nil, err
+	}
+
 	app := &EthermintApplication{
-		backend:      backend,
-		rpcClient:    client,
-		currentState: backend.Ethereum().BlockChain().State,
-		strategy:     strategy,
+		backend:         backend,
+		rpcClient:       client,
+		getCurrentState: backend.Ethereum().BlockChain().State,
+		cacheState:      state.Copy(),
+		strategy:        strategy,
 	}
 
 	if err := app.backend.ResetWork(app.Receiver()); err != nil {
@@ -164,6 +173,11 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 		app.logger.Error("Error getting latest ethereum state", "err", err) // nolint: errcheck
 		return abciTypes.ErrInternalError.AppendLog(err.Error())
 	}
+	state, err := app.getCurrentState()
+	if err != nil {
+		app.logger.Error("Error getting latest state", "err", err) // nolint: errcheck
+	}
+	app.cacheState = state.Copy()
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
 
@@ -191,10 +205,7 @@ func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.R
 // validateTx checks the validity of a tx against the blockchain's current state.
 // it duplicates the logic in ethereum's tx_pool
 func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.Result {
-	currentState, err := app.currentState()
-	if err != nil {
-		return abciTypes.ErrInternalError.AppendLog(err.Error())
-	}
+	currentState := app.cacheState
 
 	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
 	if tx.Protected() {
