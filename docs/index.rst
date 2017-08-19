@@ -6,10 +6,16 @@
 Welcome to Ethermint's documentation!
 =====================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+Contents:
 
+.. toctree::
+   :maxdepth: 4
+
+   introduction
+   installation
+   getting-started
+   connecting-to-testnets
+   architecture
 
 
 Indices and tables
