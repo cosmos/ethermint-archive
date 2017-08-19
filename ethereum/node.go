@@ -11,7 +11,7 @@ import (
 // NewNodeConfig for p2p and network layer
 // #unstable
 func NewNodeConfig(ctx *cli.Context) *node.Config {
-	var nodeConfig *node.Config
+	nodeConfig := new(node.Config)
 	ethUtils.SetNodeConfig(ctx, nodeConfig)
 
 	return nodeConfig
@@ -20,7 +20,7 @@ func NewNodeConfig(ctx *cli.Context) *node.Config {
 // NewEthConfig for the ethereum services
 // #unstable
 func NewEthConfig(ctx *cli.Context, stack *node.Node) *eth.Config {
-	var ethConfig *eth.Config
+	ethConfig := new(eth.Config)
 	ethUtils.SetEthConfig(ctx, stack, ethConfig)
 
 	return ethConfig
