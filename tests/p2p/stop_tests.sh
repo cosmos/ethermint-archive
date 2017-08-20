@@ -5,8 +5,8 @@ set -u
 N=$1
 
 for i in $(seq 1 "$N"); do
-  docker stop "tendermint_$i"
-  docker stop "ethermint_$i"
+  docker rm -f "tendermint_$i"
+  docker rm -f "ethermint_$i"
 done
 
 #delete network
