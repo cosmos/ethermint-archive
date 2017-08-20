@@ -4,6 +4,8 @@
 * add semver guarantees to all exported APIs
 * add getting started documentation to the docs folder
 * add readthedocs to the docs folder
+* update to go-ethereum 1.6.7
+* update dependencies
 
 ## 0.4.0
 ### Breaking
