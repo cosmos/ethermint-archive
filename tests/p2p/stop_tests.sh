@@ -11,3 +11,7 @@ done
 
 #delete network
 docker network rm ethermint_net
+
+# for debug
+docker ps -a
+docker network ls
