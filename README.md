@@ -23,6 +23,9 @@ godoc -http=:6060
 
 and then go see the interactive Ethermint documentation at http://localhost:6060/pkg/github.com/tendermint/ethermint
 
+### Maintainer
+Adrian Brink - adrian@tendermint.com
+
 
 ----
 

@@ -1,5 +1,5 @@
-hash: 1011622440eaaa9e1510f0c744545394cccce06e1d198202497969486977fb75
-updated: 2017-07-19T11:31:35.316175226+02:00
+hash: 1490475ea0e2ce573fd48fb8c9390d021a7b5b5f0302af6b16a7bbae852ea290
+updated: 2017-08-14T17:01:54.436809476Z
 imports:
 - name: github.com/aristanetworks/goarista
   version: 8ab803d6502ea1e05a8c9b73193b405291efb7ce
@@ -12,7 +12,7 @@ imports:
 - name: github.com/edsrzf/mmap-go
   version: 0bce6a6887123b67a60366d2c9fe2dfb74289d2e
 - name: github.com/ethereum/go-ethereum
-  version: 7db2143396f73f418b50dc5571fec2c62c78b7e4
+  version: d9e23666755ebeb632dc8c3f902650971594e5a7
   repo: https://github.com/tendermint/go-ethereum.git
   subpackages:
   - accounts
@@ -111,9 +111,9 @@ imports:
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/mattn/go-colorable
-  version: 941b50ebc6efddf4c41c8e4537a5f68a4e686b24
+  version: 167de6bfdfba052fa6b2d3664c8f5272e23c9072
 - name: github.com/mattn/go-isatty
-  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
+  version: 57fdcb988a5c543893cc61bce354a6e24ab70022
 - name: github.com/pborman/uuid
   version: e790cca94e6cc75c7064b1332e63811d4aae1a53
 - name: github.com/peterh/liner
@@ -165,13 +165,13 @@ imports:
   - edwards25519
   - extra25519
 - name: github.com/tendermint/go-crypto
-  version: d31cfbaeaa4d930798ec327b52917975f3203c11
+  version: 03d2b2446e8587f159e52070b1f1e0def971a2c7
 - name: github.com/tendermint/go-wire
   version: 5f88da3dbc1a72844e6dfaf274ce87f851d488eb
   subpackages:
   - data
 - name: github.com/tendermint/tendermint
-  version: b467515719e686e4678e6da4e102f32a491b85a0
+  version: 8d7640894d91ec4c5349b7b33731c76f5290dd38
   subpackages:
   - config
   - p2p
@@ -277,14 +277,14 @@ imports:
   subpackages:
   - base64vlq
 - name: gopkg.in/urfave/cli.v1
-  version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
+  version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 testImports:
 - name: github.com/davecgh/go-spew
-  version: adab96458c51a58dc1783b3335dcce5461522e75
+  version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib
-  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
