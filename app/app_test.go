@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/stretchr/testify/assert"
+
+	"golang.org/x/net/context"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -49,10 +49,12 @@ func (mc *MockClient) Call(method string, params map[string]interface{}, result 
 	switch method {
 	case "status":
 		result = &ctypes.ResultStatus{}
+
 		return result, nil
 	case "broadcast_tx_sync":
 		close(mc.sentBroadcastTx)
 		result = &ctypes.ResultBroadcastTx{}
+
 		return result, nil
 	}
 
@@ -65,7 +67,6 @@ func TestBumpingNonces(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error generating key %v", err)
 	}
-
 	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
 	ctx := context.Background()
 
@@ -83,12 +84,11 @@ func TestBumpingNonces(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
-	app.SetLogger(tmLog.TestingLogger())
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
 	nonce1 := uint64(0)
-	tx1, err := createTransaction(privateKey, nonce1)
+	tx1, err := createTransaction(privateKey, nonce1, receiverAddress)
 	if err != nil {
 		t.Errorf("Error creating transaction: %v", err)
 
@@ -118,7 +118,7 @@ func TestBumpingNonces(t *testing.T) {
 	// second transaction is sent via geth RPC, or at least pretending to be so
 	// with a correct nonce this time, it should pass
 	nonce2 := uint64(1)
-	tx2, _ := createTransaction(privateKey, nonce2)
+	tx2, _ := createTransaction(privateKey, nonce2, receiverAddress)
 
 	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
 
@@ -132,7 +132,6 @@ func TestBumpingNonces(t *testing.T) {
 	stack.Stop() // nolint: errcheck
 }
 
-// TestMultipleTxOneAcc sends multiple TXs from the same account in the same block
 func TestMultipleTxOneAcc(t *testing.T) {
 	// generate key
 	privateKey, err := crypto.GenerateKey()
@@ -155,13 +154,12 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
-	app.SetLogger(tmLog.TestingLogger())
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
 
 	nonce1 := uint64(0)
-	tx1, err := createTransaction(privateKey, nonce1)
+	tx1, err := createTransaction(privateKey, nonce1, receiverAddress)
 	if err != nil {
 		t.Errorf("Error creating transaction: %v", err)
 
@@ -170,7 +168,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 
 	//create 2-nd tx from the same account
 	nonce2 := uint64(0)
-	tx2, err := createTransaction(privateKey, nonce2)
+	tx2, err := createTransaction(privateKey, nonce2, receiverAddress)
 	if err != nil {
 		t.Errorf("Error creating transaction: %v", err)
 
@@ -202,8 +200,8 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	node.Stop() // nolint: errcheck
 }
 
-// TestMultipleTxTwoAcc sends multiple TXs from two different accounts
 func TestMultipleTxTwoAcc(t *testing.T) {
+	// generate key
 	//account 1
 	privateKey1, err := crypto.GenerateKey()
 	if err != nil {
@@ -232,21 +230,20 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
-	app.SetLogger(tmLog.TestingLogger())
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
 	nonce1 := uint64(0)
-	tx1, err := createTransaction(privateKey1, nonce1)
+	tx1, err := createTransaction(privateKey1, nonce1, receiverAddress)
 	if err != nil {
 		t.Errorf("Error creating transaction: %v", err)
 
 	}
-	encodedtx1, _ := rlp.EncodeToBytes(tx1)
+	encodedTx1, _ := rlp.EncodeToBytes(tx1)
 
 	//create 2-nd tx
 	nonce2 := uint64(0)
-	tx2, err := createTransaction(privateKey2, nonce2)
+	tx2, err := createTransaction(privateKey2, nonce2, receiverAddress)
 	if err != nil {
 		t.Errorf("Error creating transaction: %v", err)
 
@@ -254,13 +251,168 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	encodedTx2, _ := rlp.EncodeToBytes(tx2)
 
 	// check transaction
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
 
 	// set time greater than time of prev tx (zero)
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
 	// check deliverTx for 1st tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedtx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+	// and for 2nd tx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
+
+	app.EndBlock(height)
+
+	// check commit
+	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+
+	node.Stop() // nolint: errcheck
+}
+
+// Test transaction from Acc1 to new Acc2 and then from Acc2 to another address
+// in the same block
+func TestFromAccToAcc(t *testing.T) {
+	// generate key
+	//account 1
+	privateKey1, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr1 := crypto.PubkeyToAddress(privateKey1.PublicKey)
+
+	//account 2
+	privateKey2, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr2 := crypto.PubkeyToAddress(privateKey2.PublicKey)
+
+	// used to intercept rpc calls to tendermint
+	mockclient := NewMockClient()
+
+	// setup temp data dir and the app instance
+	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
+	if err != nil {
+		t.Error("unable to create temporary datadir")
+	}
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
+
+	// initialize ethermint only with account 1
+	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1}, mockclient)
+	if err != nil {
+		t.Errorf("Error making test EthermintApplication: %v", err)
+	}
+
+	// first transaction from Acc1 to Acc2 (which is not in genesis)
+	height := uint64(1)
+
+	nonce1 := uint64(0)
+	tx1, err := createCustomTransaction(privateKey1, nonce1, addr2, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10))
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedTx1, _ := rlp.EncodeToBytes(tx1)
+
+	// second transaction from Acc2 to some another address
+	nonce2 := uint64(0)
+	tx2, err := createCustomTransaction(privateKey2, nonce2, receiverAddress, big.NewInt(2), big.NewInt(21000), big.NewInt(10))
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedTx2, _ := rlp.EncodeToBytes(tx2)
+
+	// check transaction
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
+
+	// check tx2
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
+
+	// set time greater than time of prev tx (zero)
+	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+
+	// check deliverTx for 1st tx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+
+	// and for 2nd tx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
+
+	app.EndBlock(height)
+
+	// check commit
+	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+
+	node.Stop() // nolint: errcheck
+}
+
+// 1. put Acc1 and Acc2 to genesis with some amounts (X)
+// 2. transfer 10 amount from Acc1 to Acc2
+// 3. in the same block transfer from Acc2 to another Acc all his amounts (X+10)
+func TestFromAccToAcc2(t *testing.T) {
+	// generate key
+	//account 1
+	privateKey1, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr1 := crypto.PubkeyToAddress(privateKey1.PublicKey)
+
+	//account 2
+	privateKey2, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating key %v", err)
+	}
+	addr2 := crypto.PubkeyToAddress(privateKey2.PublicKey)
+
+	// used to intercept rpc calls to tendermint
+	mockclient := NewMockClient()
+
+	// setup temp data dir and the app instance
+	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
+	if err != nil {
+		t.Error("unable to create temporary datadir")
+	}
+	defer os.RemoveAll(tempDatadir) // nolint: errcheck
+
+	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1, addr2}, mockclient)
+	if err != nil {
+		t.Errorf("Error making test EthermintApplication: %v", err)
+	}
+
+	height := uint64(1)
+
+	nonce1 := uint64(0)
+	tx1, err := createCustomTransaction(privateKey1, nonce1, addr2, big.NewInt(500000), big.NewInt(21000), big.NewInt(10))
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedTx1, _ := rlp.EncodeToBytes(tx1)
+
+	// second transaction from Acc2 to some another address
+	nonce2 := uint64(0)
+	//here initial value + 10
+	tx2, err := createCustomTransaction(privateKey2, nonce2, receiverAddress, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10))
+	if err != nil {
+		t.Errorf("Error creating transaction: %v", err)
+
+	}
+	encodedTx2, _ := rlp.EncodeToBytes(tx2)
+
+	// check transaction
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
+
+	// check tx2
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
+
+	// set time greater than time of prev tx (zero)
+	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+
+	// check deliverTx for 1st tx
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+
 	// and for 2nd tx
 	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
 
@@ -286,35 +438,9 @@ func makeTestApp(tempDatadir string, addresses []common.Address, mockclient *Moc
 	}
 
 	app, err := app.NewEthermintApplication(backend, nil, nil)
+	app.SetLogger(tmLog.TestingLogger())
 
 	return stack, backend, app, err
-}
-
-func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
-	gopath := os.Getenv("GOPATH")
-	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/setup/genesis.json")
-
-	file, err := os.Open(genesisPath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close() // nolint: errcheck
-
-	genesis := new(core.Genesis)
-	if err := json.NewDecoder(file).Decode(genesis); err != nil {
-		ethUtils.Fatalf("invalid genesis file: %v", err)
-	}
-
-	balance, result := new(big.Int).SetString("10000000000000000000000000000000000", 10)
-	if !result {
-		return nil, errors.New("BigInt convertation error")
-	}
-
-	for _, addr := range addresses {
-		genesis.Alloc[addr] = core.GenesisAccount{Balance: balance}
-	}
-
-	return genesis, nil
 }
 
 // mimics MakeSystemNode from ethereum/node.go
@@ -345,12 +471,49 @@ func makeTestSystemNode(tempDatadir string, addresses []common.Address, mockclie
 	})
 }
 
-func createTransaction(key *ecdsa.PrivateKey, nonce uint64) (*types.Transaction, error) {
+func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
+	gopath := os.Getenv("GOPATH")
+	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/setup/genesis.json")
+
+	file, err := os.Open(genesisPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close() // nolint: errcheck
+
+	genesis := new(core.Genesis)
+	if err := json.NewDecoder(file).Decode(genesis); err != nil {
+		ethUtils.Fatalf("invalid genesis file: %v", err)
+	}
+
+	balance, result := new(big.Int).SetString("10000000000000000000000000000000000", 10)
+	if !result {
+		return nil, errors.New("BigInt convertation error")
+	}
+
+	for _, addr := range addresses {
+		genesis.Alloc[addr] = core.GenesisAccount{Balance: balance}
+	}
+
+	return genesis, nil
+}
+
+func createTransaction(key *ecdsa.PrivateKey, nonce uint64, to common.Address) (*types.Transaction, error) {
 	signer := types.HomesteadSigner{}
 
 	return types.SignTx(
-		types.NewTransaction(nonce, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10),
+		types.NewTransaction(nonce, to, big.NewInt(10), big.NewInt(21000), big.NewInt(10),
 			nil),
+		signer,
+		key,
+	)
+}
+
+func createCustomTransaction(key *ecdsa.PrivateKey, nonce uint64, to common.Address, amount, gasLimit, gasPrice *big.Int) (*types.Transaction, error) {
+	signer := types.HomesteadSigner{}
+
+	return types.SignTx(
+		types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil),
 		signer,
 		key,
 	)

@@ -118,11 +118,11 @@ func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
 // #stable - 0.4.0
 func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
-	app.logger.Debug("CheckTx: Received valid transaction", "tx", tx) // nolint: errcheck
 	if err != nil {
 		app.logger.Debug("CheckTx: Received invalid transaction", "tx", tx) // nolint: errcheck
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
+	app.logger.Debug("CheckTx: Received valid transaction", "tx", tx) // nolint: errcheck
 
 	return app.validateTx(tx)
 }
@@ -217,6 +217,10 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 		return abciTypes.ErrBaseInvalidSignature.
 			AppendLog(core.ErrInvalidSender.Error())
 	}
+
+	// Update ether balances
+	currentState.SubBalance(from, tx.Value())
+	currentState.AddBalance(*tx.To(), tx.Value())
 
 	// Make sure the account exist. Non existent accounts
 	// haven't got funds and well therefor never pass.
