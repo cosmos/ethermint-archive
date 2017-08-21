@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -10,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/tendermint/ethermint/cmd/utils"
 
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 )
@@ -23,6 +28,20 @@ func initCmd(ctx *cli.Context) error {
 	}
 
 	ethermintDataDir := emtUtils.MakeDataDir(ctx)
+
+	// Step 1:
+	//  Invoke tendermint init --home ethermintDataDir
+	// See https://github.com/tendermint/ethermint/issues/244
+	canInvokeTendermintInit := canInvokeTendermint(ctx)
+	if canInvokeTendermintInit {
+		tendermintHome := filepath.Join(ethermintDataDir, "tendermint")
+		tendermintArgs := []string{"init", "--home", tendermintHome}
+		if _, err := invokeTendermint(tendermintArgs...); err != nil {
+			ethUtils.Fatalf("tendermint init error: %v", err)
+		}
+		log.Info("successfully invoked `tendermint`", "args", tendermintArgs)
+	}
+
 	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(ethermintDataDir, "ethermint/chaindata"), 0, 0)
 	if err != nil {
 		ethUtils.Fatalf("could not open database: %v", err)
@@ -76,4 +95,31 @@ var keystoreFilesMap = map[string]string{
   }
 }
 `,
+}
+
+func invokeTendermintNoTimeout(args ...string) ([]byte, error) {
+	return __invokeTendermint(context.TODO(), args...)
+}
+
+func __invokeTendermint(ctx context.Context, args ...string) ([]byte, error) {
+	log.Info("Invoking `tendermint", "args", args)
+	cmd := exec.CommandContext(ctx, "tendermint", args...)
+	return cmd.CombinedOutput()
+}
+
+func invokeTendermint(args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return __invokeTendermint(ctx, args...)
+}
+
+func canInvokeTendermint(ctx *cli.Context) bool {
+	noTendermintAsSubprocess := ctx.GlobalBool(utils.ExcludeTendermintAsSubprocessFlag.Name)
+	canInvoke := noTendermintAsSubprocess == false
+	return canInvoke
+}
+
+func tendermintHomeFromEthermint(ctx *cli.Context) string {
+	ethermintDataDir := emtUtils.MakeDataDir(ctx)
+	return filepath.Join(ethermintDataDir, "tendermint")
 }

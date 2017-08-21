@@ -54,4 +54,13 @@ var (
 		Usage: "Target gas limit sets the artificial target gas floor for the blocks to mine",
 		Value: GenesisTargetGasLimit.Uint64(),
 	}
+
+	// ExcludeTendermintAsSubprocess flag dictates whether we shall be invoking
+	// `tendermint init` and `tendermint node` when `ethermint init`
+	// and `ethermint` are invoked respectively.
+	ExcludeTendermintAsSubprocessFlag = cli.BoolFlag{
+		Name: "exclude-tendermint-subprocess",
+		Usage: "If set will not invoke `tendermint init` and `tendermint node`" +
+			"when `ethermint init` and `ethermint` are invoked respectively",
+	}
 )
