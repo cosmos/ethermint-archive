@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
 
 	abciApp "github.com/tendermint/ethermint/app"
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
@@ -76,8 +75,8 @@ func ethermintCmd(ctx *cli.Context) error {
 
 // nolint
 // startNode copies the logic from go-ethereum
-func startNode(ctx *cli.Context, stack *node.Node) {
-	ethUtils.StartNode(stack)
+func startNode(ctx *cli.Context, stack *ethereum.Node) {
+	emtUtils.StartNode(stack)
 
 	// Unlock any account specifically requested
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
