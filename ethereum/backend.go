@@ -148,7 +148,7 @@ func (b *Backend) APIs() []rpc.API {
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
 // #stable
-func (b *Backend) Start(srvr *p2p.Server) error {
+func (b *Backend) Start(_ *p2p.Server) error {
 	go b.txBroadcastLoop()
 	return nil
 }
