@@ -132,6 +132,7 @@ func TestBumpingNonces(t *testing.T) {
 	stack.Stop() // nolint: errcheck
 }
 
+// TestMultipleTxOneAcc sends multiple TXs from the same account in the same block
 func TestMultipleTxOneAcc(t *testing.T) {
 	// generate key
 	privateKey, err := crypto.GenerateKey()

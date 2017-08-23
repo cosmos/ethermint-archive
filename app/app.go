@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -28,7 +27,7 @@ type EthermintApplication struct {
 	// a closure to return the latest current state from the ethereum blockchain
 	getCurrentState func() (*state.StateDB, error)
 
-	cacheState *state.StateDB
+	checkTxState *state.StateDB
 
 	// an ethereum rpc client we can forward queries to
 	rpcClient *rpc.Client
@@ -53,7 +52,7 @@ func NewEthermintApplication(backend *ethereum.Backend,
 		backend:         backend,
 		rpcClient:       client,
 		getCurrentState: backend.Ethereum().BlockChain().State,
-		cacheState:      state.Copy(),
+		checkTxState:    state.Copy(),
 		strategy:        strategy,
 	}
 
@@ -177,7 +176,8 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 	if err != nil {
 		app.logger.Error("Error getting latest state", "err", err) // nolint: errcheck
 	}
-	app.cacheState = state.Copy()
+
+	app.checkTxState = state.Copy()
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
 
@@ -205,22 +205,32 @@ func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.R
 // validateTx checks the validity of a tx against the blockchain's current state.
 // it duplicates the logic in ethereum's tx_pool
 func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.Result {
-	currentState := app.cacheState
+	currentState := app.checkTxState
 
 	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
 	if tx.Protected() {
 		signer = ethTypes.NewEIP155Signer(tx.ChainId())
 	}
 
+	// Make sure the transaction is signed properl
 	from, err := ethTypes.Sender(signer, tx)
 	if err != nil {
 		return abciTypes.ErrBaseInvalidSignature.
 			AppendLog(core.ErrInvalidSender.Error())
 	}
 
-	// Update ether balances
-	currentState.SubBalance(from, tx.Value())
-	currentState.AddBalance(*tx.To(), tx.Value())
+	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
+	if tx.Size() > 32*1024 {
+		return abciTypes.ErrInternalError.
+			AppendLog(core.ErrOversizedData.Error())
+	}
+
+	// Transactions can't be negative. This may never happen using RLP decoded
+	// transactions but may occur if you create a transaction using the RPC.
+	if tx.Value().Sign() < 0 {
+		return abciTypes.ErrBaseInvalidInput.
+			AppendLog(core.ErrNegativeValue.Error())
+	}
 
 	// Make sure the account exist. Non existent accounts
 	// haven't got funds and well therefor never pass.
@@ -229,25 +239,17 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 			AppendLog(core.ErrInvalidSender.Error())
 	}
 
-	// Check for nonce errors
-	currentNonce := currentState.GetNonce(from)
-	if currentNonce > tx.Nonce() {
-		return abciTypes.ErrBadNonce.
-			AppendLog(fmt.Sprintf("Got: %d, Current: %d", tx.Nonce(), currentNonce))
-	}
-
 	// Check the transaction doesn't exceed the current block limit gas.
 	gasLimit := app.backend.GasLimit()
 	if gasLimit.Cmp(tx.Gas()) < 0 {
-		return abciTypes.ErrInternalError.AppendLog(core.ErrGasLimitReached.Error())
+		return abciTypes.ErrInternalError.
+			AppendLog(core.ErrGasLimitReached.Error())
 	}
 
-	// Transactions can't be negative. This may never happen
-	// using RLP decoded transactions but may occur if you create
-	// a transaction using the RPC for example.
-	if tx.Value().Cmp(common.Big0) < 0 {
-		return abciTypes.ErrBaseInvalidInput.
-			SetLog(core.ErrNegativeValue.Error())
+	// Check for nonce errors
+	if currentState.GetNonce(from) > tx.Nonce() {
+		return abciTypes.ErrBadNonce.
+			AppendLog(core.ErrNonceTooLow.Error())
 	}
 
 	// Transactor should have enough funds to cover the costs
@@ -255,8 +257,7 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	currentBalance := currentState.GetBalance(from)
 	if currentBalance.Cmp(tx.Cost()) < 0 {
 		return abciTypes.ErrInsufficientFunds.
-			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s", currentBalance, tx.Cost()))
-
+			AppendLog(core.ErrInsufficientFunds.Error())
 	}
 
 	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true) // homestead == true
@@ -264,6 +265,11 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 		return abciTypes.ErrBaseInsufficientFees.
 			SetLog(core.ErrIntrinsicGas.Error())
 	}
+
+	// Update ether balances
+	// amount + gasprice * gaslimit
+	currentState.SubBalance(from, tx.Cost())
+	currentState.AddBalance(*tx.To(), tx.Value())
 
 	return abciTypes.OK
 }
