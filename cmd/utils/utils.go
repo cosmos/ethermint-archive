@@ -65,9 +65,13 @@ func DefaultDataDir() string {
 	return ""
 }
 
-func ResetAll(ctx *cli.Context) {
+func ResetAll(ctx *cli.Context) error {
 	dbDir := filepath.Join(MakeDataDir(ctx), "ethermint")
-	os.RemoveAll(dbDir)
+	if err := os.RemoveAll(dbDir); err != nil {
+		log.Debug("Could not reset ethermint. Failed to remove %+v", dbDir)
+		return err
+	}
 
 	log.Info("Successfully removed all data", "dir", dbDir)
+	return nil
 }
