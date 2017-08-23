@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -254,6 +255,12 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 			AppendLog(core.ErrNonceTooLow.Error())
 	}
 
+	// Check if nonce is not strictly increasing
+	if currentState.GetNonce(from) != tx.Nonce() {
+		return abciTypes.ErrBadNonce.
+			AppendLog(fmt.Sprintf("Transaction nonce is not strictly increasing. Expected: %d, Got: %d", currentState.GetNonce(from)+1, tx.Nonce()))
+	}
+
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
 	currentBalance := currentState.GetBalance(from)
@@ -272,6 +279,7 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	// amount + gasprice * gaslimit
 	currentState.SubBalance(from, tx.Cost())
 	currentState.AddBalance(*tx.To(), tx.Value())
+	currentState.SetNonce(from, currentState.GetNonce(from)+1)
 
 	return abciTypes.OK
 }

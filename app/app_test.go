@@ -49,12 +49,10 @@ func (mc *MockClient) Call(method string, params map[string]interface{}, result 
 	switch method {
 	case "status":
 		result = &ctypes.ResultStatus{}
-
 		return result, nil
 	case "broadcast_tx_sync":
 		close(mc.sentBroadcastTx)
 		result = &ctypes.ResultBroadcastTx{}
-
 		return result, nil
 	}
 
@@ -168,7 +166,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	encodedTx1, _ := rlp.EncodeToBytes(tx1)
 
 	//create 2-nd tx from the same account
-	nonce2 := uint64(0)
+	nonce2 := uint64(1)
 	tx2, err := createTransaction(privateKey, nonce2, receiverAddress)
 	if err != nil {
 		t.Errorf("Error creating transaction: %v", err)
@@ -189,9 +187,8 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
 
 	// and for 2nd tx (should fail because of wrong nonce2)
-	deliverTx2Result := app.DeliverTx(encodedTx2)
 
-	assert.Equal(t, abciTypes.ErrInternalError.Code, deliverTx2Result.Code)
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
 
 	app.EndBlock(height)
 
