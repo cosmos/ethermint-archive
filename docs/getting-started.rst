@@ -1,3 +1,6 @@
+Getting Started
+===============
+
 # Getting Started with Ethermint
 
 Running Ethermint requires both `ethermint` and `tendermint` installed. See [the README](../README.md) for installation information.
