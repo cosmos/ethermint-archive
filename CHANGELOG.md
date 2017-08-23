@@ -23,6 +23,7 @@ the change was necessary due to a change in the API exposed by geth
 * better documentation
 * proper linting and error detection
   * can be accessed with `make metalinter` and `make megacheck`
+* ethereum node p2p server does not get started anymore
 
 
 ## 0.3.0 (June 23, 2017)

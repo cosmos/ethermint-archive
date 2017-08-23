@@ -2,11 +2,14 @@ package ethereum_test
 
 import (
 	"flag"
+	"net"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/stretchr/testify/assert"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/ethereum/go-ethereum/node"
 
 	"github.com/tendermint/ethermint/ethereum"
 )
@@ -37,4 +40,29 @@ func TestNewEthConfig(t *testing.T) {
 
 	ecfg := ethereum.NewEthConfig(dummyContext, dummyNode)
 	assert.NotNil(t, ecfg, "expecting a non-nil config")
+}
+
+func TestEnsureDisabledEthereumP2PStack(t *testing.T) {
+	cfg := new(node.Config)
+	*cfg = node.DefaultConfig
+	cfg.P2P.ListenAddr = ":34555"
+	node, err := ethereum.New(cfg)
+	if err != nil {
+		t.Fatalf("cannot initialise new node from config: %v", err)
+	}
+
+	node.Start()
+	if err != nil {
+		t.Fatalf("cannot start node: %v", err)
+	}
+	// Make a listener and ensure that ListenAddr can be bound to
+	// i.e that no other service is listening on it
+	addr := cfg.P2P.ListenAddr
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		t.Fatalf("failed to bind to %q: %v", addr, err)
+	}
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
 }
