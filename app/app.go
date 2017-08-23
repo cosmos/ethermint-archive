@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -70,6 +69,9 @@ func (app *EthermintApplication) SetLogger(log tmLog.Logger) {
 }
 
 var bigZero = big.NewInt(0)
+
+// maxTransactionSize is 32KB in order to prevent DOS attacks
+const maxTransactionSize = 32768
 
 // Info returns information about the last height and app_hash to the tendermint engine
 // #stable - 0.4.0
@@ -220,7 +222,7 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	}
 
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
-	if tx.Size() > 32*1024 {
+	if tx.Size() > maxTransactionSize {
 		return abciTypes.ErrInternalError.
 			AppendLog(core.ErrOversizedData.Error())
 	}
