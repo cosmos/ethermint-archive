@@ -103,13 +103,15 @@ You can choose where to store the ethermint files with `--datadir`. For this gui
 Before you can run ethermint you need to initialise tendermint and ethermint with their respective genesis states.
 Please switch into the folder where you have the initialisation files. If you installed from source you can just follow
 these instructions.
+
+```bash
+ethermint --datadir ~/.ethermint --include-tendermint init
+```
+which will also invoke `tendermint init --home ~/.ethermint/tendermint`. You can prevent Tendermint from
+being starting by excluding the flag `--start-tendermint` for example
+
 ```bash
 ethermint --datadir ~/.ethermint init
-```
-which will also invoke `tendermint init --home ~/.ethermint/tendermint`. You can prevent ethermint from implicitly initializing
-tendermint by using flag `--exclude-tendermint-subprocess` for example
-```bash
-ethermint --datadir ~/.ethermint --exclude-tendermint-subprocess init
 ```
 and then you will have to invoke `tendermint` in another shell with the command
 ```bash
@@ -133,22 +135,18 @@ After running tendermint you will see a series of error messages: `abci.socketCl
 ethermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
 ```
 
-which implicitly invokes
-
+and then in a separate shell, invoke
 ```bash
 tendermint --home ~/.ethermint/tendermint node
 ```
 
-You can turn off the above behavior by using flag `--exclude-tendermint-subprocess` for example
+Alternatively, ethermint can start tendermint for you as a subprocess, by using
+flag `--include-tendermint` e.g.
 ```bash
-ethermint --exclude-tendermint-subprocess --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
+ethermint --include-tendermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
 ```
 
-and then in a separate shell, you'll have to invoke
-```bash
-tendermint --home ~/.ethermint/tendermint node
-```
-
+* Note:
 The **password** for the default account is *1234*.
 
 ----

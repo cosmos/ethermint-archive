@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,7 +29,7 @@ func initCmd(ctx *cli.Context) error {
 	ethermintDataDir := emtUtils.MakeDataDir(ctx)
 
 	// Step 1:
-	//  Invoke tendermint init --home ethermintDataDir
+	// If requested, invoke: tendermint init --home ethermintDataDir/tendermint
 	// See https://github.com/tendermint/ethermint/issues/244
 	canInvokeTendermintInit := canInvokeTendermint(ctx)
 	if canInvokeTendermintInit {
@@ -114,9 +113,7 @@ func invokeTendermint(args ...string) ([]byte, error) {
 }
 
 func canInvokeTendermint(ctx *cli.Context) bool {
-	noTendermintAsSubprocess := ctx.GlobalBool(utils.ExcludeTendermintAsSubprocessFlag.Name)
-	canInvoke := noTendermintAsSubprocess == false
-	return canInvoke
+	return ctx.GlobalBool(utils.IncludeTendermintAsSubprocessFlag.Name)
 }
 
 func tendermintHomeFromEthermint(ctx *cli.Context) string {

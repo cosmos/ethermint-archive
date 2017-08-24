@@ -59,7 +59,7 @@ var (
 		utils.ABCIProtocolFlag,
 		utils.VerbosityFlag,
 		utils.ConfigFileFlag,
-		utils.ExcludeTendermintAsSubprocessFlag,
+		utils.IncludeTendermintAsSubprocessFlag,
 	}
 )
 
