@@ -14,6 +14,7 @@ Contents:
    introduction
    installation
    getting-started
+   connecting-to-testnets
    architecture
 
 
