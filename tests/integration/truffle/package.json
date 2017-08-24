@@ -10,7 +10,9 @@
   "license": "GPL-3.0",
   "dependencies": {
     "chai": "^4.0.2",
+    "config": "^1.26.1",
     "mocha": "^3.4.2",
-    "truffle": "^3.2.4"
+    "truffle": "^3.2.4",
+    "web3": "^0.20.0"
   }
 }
