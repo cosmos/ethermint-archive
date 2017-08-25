@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -257,8 +256,7 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 
 	// Check if nonce is not strictly increasing
 	if currentState.GetNonce(from) != tx.Nonce() {
-		return abciTypes.ErrBadNonce.
-			AppendLog(fmt.Sprintf("Transaction nonce is not strictly increasing. Expected: %d, Got: %d", currentState.GetNonce(from)+1, tx.Nonce()))
+		return abciTypes.ErrBadNonce
 	}
 
 	// Transactor should have enough funds to cover the costs
