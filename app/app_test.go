@@ -59,7 +59,22 @@ func (mc *MockClient) Call(method string, params map[string]interface{}, result 
 	return nil, abciTypes.ErrInternalError
 }
 
+func setupTestCase(t *testing.T) (func(t *testing.T), string) {
+	t.Log("Setup test case")
+	temporaryDirectory, err := ioutil.TempDir("", "ethermint_test")
+	if err != nil {
+		t.Error("Unable to create the temporary directory for the tests.")
+	}
+	return func(t *testing.T) {
+		t.Log("Tearing down test case")
+		os.RemoveAll(temporaryDirectory)
+	}, temporaryDirectory
+}
+
 func TestBumpingNonces(t *testing.T) {
+	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	defer teardownTestCase(t)
+
 	// generate key
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -71,14 +86,7 @@ func TestBumpingNonces(t *testing.T) {
 	// used to intercept rpc calls to tendermint
 	mockclient := NewMockClient()
 
-	// setup temp data dir and the app instance
-	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
-	if err != nil {
-		t.Error("unable to create temporary datadir")
-	}
-	defer os.RemoveAll(tempDatadir) // nolint: errcheck
-
-	stack, backend, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
+	stack, backend, app, err := makeTestApp(temporaryDirectory, []common.Address{addr}, mockclient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
@@ -132,6 +140,9 @@ func TestBumpingNonces(t *testing.T) {
 
 // TestMultipleTxOneAcc sends multiple TXs from the same account in the same block
 func TestMultipleTxOneAcc(t *testing.T) {
+	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	defer teardownTestCase(t)
+
 	// generate key
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -142,14 +153,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	// used to intercept rpc calls to tendermint
 	mockclient := NewMockClient()
 
-	// setup temp data dir and the app instance
-	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
-	if err != nil {
-		t.Error("unable to create temporary datadir")
-	}
-	defer os.RemoveAll(tempDatadir) // nolint: errcheck
-
-	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr}, mockclient)
+	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr}, mockclient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
@@ -199,6 +203,9 @@ func TestMultipleTxOneAcc(t *testing.T) {
 }
 
 func TestMultipleTxTwoAcc(t *testing.T) {
+	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	defer teardownTestCase(t)
+
 	// generate key
 	//account 1
 	privateKey1, err := crypto.GenerateKey()
@@ -217,14 +224,7 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 	// used to intercept rpc calls to tendermint
 	mockclient := NewMockClient()
 
-	// setup temp data dir and the app instance
-	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
-	if err != nil {
-		t.Error("unable to create temporary datadir")
-	}
-	defer os.RemoveAll(tempDatadir) // nolint: errcheck
-
-	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1, addr2}, mockclient)
+	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr1, addr2}, mockclient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
@@ -271,6 +271,9 @@ func TestMultipleTxTwoAcc(t *testing.T) {
 // Test transaction from Acc1 to new Acc2 and then from Acc2 to another address
 // in the same block
 func TestFromAccToAcc(t *testing.T) {
+	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	defer teardownTestCase(t)
+
 	// generate key
 	//account 1
 	privateKey1, err := crypto.GenerateKey()
@@ -289,15 +292,8 @@ func TestFromAccToAcc(t *testing.T) {
 	// used to intercept rpc calls to tendermint
 	mockclient := NewMockClient()
 
-	// setup temp data dir and the app instance
-	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
-	if err != nil {
-		t.Error("unable to create temporary datadir")
-	}
-	defer os.RemoveAll(tempDatadir) // nolint: errcheck
-
 	// initialize ethermint only with account 1
-	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1}, mockclient)
+	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr1}, mockclient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
@@ -349,6 +345,9 @@ func TestFromAccToAcc(t *testing.T) {
 // 2. transfer 10 amount from Acc1 to Acc2
 // 3. in the same block transfer from Acc2 to another Acc all his amounts (X+10)
 func TestFromAccToAcc2(t *testing.T) {
+	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	defer teardownTestCase(t)
+
 	// generate key
 	//account 1
 	privateKey1, err := crypto.GenerateKey()
@@ -367,14 +366,7 @@ func TestFromAccToAcc2(t *testing.T) {
 	// used to intercept rpc calls to tendermint
 	mockclient := NewMockClient()
 
-	// setup temp data dir and the app instance
-	tempDatadir, err := ioutil.TempDir("", "ethermint_test")
-	if err != nil {
-		t.Error("unable to create temporary datadir")
-	}
-	defer os.RemoveAll(tempDatadir) // nolint: errcheck
-
-	node, _, app, err := makeTestApp(tempDatadir, []common.Address{addr1, addr2}, mockclient)
+	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr1, addr2}, mockclient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
