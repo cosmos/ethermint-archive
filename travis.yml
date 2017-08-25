@@ -1,0 +1,18 @@
+language: go
+
+go:
+  - 1.8.3
+  - 1.9
+  - tip
+
+os:
+  - linux
+  - osx
+
+matrix:
+  allow_failures:
+    - go: 1.9
+
+install: make get_vendor_deps
+
+scrip: make test
