@@ -59,56 +59,102 @@ func (mc *MockClient) Call(method string, params map[string]interface{}, result 
 	return nil, abciTypes.ErrInternalError
 }
 
-func setupTestCase(t *testing.T) (func(t *testing.T), string) {
+func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *testing.T),
+	app *app.EthermintApplication, backend *ethereum.Backend, mockClient *MockClient) {
 	t.Log("Setup test case")
+
+	// Setup the temporary directory for a test case
 	temporaryDirectory, err := ioutil.TempDir("", "ethermint_test")
 	if err != nil {
-		t.Error("Unable to create the temporary directory for the tests.")
+		t.Errorf("Unable to create the temporary directory for the tests: %v", err)
 	}
-	return func(t *testing.T) {
-		t.Log("Tearing down test case")
-		os.RemoveAll(temporaryDirectory)
-	}, temporaryDirectory
-}
 
-func TestBumpingNonces(t *testing.T) {
-	teardownTestCase, temporaryDirectory := setupTestCase(t)
-	defer teardownTestCase(t)
-
-	// generate key
-	privateKey, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
-	ctx := context.Background()
-
-	// used to intercept rpc calls to tendermint
-	mockclient := NewMockClient()
-
-	stack, backend, app, err := makeTestApp(temporaryDirectory, []common.Address{addr}, mockclient)
+	// Setup the app and backend for a test case
+	mockClient = NewMockClient()
+	node, backend, app, err := makeTestApp(temporaryDirectory, addresses, mockClient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
 	}
 
-	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
-	height := uint64(1)
-	nonce1 := uint64(0)
-	tx1, err := createTransaction(privateKey, nonce1, receiverAddress)
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
+	tearDown = func(t *testing.T) {
+		t.Log("Tearing down test case")
+		os.RemoveAll(temporaryDirectory)
+		node.Stop()
 	}
-	encodedtx, _ := rlp.EncodeToBytes(tx1)
+
+	return
+}
+
+func generateKeyPair(t *testing.T) (*ecdsa.PrivateKey, common.Address) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Error generating a private key: %v", err)
+	}
+
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
+
+	return privateKey, address
+}
+
+func createRawTransaction(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
+	to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *types.Transaction {
+
+	signer := types.HomesteadSigner{}
+
+	transaction, err := types.SignTx(
+		types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, data),
+		signer,
+		key,
+	)
+	if err != nil {
+		t.Errorf("Error creating the transaction: %v", err)
+	}
+
+	return transaction
+
+}
+
+func createSignedTransaction(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
+	to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) []byte {
+
+	transaction := createRawTransaction(t, key, nonce, to, amount, gasLimit, gasPrice, data)
+
+	encodedTransaction, err := rlp.EncodeToBytes(transaction)
+	if err != nil {
+		t.Errorf("Error encoding the transaction: %v", err)
+	}
+
+	return encodedTransaction
+}
+
+// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
+func TestBumpingNonces(t *testing.T) {
+	ctx := context.Background()
+	privateKey, address := generateKeyPair(t)
+	teardownTestCase, app, backend, mockClient := setupTestCase(t, []common.Address{address})
+	defer teardownTestCase(t)
+
+	height := uint64(1)
+	nonceOne := uint64(0)
+	nonceTwo := uint64(1)
+
+	rawTransactionOne := createRawTransaction(t, privateKey, nonceOne, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
+	encodedTransactionOne, err := rlp.EncodeToBytes(rawTransactionOne)
+	if err != nil {
+		t.Errorf("Error encoding the transaction: %v", err)
+	}
+	// second transaction is sent via geth RPC, or at least pretending to be so
+	// with a correct nonce this time, it should pass
+	rawTransactionTwo := createRawTransaction(t, privateKey, nonceTwo, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
 
 	// check transaction
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedtx))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
 
 	// set time greater than time of prev tx (zero)
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
 	// check deliverTx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedtx))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
 
 	app.EndBlock(height)
 
@@ -116,302 +162,164 @@ func TestBumpingNonces(t *testing.T) {
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
 	// replays should fail - we're checking if the transaction got through earlier, by replaying the nonce
-	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(encodedtx).Code)
+	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(encodedTransactionOne).Code)
 
 	// ...on both interfaces of the app
-	assert.Equal(t, core.ErrNonceTooLow, backend.Ethereum().ApiBackend.SendTx(ctx, tx1))
+	assert.Equal(t, core.ErrNonceTooLow, backend.Ethereum().ApiBackend.SendTx(ctx, rawTransactionOne))
 
-	// second transaction is sent via geth RPC, or at least pretending to be so
-	// with a correct nonce this time, it should pass
-	nonce2 := uint64(1)
-	tx2, _ := createTransaction(privateKey, nonce2, receiverAddress)
-
-	assert.Equal(t, backend.Ethereum().ApiBackend.SendTx(ctx, tx2), nil)
+	assert.Equal(t, nil, backend.Ethereum().ApiBackend.SendTx(ctx, rawTransactionTwo))
 
 	ticker := time.NewTicker(5 * time.Second)
 	select {
 	case <-ticker.C:
 		assert.Fail(t, "Timeout waiting for transaction on the tendermint rpc")
-	case <-mockclient.sentBroadcastTx:
+	case <-mockClient.sentBroadcastTx:
 	}
-
-	stack.Stop() // nolint: errcheck
 }
 
 // TestMultipleTxOneAcc sends multiple TXs from the same account in the same block
 func TestMultipleTxOneAcc(t *testing.T) {
-	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	privateKeyOne, address := generateKeyPair(t)
+
+	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{address})
 	defer teardownTestCase(t)
-
-	// generate key
-	privateKey, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr := crypto.PubkeyToAddress(privateKey.PublicKey)
-
-	// used to intercept rpc calls to tendermint
-	mockclient := NewMockClient()
-
-	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr}, mockclient)
-	if err != nil {
-		t.Errorf("Error making test EthermintApplication: %v", err)
-	}
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
+	nonceOne := uint64(0)
+	nonceTwo := uint64(1)
 
-	nonce1 := uint64(0)
-	tx1, err := createTransaction(privateKey, nonce1, receiverAddress)
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
-	}
-	encodedTx1, _ := rlp.EncodeToBytes(tx1)
-
-	//create 2-nd tx from the same account
-	nonce2 := uint64(1)
-	tx2, err := createTransaction(privateKey, nonce2, receiverAddress)
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
-	}
-	encodedTx2, _ := rlp.EncodeToBytes(tx2)
+	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
+	encodedTransactionTwo := createSignedTransaction(t, privateKeyOne, nonceTwo, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
 
 	// check transaction
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
 
 	//check tx on 2nd tx should pass until we implement state in CheckTx
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
 
 	// set time greater than time of prev tx (zero)
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
 	// check deliverTx for 1st tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
 
 	// and for 2nd tx (should fail because of wrong nonce2)
-
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
 
 	app.EndBlock(height)
 
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
-
-	node.Stop() // nolint: errcheck
 }
 
 func TestMultipleTxTwoAcc(t *testing.T) {
-	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	privateKeyOne, addressOne := generateKeyPair(t)
+	privateKeyTwo, addressTwo := generateKeyPair(t)
+
+	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne, addressTwo})
 	defer teardownTestCase(t)
-
-	// generate key
-	//account 1
-	privateKey1, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr1 := crypto.PubkeyToAddress(privateKey1.PublicKey)
-
-	//account 2
-	privateKey2, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr2 := crypto.PubkeyToAddress(privateKey2.PublicKey)
-
-	// used to intercept rpc calls to tendermint
-	mockclient := NewMockClient()
-
-	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr1, addr2}, mockclient)
-	if err != nil {
-		t.Errorf("Error making test EthermintApplication: %v", err)
-	}
 
 	// first transaction is sent via ABCI by us pretending to be Tendermint, should pass
 	height := uint64(1)
-	nonce1 := uint64(0)
-	tx1, err := createTransaction(privateKey1, nonce1, receiverAddress)
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
+	nonceOne := uint64(0)
+	nonceTwo := uint64(0)
 
-	}
-	encodedTx1, _ := rlp.EncodeToBytes(tx1)
-
-	//create 2-nd tx
-	nonce2 := uint64(0)
-	tx2, err := createTransaction(privateKey2, nonce2, receiverAddress)
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
-	}
-	encodedTx2, _ := rlp.EncodeToBytes(tx2)
+	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
+	encodedTransactionTwo := createSignedTransaction(t, privateKeyTwo, nonceTwo, receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
 
 	// check transaction
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
 
 	// set time greater than time of prev tx (zero)
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
 	// check deliverTx for 1st tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
 	// and for 2nd tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
 
 	app.EndBlock(height)
 
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
-
-	node.Stop() // nolint: errcheck
 }
 
 // Test transaction from Acc1 to new Acc2 and then from Acc2 to another address
 // in the same block
 func TestFromAccToAcc(t *testing.T) {
-	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	privateKeyOne, addressOne := generateKeyPair(t)
+	privateKeyTwo, addressTwo := generateKeyPair(t)
+
+	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne, addressTwo})
 	defer teardownTestCase(t)
-
-	// generate key
-	//account 1
-	privateKey1, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr1 := crypto.PubkeyToAddress(privateKey1.PublicKey)
-
-	//account 2
-	privateKey2, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr2 := crypto.PubkeyToAddress(privateKey2.PublicKey)
-
-	// used to intercept rpc calls to tendermint
-	mockclient := NewMockClient()
-
-	// initialize ethermint only with account 1
-	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr1}, mockclient)
-	if err != nil {
-		t.Errorf("Error making test EthermintApplication: %v", err)
-	}
 
 	// first transaction from Acc1 to Acc2 (which is not in genesis)
 	height := uint64(1)
+	nonceOne := uint64(0)
+	nonceTwo := uint64(0)
 
-	nonce1 := uint64(0)
-	tx1, err := createCustomTransaction(privateKey1, nonce1, addr2, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10))
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
-	}
-	encodedTx1, _ := rlp.EncodeToBytes(tx1)
-
-	// second transaction from Acc2 to some another address
-	nonce2 := uint64(0)
-	tx2, err := createCustomTransaction(privateKey2, nonce2, receiverAddress, big.NewInt(2), big.NewInt(21000), big.NewInt(10))
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
-	}
-	encodedTx2, _ := rlp.EncodeToBytes(tx2)
+	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne, addressTwo, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10), nil)
+	encodedTransactionTwo := createSignedTransaction(t, privateKeyTwo, nonceTwo, receiverAddress, big.NewInt(2), big.NewInt(21000), big.NewInt(10), nil)
 
 	// check transaction
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
 
 	// check tx2
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
 
 	// set time greater than time of prev tx (zero)
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
 	// check deliverTx for 1st tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
 
 	// and for 2nd tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
 
 	app.EndBlock(height)
 
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
-
-	node.Stop() // nolint: errcheck
 }
 
 // 1. put Acc1 and Acc2 to genesis with some amounts (X)
 // 2. transfer 10 amount from Acc1 to Acc2
 // 3. in the same block transfer from Acc2 to another Acc all his amounts (X+10)
 func TestFromAccToAcc2(t *testing.T) {
-	teardownTestCase, temporaryDirectory := setupTestCase(t)
+	privateKeyOne, addressOne := generateKeyPair(t)
+	privateKeyTwo, addressTwo := generateKeyPair(t)
+
+	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne, addressTwo})
 	defer teardownTestCase(t)
 
-	// generate key
-	//account 1
-	privateKey1, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr1 := crypto.PubkeyToAddress(privateKey1.PublicKey)
-
-	//account 2
-	privateKey2, err := crypto.GenerateKey()
-	if err != nil {
-		t.Errorf("Error generating key %v", err)
-	}
-	addr2 := crypto.PubkeyToAddress(privateKey2.PublicKey)
-
-	// used to intercept rpc calls to tendermint
-	mockclient := NewMockClient()
-
-	node, _, app, err := makeTestApp(temporaryDirectory, []common.Address{addr1, addr2}, mockclient)
-	if err != nil {
-		t.Errorf("Error making test EthermintApplication: %v", err)
-	}
-
 	height := uint64(1)
+	nonceOne := uint64(0)
+	nonceTwo := uint64(0)
 
-	nonce1 := uint64(0)
-	tx1, err := createCustomTransaction(privateKey1, nonce1, addr2, big.NewInt(500000), big.NewInt(21000), big.NewInt(10))
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
-	}
-	encodedTx1, _ := rlp.EncodeToBytes(tx1)
-
-	// second transaction from Acc2 to some another address
-	nonce2 := uint64(0)
-	//here initial value + 10
-	tx2, err := createCustomTransaction(privateKey2, nonce2, receiverAddress, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10))
-	if err != nil {
-		t.Errorf("Error creating transaction: %v", err)
-
-	}
-	encodedTx2, _ := rlp.EncodeToBytes(tx2)
+	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne, addressTwo, big.NewInt(500000), big.NewInt(21000), big.NewInt(10), nil)
+	encodedTransactionTwo := createSignedTransaction(t, privateKeyTwo, nonceTwo, receiverAddress, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10), nil)
 
 	// check transaction
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
 
 	// check tx2
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
 
 	// set time greater than time of prev tx (zero)
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
 	// check deliverTx for 1st tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
 
 	// and for 2nd tx
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTx2))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
 
 	app.EndBlock(height)
 
 	// check commit
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
-
-	node.Stop() // nolint: errcheck
 }
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
@@ -486,25 +394,4 @@ func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
 	}
 
 	return genesis, nil
-}
-
-func createTransaction(key *ecdsa.PrivateKey, nonce uint64, to common.Address) (*types.Transaction, error) {
-	signer := types.HomesteadSigner{}
-
-	return types.SignTx(
-		types.NewTransaction(nonce, to, big.NewInt(10), big.NewInt(21000), big.NewInt(10),
-			nil),
-		signer,
-		key,
-	)
-}
-
-func createCustomTransaction(key *ecdsa.PrivateKey, nonce uint64, to common.Address, amount, gasLimit, gasPrice *big.Int) (*types.Transaction, error) {
-	signer := types.HomesteadSigner{}
-
-	return types.SignTx(
-		types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil),
-		signer,
-		key,
-	)
 }
