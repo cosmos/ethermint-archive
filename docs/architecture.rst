@@ -121,3 +121,19 @@ transactions via an rpcclient that is connected to tendermint. It also implement
 
 The RPC package sets up all the required RPC endpoints to provide web3 compatability and overrides the
 ones that don't make sense. It is a wrapper around the go-ethereum RPC package.
+
+
+IBC Strategy
+""""""""""""
+Ethermint decides where to route a transaction. If it is an ethereum transaction it routes it to the
+ethereum object. If it is an IBC transaction it routes it to the IBCStrategy. IBCStrategy
+understands how to deal with such a transaction. It can invoke transaction either directly on ethereum
+or over an in-proc rpc over web3. It can also query the ethereum state over web3. It is probably
+favourable to stick to a connection over web3 or through an ethereum interface. IBC should not depend
+on the internals of ethereum. It is passed in by the user.
+
+Reward Strategy
+"""""""""""""""
+The reward strategy defines how to deal distribute rewards. If none is specified a default strategy
+will be used. It holds the address that should receive the rewards (``coinbase``) and decides how
+much and when that address should be rewarded. It is passed in by the user of the library.
