@@ -59,6 +59,9 @@ be an example of how to create an application using the ethermint library. For e
 declare flags. Everything should be unexported and it should be possible to create exactly the
 same version of ethermint using only the exported packages without having to redefine anything yourself.
 
+The web3 endpoints offered by ethermint are a superset of normal web3. It also allows to send IBC
+transactions.
+
 
 Implementation
 ^^^^^^^^^^^^^^
@@ -131,9 +134,21 @@ understands how to deal with such a transaction. It can invoke transaction eithe
 or over an in-proc rpc over web3. It can also query the ethereum state over web3. It is probably
 favourable to stick to a connection over web3 or through an ethereum interface. IBC should not depend
 on the internals of ethereum. It is passed in by the user.
+Receiving an IBC packet will work by intercepting the IBC packet, decoding it according to some rules
+and creating an ethereum transaction from it that calls a special privileged smart contract.
+Sending an IBC packet should be triggered by the web3 endpoints and involves providing a merkle proof
+of some data, where the root hash matches the app hash.
 
 Reward Strategy
 """""""""""""""
 The reward strategy defines how to deal distribute rewards. If none is specified a default strategy
 will be used. It holds the address that should receive the rewards (``coinbase``) and decides how
 much and when that address should be rewarded. It is passed in by the user of the library.
+
+
+Testing
+"""""""
+Every package should have close to full test coverage. Ideally we have generators that generate testcases.
+For example for RPC in the tests it should spin up a live server and send it a combination of valid
+and invalid requests in almost any order and the server should never crash.
+For ethereum is should generate transactions and see if with any combination the object breaks. 
