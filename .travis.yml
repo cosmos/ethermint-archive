@@ -1,0 +1,17 @@
+language: go
+
+go:
+  - 1.8.3
+  - 1.9
+  - tip
+
+os:
+  - linux
+  - osx
+
+install: make get_vendor_deps
+
+script: make test_coverage
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

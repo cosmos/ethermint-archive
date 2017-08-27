@@ -3,7 +3,7 @@
 
 ### [Download the latest release](https://github.com/tendermint/ethermint/releases/tag/v0.2.2)
 
-[![GitHub release](https://img.shields.io/badge/release-latest-blue.svg)]() [![](https://circleci.com/gh/tendermint/ethermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/ethermint/tree/master) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8-blue.svg)](https://github.com/moovweb/gvm) [![](https://img.shields.io/badge/issues-7-yellow.svg)](https://github.com/tendermint/ethermint/issues) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=latest)](http://ethermint.readthedocs.io/en/latest/?badge=latest)
+[![GitHub release](https://img.shields.io/badge/release-latest-blue.svg)]() [![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=develop)](https://travis-ci.org/tendermint/ethermint) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8.3-blue.svg)](https://github.com/moovweb/gvm) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=latest)](http://ethermint.readthedocs.io/en/latest/?badge=latest)
 
 ### Join the chat!
 [![Rocket.Chat](https://demo.rocket.chat/images/join-chat.svg)](https://cosmos.rocket.chat/)
