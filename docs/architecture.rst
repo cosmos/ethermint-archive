@@ -63,6 +63,31 @@ The web3 endpoints offered by ethermint are a superset of normal web3. It also a
 transactions.
 
 
+Light Client
+^^^^^^^^^^^^
+
+Since we are implementing our own RPC package (which wraps go-ethereum RPC) to expose the correct
+web3 endpoints that are needed for ethermint, we can implement a very efficient tendermint light
+client. The LC connects to the underlying tendermint instance to keep up with the validator set
+changes as well as with recent block hashes. This part is exactly the same as in basecoin. When
+a light client wants to query the state though, it uses the Web3 endpoints of the full node and
+does the data verification by looking at tendermint block which contains the relevant app hash.
+It checks that the block is validly signed by a majority of the current validators. Then it checks
+that the information it received from web3 is valid as well and is backed by the app_hash that is
+within the tendermint block.
+
+This way we developers can write fully secure ethermint wallets that build on top of our RPC
+package so that it offers exactly the same web3 endpoints that they would normally work with.
+For example, you can write a phone wallet, which uses our light client package to securely
+keep up with the state of the ethermint chain.
+
+We need to write a light-client package that unifies the tendermint and web3 connections and
+does the proving for you. It should expose a web3 RPC interface or C functions so that other
+languages can easily build on top of it.
+
+**TODO: Ask Frey for help on verifying the data from web3.**
+
+
 Implementation
 ^^^^^^^^^^^^^^
 
