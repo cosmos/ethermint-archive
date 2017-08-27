@@ -89,8 +89,8 @@ Ethermint:
 The Ethermint object is responsible for settinp up the ethereum object and starting the rpc server.
 It implements ABCIApplication, however it proxies most requests to the ethereum object. It first
 decides whether something is destined for IBC or Ethereum .
-It does not implement ``Query`` since that's what web3 is for. It implements ``BaseService`` and is
-responsible for starting and stopping everything. It handles Info.
+It does not implement ``Query`` for ethereum related transaction, but only to facilitate IBC
+. It implements ``BaseService`` and is responsible for starting and stopping everything. It handles Info.
 
 
 Ethereum
