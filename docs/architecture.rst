@@ -109,6 +109,7 @@ Ethermint:
 * rpcServer - serves the web3 rpc server, depends on the config options
 * rpcClient - sends transaction that where created over web3 to tendermint
 * ethereum - is used to hold the state and execute transactions and answer questions about the state
+* accounts - an account manager that manages private keys stored under this ethermint node
 * logger - a tendermint logger
 
 The Ethermint object is responsible for settinp up the ethereum object and starting the rpc server.
@@ -116,6 +117,14 @@ It implements ABCIApplication, however it proxies most requests to the ethereum 
 decides whether something is destined for IBC or Ethereum .
 It does not implement ``Query`` for ethereum related transaction, but only to facilitate IBC
 . It implements ``BaseService`` and is responsible for starting and stopping everything. It handles Info.
+
+
+Accounts
+""""""""
+Accounts wraps a go-ethereum account manager and provides that functionality. Accounts cannot be unlocked
+by default when starting ethermint as that is a security risk. They have to be unlocked through some GUI.
+The RPC server can send a message to the accounts routine to ask for information or to sign a transaction.
+It stores the keys the same way that go-ethereum deals with it inside the ethermint directory.
 
 
 Ethereum
@@ -149,6 +158,11 @@ transactions via an rpcclient that is connected to tendermint. It also implement
 
 The RPC package sets up all the required RPC endpoints to provide web3 compatability and overrides the
 ones that don't make sense. It is a wrapper around the go-ethereum RPC package.
+
+Same RPC methods need to be public and some private because the account methods might leave an account
+unlocked and that should never be accessible to the public.
+
+Possibly the RPC server should have a channel to communicate with the ethereum object.
 
 
 IBC Strategy
