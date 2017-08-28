@@ -220,5 +220,5 @@ For ethereum is should generate transactions and see if with any combination the
 
 Notes
 ^^^^^
-* the main thread listens for "os/signal" and if it receives a kill signal it notifies all other
-running goroutines and stops the program gracefully
+* the main thread listens for "os/signal" and if it receives a kill signal it notifies all other running goroutines and stops the program gracefully
+
