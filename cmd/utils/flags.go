@@ -55,11 +55,11 @@ var (
 		Value: GenesisTargetGasLimit.Uint64(),
 	}
 
-	// IncludeTendermintAsSubprocess flag asks to start Tendermint
+	// WithTendermintFlag flag asks to start Tendermint
 	// `tendermint init` and `tendermint node` when `ethermint init`
 	// and `ethermint` are invoked respectively.
-	IncludeTendermintAsSubprocessFlag = cli.BoolFlag{
-		Name: "include-tendermint",
+	WithTendermintFlag = cli.BoolFlag{
+		Name: "with-tendermint",
 		Usage: "If set, it will invoke `tendermint init` and `tendermint node` " +
 			"when `ethermint init` and `ethermint` are invoked respectively",
 	}

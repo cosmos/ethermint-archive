@@ -113,7 +113,7 @@ func invokeTendermint(args ...string) ([]byte, error) {
 }
 
 func canInvokeTendermint(ctx *cli.Context) bool {
-	return ctx.GlobalBool(utils.IncludeTendermintAsSubprocessFlag.Name)
+	return ctx.GlobalBool(utils.WithTendermintFlag.Name)
 }
 
 func tendermintHomeFromEthermint(ctx *cli.Context) string {
