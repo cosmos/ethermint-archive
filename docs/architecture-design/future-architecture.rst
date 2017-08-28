@@ -3,6 +3,8 @@
 Architecture
 ============
 
+Estimate: 6 weeks with me and another developer
+
 High Level Overview
 -------------------
 
