@@ -1,12 +1,9 @@
+.. _getting-started: 
+
 Getting Started
 ===============
 
 Running Ethermint requires both ``ethermint`` and ``tendermint`` installed. Review the installation instructions below:
-
-.. toctree::
-   :maxdepth: 2
-
-   installation.rst
 
 Setup Ethermint
 ------------------

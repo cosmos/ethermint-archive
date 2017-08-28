@@ -1,3 +1,5 @@
+.. _future-architecture:
+
 Architecture
 ============
 
@@ -90,8 +92,16 @@ languages can easily build on top of it.
 
 Implementation
 ^^^^^^^^^^^^^^
-
+The ``cmd/`` directory only imports other packages from ethermint. It does not define new
+things. 
 The CLI library is Viper. The logger is a tmLogger.
+
+
+CLI
+"""
+The CLI package holds all the commands and flags. It allows me to create a new cli without
+having to write my own flags. I can construct it myself, but there is a constructor which
+returns the default cli object that a developer can just use.
 
 
 Ethermint
@@ -148,6 +158,15 @@ the state is tightly coupled to it being a blockchain state. This logic is not t
 what we currently have.
 The ethereum object implements ``BaseService`` and can be started and stopped properly.
 
+Ethereum asks the reward strategy what do to.
+
+The IBC strategy tells ethereum to do something, since it might create coins out of nowhere. DeliverTx
+needs to check whether something is IBC or not and then modifies the ethereum state directly. When ethereum
+receives a checkTx it decides whether that transaction is IBC and then asks IBC to verify that it is valid
+and translate it into an equivalent ethereum transaction. 
+
+There needs to be a way to send coins to the hub. 
+
 RPC
 """""""""
 This is the RPC package.
@@ -177,6 +196,12 @@ Receiving an IBC packet will work by intercepting the IBC packet, decoding it ac
 and creating an ethereum transaction from it that calls a special privileged smart contract.
 Sending an IBC packet should be triggered by the web3 endpoints and involves providing a merkle proof
 of some data, where the root hash matches the app hash.
+An IBC transaction needs to affect the state of ethereum in the same block and can't spawn a new
+transaction.
+The IBC strategy needs to keep track of the validator set and use that to verify an incoming IBC
+transaction. It might modify the state of the ethereum state directly.
+
+* validatorSet
 
 Reward Strategy
 """""""""""""""
@@ -191,3 +216,9 @@ Every package should have close to full test coverage. Ideally we have generator
 For example for RPC in the tests it should spin up a live server and send it a combination of valid
 and invalid requests in almost any order and the server should never crash.
 For ethereum is should generate transactions and see if with any combination the object breaks. 
+
+
+Notes
+^^^^^
+* the main thread listens for "os/signal" and if it receives a kill signal it notifies all other
+running goroutines and stops the program gracefully
