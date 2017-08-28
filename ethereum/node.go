@@ -20,7 +20,7 @@ func New(conf *node.Config) (*Node, error) {
 		return nil, err
 	}
 
-	return &Node{*stack}, nil
+	return &Node{*stack}, nil // nolint: vet
 }
 
 // Start starts base node and stop p2p server
