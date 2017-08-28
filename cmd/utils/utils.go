@@ -26,7 +26,7 @@ func StartNode(stack *ethereum.Node) {
 		defer signal.Stop(sigc)
 		<-sigc
 		log.Info("Got interrupt, shutting down...")
-		go stack.Stop()
+		go stack.Stop() // nolint: errcheck
 		for i := 10; i > 0; i-- {
 			<-sigc
 			if i > 1 {

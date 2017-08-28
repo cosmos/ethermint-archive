@@ -1,7 +1,6 @@
 GOTOOLS = \
 					github.com/karalabe/xgo \
 					github.com/Masterminds/glide \
-					honnef.co/go/tools/cmd/megacheck \
 					github.com/alecthomas/gometalinter
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 BUILD_TAGS?=ethermint
@@ -65,9 +64,6 @@ test_coverage:
 test_race:
 	@echo "--> Running go test --race"
 	@go test -race $(PACKAGES)
-
-megacheck: ensure_tools
-	@for pkg in ${PACKAGES}; do megacheck "$$pkg"; done
 
 metalinter: ensure_tools
 	@gometalinter --install
