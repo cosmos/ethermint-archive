@@ -108,7 +108,7 @@ these instructions.
 ethermint --datadir ~/.ethermint --include-tendermint init
 ```
 which will also invoke `tendermint init --home ~/.ethermint/tendermint`. You can prevent Tendermint from
-being starting by excluding the flag `--start-tendermint` for example
+being starting by excluding the flag `--include-tendermint` for example
 
 ```bash
 ethermint --datadir ~/.ethermint init

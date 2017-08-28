@@ -60,7 +60,7 @@ var (
 	// and `ethermint` are invoked respectively.
 	IncludeTendermintAsSubprocessFlag = cli.BoolFlag{
 		Name: "include-tendermint",
-		Usage: "If set, it will invoke `tendermint init` and `tendermint node`" +
+		Usage: "If set, it will invoke `tendermint init` and `tendermint node` " +
 			"when `ethermint init` and `ethermint` are invoked respectively",
 	}
 )

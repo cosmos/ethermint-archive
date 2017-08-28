@@ -101,7 +101,7 @@ func invokeTendermintNoTimeout(args ...string) ([]byte, error) {
 }
 
 func __invokeTendermint(ctx context.Context, args ...string) ([]byte, error) {
-	log.Info("Invoking `tendermint", "args", args)
+	log.Info("Invoking `tendermint`", "args", args)
 	cmd := exec.CommandContext(ctx, "tendermint", args...)
 	return cmd.CombinedOutput()
 }

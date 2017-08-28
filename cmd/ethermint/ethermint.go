@@ -42,11 +42,11 @@ func ethermintCmd(ctx *cli.Context) error {
 				// `tendermint node` might have already been invoked.
 				log.Info("tendermint init", "error", err)
 			} else {
-				log.Info("successfully invoked `tendermint node`", "args", tendermintArgs)
+				log.Info("Successfully invoked `tendermint node`", "args", tendermintArgs)
 			}
 		}()
 		pauseDuration := 3 * time.Second
-		log.Info(fmt.Sprintf("invoked `tendermint node` sleeping for %s", pauseDuration), "args", tendermintArgs)
+		log.Info(fmt.Sprintf("Invoked `tendermint node` sleeping for %s", pauseDuration), "args", tendermintArgs)
 		time.Sleep(pauseDuration)
 	}
 
