@@ -15,6 +15,7 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 )
 
+// StartNode will start up the node.
 func StartNode(stack *ethereum.Node) {
 	if err := stack.Start(); err != nil {
 		ethUtils.Fatalf("Error starting protocol stack: %v", err)
@@ -65,6 +66,7 @@ func DefaultDataDir() string {
 	return ""
 }
 
+// ResetAll will remove the data directory.
 func ResetAll(ctx *cli.Context) error {
 	dbDir := filepath.Join(MakeDataDir(ctx), "ethermint")
 	if err := os.RemoveAll(dbDir); err != nil {
