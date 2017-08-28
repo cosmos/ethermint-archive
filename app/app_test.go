@@ -47,7 +47,7 @@ func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *t
 	return
 }
 
-func TestIncrementingNonces(t *testing.T) {
+func TestStrictlyIncrementingNonces(t *testing.T) {
 	privateKey, address := generateKeyPair(t)
 	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{address})
 	defer teardownTestCase(t)
@@ -80,7 +80,7 @@ func TestIncrementingNonces(t *testing.T) {
 }
 
 // first transaction is sent via ABCI by us pretending to be Tendermint, should pass
-func TestBumpingNonces(t *testing.T) {
+func TestBumpingNoncesWithRawTransaction(t *testing.T) {
 	ctx := context.Background()
 	privateKey, address := generateKeyPair(t)
 	teardownTestCase, app, backend, mockClient := setupTestCase(t, []common.Address{address})

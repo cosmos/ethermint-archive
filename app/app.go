@@ -248,12 +248,6 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 			AppendLog(core.ErrGasLimitReached.Error())
 	}
 
-	// Check for nonce errors
-	if currentState.GetNonce(from) > tx.Nonce() {
-		return abciTypes.ErrBadNonce.
-			AppendLog(core.ErrNonceTooLow.Error())
-	}
-
 	// Check if nonce is not strictly increasing
 	if currentState.GetNonce(from) != tx.Nonce() {
 		return abciTypes.ErrBadNonce
