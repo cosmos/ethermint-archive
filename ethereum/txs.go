@@ -8,7 +8,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
+	rpcClient "github.com/tendermint/tendermint/rpc/client"
 )
 
 //----------------------------------------------------------------------
@@ -31,26 +31,20 @@ func (b *Backend) txBroadcastLoop() {
 // BroadcastTx broadcasts a transaction to tendermint core
 // #unstable
 func (b *Backend) BroadcastTx(tx *ethTypes.Transaction) error {
-	var result interface{}
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
 		return err
 	}
-	params := map[string]interface{}{
-		"tx": buf.Bytes(),
-	}
-	_, err := b.client.Call("broadcast_tx_sync", params, &result)
+	_, err := b.client.BroadcastTxSync(buf.Bytes())
 	return err
 }
 
 //----------------------------------------------------------------------
 // wait for Tendermint to open the socket and run http endpoint
 
-func waitForServer(c rpcClient.HTTPClient) {
-	var result interface{}
-
+func waitForServer(c rpcClient.Client) {
 	for {
-		_, err := c.Call("status", map[string]interface{}{}, &result)
+		_, err := c.Status()
 		if err == nil {
 			break
 		}
