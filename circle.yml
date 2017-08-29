@@ -1,5 +1,7 @@
 machine:
   environment:
+    DOCKER_VERSION: 1.10.0
+    DOCKER_MACHINE_VERSION: 0.9.0
     GOPATH: $HOME/.go_workspace
     REPO: $GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
     PROJECT_PARENT_PATH: "$GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME"
@@ -7,6 +9,30 @@ machine:
   hosts:
     circlehost: 127.0.0.1
     localhost: 127.0.0.1
+
+dependencies:
+  override:
+    - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | sudo bash -s -- $DOCKER_VERSION
+    - sudo start docker
+    - sudo curl -sSL -o /usr/bin/docker-machine "https://github.com/docker/machine/releases/download/v$DOCKER_MACHINE_VERSION/docker-machine-`uname -s`-`uname -m`"; sudo chmod 0755 /usr/bin/docker-machine
+    - mkdir -p "$PROJECT_PARENT_PATH"
+    - ln -sf "$HOME/$CIRCLE_PROJECT_REPONAME/" "$PROJECT_PATH"
+  post:
+    - go version
+    - docker version
+    - docker-machine version
+
+dependencies:
+  override:
+    - curl -sSL https://s3.amazonaws.com/circle-downloads/install-circleci-docker.sh | sudo bash -s -- $DOCKER_VERSION
+    - sudo start docker
+    - sudo curl -sSL -o /usr/bin/docker-machine "https://github.com/docker/machine/releases/download/v$DOCKER_MACHINE_VERSION/docker-machine-`uname -s`-`uname -m`"; sudo chmod 0755 /usr/bin/docker-machine
+    - mkdir -p "$PROJECT_PARENT_PATH"
+    - ln -sf "$HOME/$CIRCLE_PROJECT_REPONAME/" "$PROJECT_PATH"
+  post:
+    - go version
+    - docker version
+    - docker-machine version
 
 checkout:
   post:
@@ -16,10 +42,13 @@ checkout:
 
 test:
   override:
-    - "go version"
-    - "echo $REPO && ls $REPO"
-    - "cd $REPO && make install"
-    - "cd $REPO && make test_coverage"
+    - go version
+    - echo "$REPO" && ls "$REPO"
+    - cd "$REPO" && make install
+    - cd "$REPO" && make test_coverage
+    - cd "$REPO" && set -o pipefail && make test_integrations 2>&1 | tee test_integrations.log
+
 
   post:
+    - cd "$PROJECT_PATH" && mv test_integrations.log "${CIRCLE_ARTIFACTS}"
     - cd "$PROJECT_PATH" && bash <(curl -s https://codecov.io/bash)

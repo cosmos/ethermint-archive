@@ -12,6 +12,11 @@ scripts/kubernetes/ethermint.yaml
 ethstats/
 coverage.txt
 
+ethstats/
+coverage.txt
+tests/tendermint_data/**/*.bak
+tests/tendermint_data/**/*.toml
+
 ### Go ###
 # Binaries for programs and plugins
 *.exe
