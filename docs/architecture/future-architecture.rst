@@ -185,46 +185,48 @@ It integrates all other packages into a coherent application.
 cli
 """
 
-The CLI package holds all the commands and flags. It allows a developer to create a new cli without
+The cli package holds all the commands and flags. It allows a developer to create a new cli without
 having to write his own flags. It exposes the features described above.
 
 
 ethermint
 """""""""
 
-At the top level there is the Ethermint application. An Ethermint object is instantiated within the
-cmd package. It requires a reward strategy. It also takes a configuration struct with all parsed
-options. Those values either come from the CLI or from the TOML file. The values on the config struct
-will override the defaults. All other dependencies should be setup within the Ethermint object.
-The big config struct is a nesting of smaller config structs for Reward, IBC, rpcServer and ethereum.
+The ethermint package is responsible for wiring up all the different components into a working
+application. It is the top level object. It takes a configuration struct, a logger, a reward object,
+and an ibc object. Everything else is instantiated within the constructor. The goal is to keep the
+outwards facing API very simple in the beginning. The ethermint object implements ``ABCIApplication``
+and ``BaseService``. It is responsible for mediating the communication with Tendermint Core and is
+the entry point that starts all needed goroutines.
+
+Internally it instantiates an RPC server that serves the Web3 endpoints. It also instantiates an RPC
+client that the RPC server uses to forward transaction from Web3 to Tendermint Core. It instantiates
+an ethereum object which handles state management and execution. Lastly, it instantiates an account
+object which handles private keys either on disk or on an HSM.
 
 Ethermint:
-* Config struct
-* Reward strategy
-* IBC strategy
+* Logger
+* Reward
+* Ibc
+
 * rpcServer - serves the web3 rpc server, depends on the config options
 * rpcClient - sends transaction that where created over web3 to tendermint
-* ethereum - is used to hold the state and execute transactions and answer questions about the state
-* accounts - an account manager that manages private keys stored under this ethermint node
-* logger - a tendermint logger
+* ethereum - manages and executes state
+* account - an account manager that manages private keys stored under this ethermint node
 
-The Ethermint object is responsible for settinp up the ethereum object and starting the rpc server.
-It implements ABCIApplication, however it proxies most requests to the ethereum object. It first
-decides whether something is destined for IBC or Ethereum .
-It does not implement ``Query`` for ethereum related transaction, but only to facilitate IBC.
-It implements ``BaseService`` and is responsible for starting and stopping everything. It handles Info.
+To start an ethermint instance Start() has to be called. This in turn starts all other goroutines,
+such as for the rpcServer, the rpcClient and the account.
 
 
 ethereum
 """"""""
 
-The ethereum object is not exported. It handles state management/persistence and transaction processing.
-It is a custom type from which we eventually will extract an interface. It handles checkTx, deliverTx
-and commit. It takes a specific config struct with info such as gasprice, gaslimit and reward strategy.
+The ethereum package resides in the internal package. It is responsible for all state mangement and
+execution.
 
 Ethereum:
-* stateDB for persistence and actual state
-* checkTxState for ephemeral state
+* state for persistence and actual state
+* checkState for ephemeral state
 * logger
 * reward strategy
 
@@ -235,16 +237,8 @@ Ideally, ethereum should not build its own blockchain but should rather just pro
 leave the blockchain to tendermint. However it seems that in the current implementation of go-ethereum
 the state is tightly coupled to it being a blockchain state. This logic is not too different from
 what we currently have.
+
 The ethereum object implements ``BaseService`` and can be started and stopped properly.
-
-Ethereum asks the reward strategy what do to.
-
-The IBC strategy tells ethereum to do something, since it might create coins out of nowhere. DeliverTx
-needs to check whether something is IBC or not and then modifies the ethereum state directly. When ethereum
-receives a checkTx it decides whether that transaction is IBC and then asks IBC to verify that it is valid
-and translate it into an equivalent ethereum transaction. 
-
-There needs to be a way to send coins to the hub. 
 
 
 rpc
