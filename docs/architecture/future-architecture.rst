@@ -32,6 +32,31 @@ Goals
 *NOTE: Ethermint supports a superset of Web3, since we are extending it with methods for IBC.*
 
 
+Implementation Process
+----------------------
+
+This is not a rewrite from scratch. It is designed to be a second version that fixes some issues from the
+past. The current estimate is that it will take 2 developers working on it full-time 6 weeks. A lot of the
+ideas and current code can be used and packages will be replaces one by one.
+
+1. Implement the new CLI and logging in order to provide a similar experience as Tendermint.
+
+2. Implement the RPC package in order to provide a better user experience.
+
+3. Implement the accounts and rewards in order.
+
+4. Implement the ethereum object that reworks the internals.
+
+5. Implement ibc.
+
+6. Implement light.
+
+
+The reason that we live ethereum towards the middle is that we cannot change the ethereum object without
+having the previous packages.
+
+
+
 User Experience
 ---------------
 
@@ -154,113 +179,14 @@ cmd
 cli
 """
 
-**TODO: Use the content from the last section.**
-
-ethermint
-"""""""""
-
-**TODO: Use the content from the last section.**
-
-rpc
-"""
-
-**TODO: Use the content from the last section.**
-
-account
-"""""""
-
-**TODO: Use the content from the last section.**
-
-reward
-""""""
-
-**TODO: Use the content from the last section.**
-
-ibc
-"""
-
-**TODO: Use the content from the last section.**
-
-light
-"""""
-
-**TODO: Use the content from the last section.**
-
-logging
-"""""""
-
-**TODO: Use the content from the last section.**
-
-
-Tests
-^^^^^
-
-Every file has an associated test file that verifies the assumptions and invariants that are implicit
-to the program and are not expressed by the type system.
-
-Every package has an associated test suite that uses the public API like an ordinary developer would.
-This package not only ensures that the exposed API is reasonable, but it also ensures that the
-package works in its entirety.
-
-The entire application has tests at the top level in order to ensure that all components work together
-as expected.
-
-Integration tests for all RPC endpoints are run against a live network that is setup with docker
-containers.
-
-
-Dependencies
-^^^^^^^^^^^^
-
-Dependencies are well encapsulated and do not span multiple packages.
-
-
-
-
-To integrate into the above
----------------------------
-
-Light Client
-^^^^^^^^^^^^
-
-Since we are implementing our own RPC package (which wraps go-ethereum RPC) to expose the correct
-web3 endpoints that are needed for ethermint, we can implement a very efficient tendermint light
-client. The LC connects to the underlying tendermint instance to keep up with the validator set
-changes as well as with recent block hashes. This part is exactly the same as in basecoin. When
-a light client wants to query the state though, it uses the Web3 endpoints of the full node and
-does the data verification by looking at tendermint block which contains the relevant app hash.
-It checks that the block is validly signed by a majority of the current validators. Then it checks
-that the information it received from web3 is valid as well and is backed by the app_hash that is
-within the tendermint block.
-
-This way we developers can write fully secure ethermint wallets that build on top of our RPC
-package so that it offers exactly the same web3 endpoints that they would normally work with.
-For example, you can write a phone wallet, which uses our light client package to securely
-keep up with the state of the ethermint chain.
-
-We need to write a light-client package that unifies the tendermint and web3 connections and
-does the proving for you. It should expose a web3 RPC interface or C functions so that other
-languages can easily build on top of it.
-
-**TODO: Ask Frey for help on verifying the data from web3.**
-
-
-Implementation
-^^^^^^^^^^^^^^
-The ``cmd/`` directory only imports other packages from ethermint. It does not define new
-things. 
-The CLI library is Viper. The logger is a tmLogger.
-
-
-CLI
-"""
 The CLI package holds all the commands and flags. It allows me to create a new cli without
 having to write my own flags. I can construct it myself, but there is a constructor which
 returns the default cli object that a developer can just use.
 
 
-Ethermint
+ethermint
 """""""""
+
 At the top level there is the Ethermint application. An Ethermint object is instantiated within the
 cmd package. It requires a reward strategy. It also takes a configuration struct with all parsed
 options. Those values either come from the CLI or from the TOML file. The values on the config struct
@@ -280,20 +206,13 @@ Ethermint:
 The Ethermint object is responsible for settinp up the ethereum object and starting the rpc server.
 It implements ABCIApplication, however it proxies most requests to the ethereum object. It first
 decides whether something is destined for IBC or Ethereum .
-It does not implement ``Query`` for ethereum related transaction, but only to facilitate IBC
-. It implements ``BaseService`` and is responsible for starting and stopping everything. It handles Info.
+It does not implement ``Query`` for ethereum related transaction, but only to facilitate IBC.
+It implements ``BaseService`` and is responsible for starting and stopping everything. It handles Info.
 
 
-Accounts
+ethereum
 """"""""
-Accounts wraps a go-ethereum account manager and provides that functionality. Accounts cannot be unlocked
-by default when starting ethermint as that is a security risk. They have to be unlocked through some GUI.
-The RPC server can send a message to the accounts routine to ask for information or to sign a transaction.
-It stores the keys the same way that go-ethereum deals with it inside the ethermint directory.
 
-
-Ethereum
-""""""""
 The ethereum object is not exported. It handles state management/persistence and transaction processing.
 It is a custom type from which we eventually will extract an interface. It handles checkTx, deliverTx
 and commit. It takes a specific config struct with info such as gasprice, gaslimit and reward strategy.
@@ -322,8 +241,10 @@ and translate it into an equivalent ethereum transaction.
 
 There needs to be a way to send coins to the hub. 
 
-RPC
-"""""""""
+
+rpc
+"""
+
 This is the RPC package.
 The RPC server takes an ethereum object via an interface. The ethereum object needs to be able to answer
 certain questions about the current state of ethereum, such as the syncing status. It is up to
@@ -339,36 +260,79 @@ unlocked and that should never be accessible to the public.
 Possibly the RPC server should have a channel to communicate with the ethereum object.
 
 
-IBC Strategy
-""""""""""""
-Ethermint decides where to route a transaction. If it is an ethereum transaction it routes it to the
-ethereum object. If it is an IBC transaction it routes it to the IBCStrategy. IBCStrategy
-understands how to deal with such a transaction. It can invoke transaction either directly on ethereum
-or over an in-proc rpc over web3. It can also query the ethereum state over web3. It is probably
-favourable to stick to a connection over web3 or through an ethereum interface. IBC should not depend
-on the internals of ethereum. It is passed in by the user.
-Receiving an IBC packet will work by intercepting the IBC packet, decoding it according to some rules
-and creating an ethereum transaction from it that calls a special privileged smart contract.
-Sending an IBC packet should be triggered by the web3 endpoints and involves providing a merkle proof
-of some data, where the root hash matches the app hash.
-An IBC transaction needs to affect the state of ethereum in the same block and can't spawn a new
-transaction.
-The IBC strategy needs to keep track of the validator set and use that to verify an incoming IBC
-transaction. It might modify the state of the ethereum state directly.
+account
+"""""""
 
-* validatorSet
+Accounts wraps a go-ethereum account manager and provides that functionality. Accounts cannot be unlocked
+by default when starting ethermint as that is a security risk. They have to be unlocked through some GUI.
+The RPC server can send a message to the accounts routine to ask for information or to sign a transaction.
+It stores the keys the same way that go-ethereum deals with it inside the ethermint directory.
 
-Reward Strategy
-"""""""""""""""
+
+reward
+""""""
+
 The reward strategy defines how to deal distribute rewards. If none is specified a default strategy
 will be used. It holds the address that should receive the rewards (``coinbase``) and decides how
 much and when that address should be rewarded. It is passed in by the user of the library.
 
 
-Testing
+ibc
+"""
+
+See :ref:`inter-blockchain-communication.rst` for details on IBC.
+
+
+light
+"""""
+
+Since we are implementing our own RPC package (which wraps go-ethereum RPC) to expose the correct
+web3 endpoints that are needed for ethermint, we can implement a very efficient tendermint light
+client. The LC connects to the underlying tendermint instance to keep up with the validator set
+changes as well as with recent block hashes. This part is exactly the same as in basecoin. When
+a light client wants to query the state though, it uses the Web3 endpoints of the full node and
+does the data verification by looking at tendermint block which contains the relevant app hash.
+It checks that the block is validly signed by a majority of the current validators. Then it checks
+that the information it received from web3 is valid as well and is backed by the app_hash that is
+within the tendermint block.
+
+This way we developers can write fully secure ethermint wallets that build on top of our RPC
+package so that it offers exactly the same web3 endpoints that they would normally work with.
+For example, you can write a phone wallet, which uses our light client package to securely
+keep up with the state of the ethermint chain.
+
+We need to write a light-client package that unifies the tendermint and web3 connections and
+does the proving for you. It should expose a web3 RPC interface or C functions so that other
+languages can easily build on top of it.
+
+**TODO: Consult with Frey.**
+
+
+logging
 """""""
-Every package should have close to full test coverage. Ideally we have generators that generate testcases.
-For example for RPC in the tests it should spin up a live server and send it a combination of valid
-and invalid requests in almost any order and the server should never crash.
-For ethereum is should generate transactions and see if with any combination the object breaks. 
+
+Implemented like the current logging package.
+
+
+Tests
+^^^^^
+
+Every file has an associated test file that verifies the assumptions and invariants that are implicit
+to the program and are not expressed by the type system.
+
+Every package has an associated test suite that uses the public API like an ordinary developer would.
+This package not only ensures that the exposed API is reasonable, but it also ensures that the
+package works in its entirety.
+
+The entire application has tests at the top level in order to ensure that all components work together
+as expected.
+
+Integration tests for all RPC endpoints are run against a live network that is setup with docker
+containers.
+
+
+Dependencies
+^^^^^^^^^^^^
+
+Dependencies are well encapsulated and do not span multiple packages.
 
