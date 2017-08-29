@@ -3,69 +3,215 @@
 Architecture
 ============
 
-Estimate: 6 weeks with me and another developer
+Motivation
+----------
 
-High Level Overview
--------------------
+The current version of ethermint works and works well. It can already sustain more than 200 tx/s, offers
+immediate finality and uses proof-of-stake instead of proof-of-work. However it is currently designed
+to fit around go-ethereum which was never meant to be used as a library. Due to this the current
+implementation is clunky and does not feel like the rest of the tendermint ecosystem. This starts with
+the CLI and ends with the logging facilities. The problem with using go-ethereum stems from our choice
+to use the highest level objects possible. Those objects where never intended to be consumed as a library
+and hence are awkward to work with. However, the lower level packages such as RPC and State, were and are
+used as libraries.
+
+The goal of the following architecture is to use the lower level components from go-ethereum and tendermint
+to build a unique and coherent application that can also be used as a library.
+
+Goals
+^^^^^
+
+* a user can easily connect to the testnets, the live networks as well as run a private network locally
+* usability as a library - a developer can import the top level ethermint objects and quickly assemble a
+web3 compatible, EVM enabled and PoS based cryptocurrency that optionally supports IBC
+* full compatibility with all existing web3 tooling while enabling us to change endpoints based on the
+context of ethermint and to add new methods for IBC
+* developers can use ethermint as a library to develop beautiful light clients that take advantage of
+all the benefits of tendermint while also interacting with ethermint and smart contracts securely
+
+*NOTE: Ethermint supports a superset of Web3, since we are extending it with methods for IBC.*
+
 
 User Experience
+---------------
+
+The first entry point is installing ethermint. This is as easy as ``brew install ethermint``. It
+installs the binaries for ethermint and tendermint in one step. Other platforms and package
+managers such as apt-get or choco are also supported.
+
+
+Supported commands
+^^^^^^^^^^^^^^^^^^
+
+* ``ethermint version`` - prints the version of ethermint and tendermint and is used to verify the
+installation
+
+* ``ethermint`` - initialises and runs ethermint and tendermint. It is used to connect to the live
+ethermint network.
+  * the initialisation files are included in the binary
+  * a reasonable home directory is assumed
+  * flags can be used to configure options such as RPC
+
+* ``ethermint testnet`` - initialises and runs ethermint and tendermint. It is used to connect to
+the test ethermint network.
+  * the bullet points from above apply
+  * flags can be used to configure which testnet to connect to
+
+* ``ethermint development`` - initialises and runs ethermint and tendermint. It is used to setup a
+local network.
+  * the bullet points from above apply
+  * private keys are included for the default account
+  * flags can be used to work with multiple local networks
+
+
+Supported flags
 ^^^^^^^^^^^^^^^
 
-This describes what using ethermint from a user experience is like.
+* ``--home`` - defines the data directory for all files
 
-The first entry point is installing ethermint and the underlying tendermint binary. This is as easy as
-``brew install ethermint``. It pulls both binaries, since tendermint is a dependency of ethermint and
-places them in the correct folders. On Linux distros this process should be the same using ``apt-get``.
-On Windows this should be done with chocolate.
+* ``--gasprice`` - sets to the minimal gasprice for a validating node to include a transaction. This
+flag is not consensus relevant and only applies to validating nodes.
 
-To check whether the binaries are installed correctly a user can use the version command
-``ethermint version``. This prints the versions of the installed binaries of ethermint and tendermint.
+* ``--coinbase`` - defines the ethereum address which can receive the transaction fees and block
+rewards depending on the chosen reward strategy. This flag is not consensus relevant and only applies
+to validating nodes.
 
-Once the software is installed a user wants to run it. There are three possible scenarios.
-1. The user wants to connect to the live network.
-2. The user wants to connect to the test network.
-3. The user wants to run a private network.
+* ``--gasfloor`` - sets the minimum number of gas that has to be expended in every block. This prevents
+empty blocks. This flag is not consensus relevant and only applies to validating nodes.
 
-To connect to a live network the command simply is ``ethermint``. This initialises tendermint and
-ethermint to with the correct values and starts both processes, which then start syncing.
+* ``--gaslimit`` - sets the maximum amount of gas that can be in one ethereum block. This flag is
+consensus relevant and needs to be uniform in the same network.
 
-To connect to a test network the command simply is ``ethermint testnet``. This does the same
-initialisation as above but uses the testnet configuration.
-
-To run a private network the command simply is ``ethermint development``. This does the same
-initialisation as above but uses the pre-configured private testnet values. The extra step is
-that it also copies a correct private key which has a very high amount of money.
+* all flags that Tendermint exposes
 
 
-Optionally a user can configure these global flags:
-Non-consensus - these can be different between all nodes
-* ``--gasprice`` sets the minimal gasprice for this node to include a transaction
-* ``--coinbase`` sets the address which receives the rewards (this depends on implementation of
-official networks)
-
-Consensus - these need to be the same between all nodes
-* ``--gaslimit``
-* ``--home`` specifies the home directory
-* ``--config`` specifies a TOML config file where all these parameters are read from, the cli flags
-always take precedence
-* ``--rpc``
-* **TODO: Spec out the remaining flags like RPC, IPC, WS, USB**
-
-* all flags from tendermint
+**TODO: Define all remaining flags, such as ``--rpc``, ``--config``, etc.**
 
 
-Developer Experience
-^^^^^^^^^^^^^^^^^^^^
+Ethereum Developer Experience
+-----------------------------
 
-Ethermint is designed to be a library. That is why we offer different reward strategies. Everything
-in the ``cmd/`` folder is just wiring up the parts. It shouldn't introduce anything new. It should
-be an example of how to create an application using the ethermint library. For example it shouldn't
-declare flags. Everything should be unexported and it should be possible to create exactly the
-same version of ethermint using only the exported packages without having to redefine anything yourself.
+A developer can easily switch from using Ethereum to using Ethermint for all his smart contracting
+needs. Switching between the two platform is as easy as changing one RPC endpoint. We support all
+modern Ethereum tooling such as Truffle as well as all UIs such as Mist.
 
-The web3 endpoints offered by ethermint are a superset of normal web3. It also allows to send IBC
-transactions.
+A developer has access to a superset of Web3. Our implementation also offers the ability to use IBC.
 
+
+Go Developer Experience
+--------------------
+
+A developer chooses Ethermint as a library to build their own PoS backed, EVM enabled cryptocurrency.
+He can choose his own reward strategy to distribute transaction fees and block rewards as well as his
+own IBC strategy to define how his network interacts with the Cosmos hub.
+
+When a developer uses the Ethermint library he does not have to redefine all the commands and flags
+and can rather just create a default CLI object that has to standard commands and flags already set.
+He can then modify those and add more in order to fit his own needs.
+
+Every public API will have properly formatted ``godocs`` which enable new developers to easily use
+Ethermint as a library.
+
+The documentation contains a subsection for developers that are using Ethermint as a library in Go.
+
+
+Architecture Design
+-------------------
+
+Ethermint is developed by the fine folks of the Cosmos team. As such it feels like any of our other
+applications, such as Tendermint Core or the cosmos-sdk. It provides the functionality of the EVM
+and Web3 and pairs it with PoS and IBC. The code base and architecture follows the Tendermint way
+instead of the go-ethereum way.
+
+High Level Overview
+^^^^^^^^^^^^^^^^^^^
+
+We start by describing the high level packages that Ethermint has. The all live under
+``github.com/tendermint/ethermint/``.
+
+* cmd - does not export anything. It only pulls in other packages to setup the ethermint node.
+
+* cli - bundles all commands and flags to provide a cli interface for an ethermint node.
+
+* ethermint - the highest level package. It implements ABCI, coordinates the starting and shutting
+down of a node and wires together all the independent components.
+
+* rpc - contains all RPC endpoints. It re-exposes a lot of the go-ethereum RPC endpoints, but also
+adds our own whenever necessary, such as for syncing. It does not have some endpoints such as mining
+but also adds new ones for IBC.
+  * heavily leans on ``github.com/ethereum/go-ethereum/rpc``
+
+* account - provides key management and key storage. It also provides the code to use harware wallets.
+
+* reward - implements different types of strategies to reward validators.
+
+* ibc - provides the functionality to handle IBC packets.
+
+* light - bundles all functionality (also by re-exporting) to write secure ethermint light clients
+for mobile phones
+  * exposes a C API in order to be as language agnostic as possible
+
+* logging - unifies the logging for go-ethereum and tendermint.
+
+
+Low Level Detail
+^^^^^^^^^^^^^^^^
+
+cmd
+"""
+
+cli
+"""
+
+ethermint
+"""""""""
+
+rpc
+"""
+
+account
+"""""""
+
+reward
+""""""
+
+ibc
+"""
+
+light
+"""""
+
+logging
+"""""""
+
+
+Tests
+^^^^^
+
+Every file has an associated test file that verifies the assumptions and invariants that are implicit
+to the program and are not expressed by the type system.
+
+Every package has an associated test suite that uses the public API like an ordinary developer would.
+This package not only ensures that the exposed API is reasonable, but it also ensures that the
+package works in its entirety.
+
+The entire application has tests at the top level in order to ensure that all components work together
+as expected.
+
+Integration tests for all RPC endpoints are run against a live network that is setup with docker
+containers.
+
+
+Dependencies
+^^^^^^^^^^^^
+
+Dependencies are well encapsulated and do not span multiple packages.
+
+
+
+
+To integrate into the rest
+==========================
 
 Light Client
 ^^^^^^^^^^^^
@@ -218,9 +364,4 @@ Every package should have close to full test coverage. Ideally we have generator
 For example for RPC in the tests it should spin up a live server and send it a combination of valid
 and invalid requests in almost any order and the server should never crash.
 For ethereum is should generate transactions and see if with any combination the object breaks. 
-
-
-Notes
-^^^^^
-* the main thread listens for "os/signal" and if it receives a kill signal it notifies all other running goroutines and stops the program gracefully
 

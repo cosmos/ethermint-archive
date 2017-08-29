@@ -21,4 +21,4 @@ Contents
    introduction/index.rst
    getting-started/index.rst
    testnets/index.rst
-   architecture-design/index.rst
+   architecture/index.rst
