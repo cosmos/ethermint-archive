@@ -217,8 +217,8 @@ Dependencies are well encapsulated and do not span multiple packages.
 
 
 
-To integrate into the rest
-==========================
+To integrate into the above
+---------------------------
 
 Light Client
 ^^^^^^^^^^^^
