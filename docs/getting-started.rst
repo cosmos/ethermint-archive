@@ -22,16 +22,16 @@ Please switch into the folder where you have the initialisation files. If you in
 these instructions.
 
 ::
-
         tendermint init --home ~/.ethermint/tendermint
-        
-        cd $GOPATH/src/github.com/tendermint/ethermint
-        
-        ethermint --datadir ~/.ethermint init setup/genesis.json
-        
-        cp -r setup/keystore ~/.ethermint
 
-In the last step we copy the private key from the initialisation folder into the actual ethereum folder. 
+        ethermint --datadir ~/.ethermint init
+
+* Note:
+You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
+
+::
+        cp -r keystore ~/.ethermint
+
 
 Run Ethermint
 -------------
