@@ -8,17 +8,19 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 )
 
+// Node is the main object.
 type Node struct {
 	node.Node
 }
 
+// New creates a new node.
 func New(conf *node.Config) (*Node, error) {
 	stack, err := node.New(conf)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Node{*stack}, nil
+	return &Node{*stack}, nil // nolint: vet
 }
 
 // Start starts base node and stop p2p server

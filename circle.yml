@@ -20,6 +20,7 @@ test:
     - "echo $REPO && ls $REPO"
     - "cd $REPO && make install"
     - "cd $REPO && make test_coverage"
+    - "cd $REPO && make metalinter"
 
   post:
     - cd "$PROJECT_PATH" && bash <(curl -s https://codecov.io/bash)
