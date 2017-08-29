@@ -103,26 +103,31 @@ You can choose where to store the ethermint files with `--datadir`. For this gui
 Before you can run ethermint you need to initialise tendermint and ethermint with their respective genesis states.
 Please switch into the folder where you have the initialisation files. If you installed from source you can just follow
 these instructions.
+
+```bash
+ethermint --datadir ~/.ethermint --with-tendermint init
+```
+which will also invoke `tendermint init --home ~/.ethermint/tendermint`. You can prevent Tendermint from
+being starting by excluding the flag `--with-tendermint` for example
+
+```bash
+ethermint --datadir ~/.ethermint init
+```
+and then you will have to invoke `tendermint` in another shell with the command
 ```bash
 tendermint init --home ~/.ethermint/tendermint
-
-cd $GOPATH/src/github.com/tendermint/ethermint
-
-ethermint --datadir ~/.ethermint init setup/genesis.json
-
-cp -r setup/keystore ~/.ethermint
 ```
-In the last step we copy the private key from the initialisation folder into the actual ethereum folder. 
 
+* Note:
+- You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
+```bash
+cp -r keystore ~/.ethermint
+```
 
 ### Running
 To execute ethermint we need to start two processes. The first one is for tendermint, which handles the P2P
 communication as well as the consensus process, while the second one is actually ethermint, which provides the
 go-ethereum functionality.
-
-```bash
-tendermint --home ~/.ethermint/tendermint node
-```
 
 After running tendermint you will see a series of error messages: `abci.socketClient failed to connect to tcp://127.0.0.1:46658.  Retrying... module=abci-client connection=query`. This is normal, tendermint is trying to find an ABCI app to which to connect. Next we run the ABCI app that tendermint will attach itself to by running:
 
@@ -130,6 +135,18 @@ After running tendermint you will see a series of error messages: `abci.socketCl
 ethermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
 ```
 
+and then in a separate shell, invoke
+```bash
+tendermint --home ~/.ethermint/tendermint node
+```
+
+Alternatively, ethermint can start tendermint for you as a subprocess, by using
+flag `--with-tendermint` e.g.
+```bash
+ethermint --with-tendermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
+```
+
+* Note:
 The **password** for the default account is *1234*.
 
 ----
