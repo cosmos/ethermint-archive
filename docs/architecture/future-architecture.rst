@@ -169,12 +169,13 @@ We start by describing the high level packages that Ethermint has. The all live 
 Low Level Detail
 ^^^^^^^^^^^^^^^^
 
-**TODO: Use the content from the last section.**
+This section provides a package level description of the architecture. It, where applicable, also
+includes description of the actual APIs.
 
 cmd
 """
 
-**TODO: Use the content from the last section.**
+**TODO**
 
 cli
 """
