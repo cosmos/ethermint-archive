@@ -172,17 +172,21 @@ Low Level Detail
 This section provides a package level description of the architecture. It, where applicable, also
 includes description of the actual APIs.
 
+**TODO: The details will be filled in as it is being developed.**
+
+
 cmd
 """
 
-**TODO**
+The cmd package does not define new types, functions or methods. It is a user of the ethermint library.
+It integrates all other packages into a coherent application.
+
 
 cli
 """
 
-The CLI package holds all the commands and flags. It allows me to create a new cli without
-having to write my own flags. I can construct it myself, but there is a constructor which
-returns the default cli object that a developer can just use.
+The CLI package holds all the commands and flags. It allows a developer to create a new cli without
+having to write his own flags. It exposes the features described above.
 
 
 ethermint
@@ -246,19 +250,15 @@ There needs to be a way to send coins to the hub.
 rpc
 """
 
-This is the RPC package.
-The RPC server takes an ethereum object via an interface. The ethereum object needs to be able to answer
-certain questions about the current state of ethereum, such as the syncing status. It is up to
-ethereum to decide how to provide that information. The RPC server also needs to be able to submit
-transactions via an rpcclient that is connected to tendermint. It also implements ``BaseService``.
+The rpc package has an RPC server as its main type. It is a wrapper around the RPC package from
+go-ethereum. It provides the same functionality as ethereum, but adapts it to fit the needs of
+ethermint.
 
-The RPC package sets up all the required RPC endpoints to provide web3 compatability and overrides the
-ones that don't make sense. It is a wrapper around the go-ethereum RPC package.
+The RPC server implements ``BaseService`` which is an interface provided by tendermint.
 
-Same RPC methods need to be public and some private because the account methods might leave an account
-unlocked and that should never be accessible to the public.
-
-Possibly the RPC server should have a channel to communicate with the ethereum object.
+It takes a reference to an ethereum object in order to answer questions about the state.
+It takes a reference to a rpcClient object in order to proxy ethereum transaction to Tendermint core.
+It takes a reference to an account object in order to provide functionality related to accounts.
 
 
 account
@@ -266,16 +266,15 @@ account
 
 Accounts wraps a go-ethereum account manager and provides that functionality. Accounts cannot be unlocked
 by default when starting ethermint as that is a security risk. They have to be unlocked through some GUI.
-The RPC server can send a message to the accounts routine to ask for information or to sign a transaction.
 It stores the keys the same way that go-ethereum deals with it inside the ethermint directory.
 
 
 reward
 """"""
 
-The reward strategy defines how to deal distribute rewards. If none is specified a default strategy
-will be used. It holds the address that should receive the rewards (``coinbase``) and decides how
-much and when that address should be rewarded. It is passed in by the user of the library.
+The reward strategy defines how to distribute rewards. It holds the address that should receive the
+rewards (``coinbase``) and decides how much and when that address should be rewarded. It is passed in by
+the user of the library.
 
 
 ibc
