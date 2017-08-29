@@ -22,12 +22,12 @@ Goals
 ^^^^^
 
 * a user can easily connect to the testnets, the live networks as well as run a private network locally
-* usability as a library - a developer can import the top level ethermint objects and quickly assemble a
-web3 compatible, EVM enabled and PoS based cryptocurrency that optionally supports IBC
-* full compatibility with all existing web3 tooling while enabling us to change endpoints based on the
-context of ethermint and to add new methods for IBC
-* developers can use ethermint as a library to develop beautiful light clients that take advantage of
-all the benefits of tendermint while also interacting with ethermint and smart contracts securely
+
+* usability as a library - a developer can import the top level ethermint objects and quickly assemble a web3 compatible, EVM enabled and PoS based cryptocurrency that optionally supports IBC
+
+* full compatibility with all existing web3 tooling while enabling us to change endpoints based on the context of ethermint and to add new methods for IBC
+
+* developers can use ethermint as a library to develop beautiful light clients that take advantage of all the benefits of tendermint while also interacting with ethermint and smart contracts securely
 
 *NOTE: Ethermint supports a superset of Web3, since we are extending it with methods for IBC.*
 
@@ -43,22 +43,18 @@ managers such as apt-get or choco are also supported.
 Supported commands
 ^^^^^^^^^^^^^^^^^^
 
-* ``ethermint version`` - prints the version of ethermint and tendermint and is used to verify the
-installation
+* ``ethermint version`` - prints the version of ethermint and tendermint and is used to verify the installation
 
-* ``ethermint`` - initialises and runs ethermint and tendermint. It is used to connect to the live
-ethermint network.
+* ``ethermint`` - initialises and runs ethermint and tendermint. It is used to connect to the live ethermint network.
   * the initialisation files are included in the binary
   * a reasonable home directory is assumed
   * flags can be used to configure options such as RPC
 
-* ``ethermint testnet`` - initialises and runs ethermint and tendermint. It is used to connect to
-the test ethermint network.
+* ``ethermint testnet`` - initialises and runs ethermint and tendermint. It is used to connect to the test ethermint network.
   * the bullet points from above apply
   * flags can be used to configure which testnet to connect to
 
-* ``ethermint development`` - initialises and runs ethermint and tendermint. It is used to setup a
-local network.
+* ``ethermint development`` - initialises and runs ethermint and tendermint. It is used to setup a local network.
   * the bullet points from above apply
   * private keys are included for the default account
   * flags can be used to work with multiple local networks
@@ -69,18 +65,13 @@ Supported flags
 
 * ``--home`` - defines the data directory for all files
 
-* ``--gasprice`` - sets to the minimal gasprice for a validating node to include a transaction. This
-flag is not consensus relevant and only applies to validating nodes.
+* ``--gasprice`` - sets to the minimal gasprice for a validating node to include a transaction. This flag is not consensus relevant and only applies to validating nodes.
 
-* ``--coinbase`` - defines the ethereum address which can receive the transaction fees and block
-rewards depending on the chosen reward strategy. This flag is not consensus relevant and only applies
-to validating nodes.
+* ``--coinbase`` - defines the ethereum address which can receive the transaction fees and block rewards depending on the chosen reward strategy. This flag is not consensus relevant and only applies to validating nodes.
 
-* ``--gasfloor`` - sets the minimum number of gas that has to be expended in every block. This prevents
-empty blocks. This flag is not consensus relevant and only applies to validating nodes.
+* ``--gasfloor`` - sets the minimum number of gas that has to be expended in every block. This prevents empty blocks. This flag is not consensus relevant and only applies to validating nodes.
 
-* ``--gaslimit`` - sets the maximum amount of gas that can be in one ethereum block. This flag is
-consensus relevant and needs to be uniform in the same network.
+* ``--gaslimit`` - sets the maximum amount of gas that can be in one ethereum block. This flag is consensus relevant and needs to be uniform in the same network.
 
 * all flags that Tendermint exposes
 
@@ -99,7 +90,7 @@ A developer has access to a superset of Web3. Our implementation also offers the
 
 
 Go Developer Experience
---------------------
+-----------------------
 
 A developer chooses Ethermint as a library to build their own PoS backed, EVM enabled cryptocurrency.
 He can choose his own reward strategy to distribute transaction fees and block rewards as well as his
@@ -133,12 +124,9 @@ We start by describing the high level packages that Ethermint has. The all live 
 
 * cli - bundles all commands and flags to provide a cli interface for an ethermint node.
 
-* ethermint - the highest level package. It implements ABCI, coordinates the starting and shutting
-down of a node and wires together all the independent components.
+* ethermint - the highest level package. It implements ABCI, coordinates the starting and shutting down of a node and wires together all the independent components.
 
-* rpc - contains all RPC endpoints. It re-exposes a lot of the go-ethereum RPC endpoints, but also
-adds our own whenever necessary, such as for syncing. It does not have some endpoints such as mining
-but also adds new ones for IBC.
+* rpc - contains all RPC endpoints. It re-exposes a lot of the go-ethereum RPC endpoints, but also adds our own whenever necessary, such as for syncing. It does not have some endpoints such as mining but also adds new ones for IBC.
   * heavily leans on ``github.com/ethereum/go-ethereum/rpc``
 
 * account - provides key management and key storage. It also provides the code to use harware wallets.
@@ -147,8 +135,7 @@ but also adds new ones for IBC.
 
 * ibc - provides the functionality to handle IBC packets.
 
-* light - bundles all functionality (also by re-exporting) to write secure ethermint light clients
-for mobile phones
+* light - bundles all functionality (also by re-exporting) to write secure ethermint light clients for mobile phones
   * exposes a C API in order to be as language agnostic as possible
 
 * logging - unifies the logging for go-ethereum and tendermint.
@@ -157,32 +144,52 @@ for mobile phones
 Low Level Detail
 ^^^^^^^^^^^^^^^^
 
+**TODO: Use the content from the last section.**
+
 cmd
 """
+
+**TODO: Use the content from the last section.**
 
 cli
 """
 
+**TODO: Use the content from the last section.**
+
 ethermint
 """""""""
+
+**TODO: Use the content from the last section.**
 
 rpc
 """
 
+**TODO: Use the content from the last section.**
+
 account
 """""""
+
+**TODO: Use the content from the last section.**
 
 reward
 """"""
 
+**TODO: Use the content from the last section.**
+
 ibc
 """
+
+**TODO: Use the content from the last section.**
 
 light
 """""
 
+**TODO: Use the content from the last section.**
+
 logging
 """""""
+
+**TODO: Use the content from the last section.**
 
 
 Tests
