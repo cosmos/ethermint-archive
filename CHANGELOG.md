@@ -6,6 +6,16 @@
 * add readthedocs to the docs folder
 * update to go-ethereum 1.6.7
 * update dependencies
+* add unsafe reset command to easily reset all the initialisation files
+* run integration tests on CI
+* add build targets for OSX
+* add `--with-tendermint` flag to start tendermint in process
+  * tendermint needs to be installed as a binary
+  * tendermint core is not pulled in as a dependency
+* rework the docs
+* no networking is started by the ethereum node
+* performance optimisation
+* doc updates
 
 ## 0.4.0
 ### Breaking
