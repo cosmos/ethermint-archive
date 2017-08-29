@@ -1,4 +1,4 @@
-.. _inter_blockchain_communication.rst:
+.. _inter-blockchain-communication:
 
 IBC Support in Ethermint
 ========================

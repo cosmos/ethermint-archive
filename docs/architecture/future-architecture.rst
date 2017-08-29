@@ -280,7 +280,7 @@ much and when that address should be rewarded. It is passed in by the user of th
 ibc
 """
 
-See :ref:`inter-blockchain-communication.rst` for details on IBC.
+See :ref:`inter-blockchain-communication` for details on IBC.
 
 
 light
