@@ -270,7 +270,11 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	// Update ether balances
 	// amount + gasprice * gaslimit
 	currentState.SubBalance(from, tx.Cost())
-	currentState.AddBalance(*tx.To(), tx.Value())
+	// tx.To() returns a pointer to a common address. It returns nil
+	// if it is a contract creation transaction.
+	if to := tx.To(); to != nil {
+		currentState.AddBalance(*to, tx.Value())
+	}
 	currentState.SetNonce(from, currentState.GetNonce(from)+1)
 
 	return abciTypes.OK
