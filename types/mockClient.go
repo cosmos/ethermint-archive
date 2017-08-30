@@ -1,3 +1,6 @@
+// TODO: Replace this with the mockClient in
+// github.com/tendermint/tendermint/rpc/client/mock/abci.go
+
 package types
 
 import (
@@ -50,7 +53,9 @@ func (mc *MockClient) BroadcastTxCommit(tx ttypes.Tx) (*ctypes.ResultBroadcastTx
 
 // BroadcastTxAsync ...
 func (mc *MockClient) BroadcastTxAsync(tx ttypes.Tx) (*ctypes.ResultBroadcastTx, error) {
-	return mc.BroadcastTxSync(tx)
+	close(mc.SentBroadcastTx)
+
+	return &ctypes.ResultBroadcastTx{}, nil
 }
 
 // BroadcastTxSync ...
