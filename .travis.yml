@@ -11,7 +11,7 @@ os:
 
 install: make get_vendor_deps
 
-script: make test_coverage
+script: make test_coverage # && make metalinter (enable when CI can handle the memory)
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
