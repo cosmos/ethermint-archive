@@ -51,8 +51,7 @@ func TestEnsureDisabledEthereumP2PStack(t *testing.T) {
 		t.Fatalf("cannot initialise new node from config: %v", err)
 	}
 
-	node.Start()
-	if err != nil {
+	if err := node.Start(); err != nil {
 		t.Fatalf("cannot start node: %v", err)
 	}
 	// Make a listener and ensure that ListenAddr can be bound to

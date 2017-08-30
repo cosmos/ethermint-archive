@@ -23,8 +23,14 @@ func TestResetAll(t *testing.T) {
 	defer os.RemoveAll(tempDatadir) // nolint: errcheck
 
 	// set EMHOME env variable
-	os.Setenv(emHome, tempDatadir)
-	defer os.Unsetenv(emHome)
+	if err = os.Setenv(emHome, tempDatadir); err != nil {
+		t.Errorf("could not set env: %v", err)
+	}
+	defer func() {
+		if err = os.Unsetenv(emHome); err != nil {
+			t.Errorf("could not unset env: %v", err)
+		}
+	}()
 
 	// context with empty flag set
 	context := getContextNoFlag()
@@ -43,7 +49,7 @@ func TestResetAll(t *testing.T) {
 	}
 
 	// check dir exists
-	if _, err := os.Stat(dataDir); err != nil {
+	if _, err = os.Stat(dataDir); err != nil {
 		t.Errorf("database doesn't exist: %v", err)
 
 	}
