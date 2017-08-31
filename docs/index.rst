@@ -3,24 +3,22 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Ethermint's documentation!
-=====================================
+Ethermint
+=========
 
-Contents:
+.. image:: assets/ethermint-logo.png
+   :height: 500px
+   :width: 500px
+   :align: center
+
+
+Contents
+========
 
 .. toctree::
    :maxdepth: 4
 
-   introduction
-   installation
-   getting-started
-   connecting-to-testnets
-   architecture
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   introduction/index.rst
+   getting-started/index.rst
+   testnets/index.rst
+   architecture/index.rst

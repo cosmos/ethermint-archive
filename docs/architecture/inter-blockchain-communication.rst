@@ -1,6 +1,10 @@
-# IBC Support in Ethermint
+.. _inter-blockchain-communication:
+
+IBC Support in Ethermint
+========================
 
 Goals:
+------
 
 - Ethermint can send and receive native and ERC20 tokens via IBC
 - No changes to native Ethereum transaction format
@@ -8,6 +12,7 @@ Goals:
 
 
 Design:
+-------
 
 - a native contract at address 0x00...000494243 (ie. "IBC")
 - contains its own independent merkle IAVL tree
@@ -30,6 +35,7 @@ Design:
 
 
 Additional Notes:
+-----------------
 
 We want to support more general extensions to Ethermint, for instance a native contract that handles validators.
 If we reuse cosmos-sdk libs, we may want to use just one IAVL tree for all extensions.
