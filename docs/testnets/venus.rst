@@ -1,10 +1,12 @@
+.. _venus.rst:
+
 Connect to a testnet
 ====================
 
 Join the ethermint testnet with a few commands. This guide is based on the `original Medium article <https://blog.cosmos.network/join-venus-the-new-ethermint-testnet-part-3-8e30c7d5abcf>`_.
 
 Pre-requisites
--------------
+--------------
 
 You'll need the ``ethermint`` and ``tendermint`` binaries installed with the correct version. Ensure you are using compatible versions (how?). See their respective repos for install instructions.
 
