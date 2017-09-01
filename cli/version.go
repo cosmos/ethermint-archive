@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/tendermint/ethermint/version"
 )
 
 func init() {
-	RootCommand.AddCommand(VersionCommand)
 }
 
 // VersionCommand prints the version information of Ethermint and Tendermint
