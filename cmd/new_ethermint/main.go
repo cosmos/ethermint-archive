@@ -1,14 +1,19 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/tendermint/ethermint/cli"
 )
 
 func main() {
 	// TODO: Check the error here
-	rootCommand, _ := cli.NewRootCommand(cli.VersionCommand,
+	rootCommand := cli.NewRootCommand(cli.VersionCommand,
 		cli.TestNetworkCommand, cli.DevelopmentCommand,
 		cli.MainNetworkCommand)
 
-	rootCommand.Execute()
+	err := rootCommand.Execute()
+	if err != nil {
+		fmt.Println(err)
+	}
 }
