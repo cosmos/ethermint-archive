@@ -19,6 +19,7 @@ Please switch into the folder where you have the initialisation files. If you in
 these instructions.
 
 ::
+
         tendermint init --home ~/.ethermint/tendermint
 
         ethermint --datadir ~/.ethermint init
@@ -27,6 +28,7 @@ these instructions.
 You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
 
 ::
+
         cp -r keystore ~/.ethermint
 
 
