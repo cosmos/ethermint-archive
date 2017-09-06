@@ -49,7 +49,7 @@ master_doc = 'index'
 # General information about the project.
 project = u'Ethermint'
 copyright = u'2017, Adrian Brink'
-author = u'Jae Kwon, Ethan Buchmann, Adrian Brink, Emmanuel Odeke, Zach Ramsay'
+author = u'Tendermint'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
