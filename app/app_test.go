@@ -38,7 +38,7 @@ func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *t
 	}
 
 	// Setup the app and backend for a test case
-	mockClient = types.NewMockClient()
+	mockClient = types.NewMockClient(false)
 	node, backend, app, err := makeTestApp(temporaryDirectory, addresses, mockClient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
