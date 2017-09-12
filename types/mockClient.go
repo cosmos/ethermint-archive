@@ -52,7 +52,7 @@ func (mc *MockClient) BroadcastTxAsync(tx ttypes.Tx) (*ctypes.ResultBroadcastTx,
 
 // BroadcastTxSync ...
 func (mc *MockClient) BroadcastTxSync(tx ttypes.Tx) (*ctypes.ResultBroadcastTx, error) {
-	close(mc.SentBroadcastTx)
+	mc.SentBroadcastTx <- struct{}{}
 
 	return &ctypes.ResultBroadcastTx{}, nil
 }
@@ -121,7 +121,7 @@ func (mc *MockClient) Stop() bool {
 
 // OnStop ...
 func (mc *MockClient) OnStop() {
-	// nop
+	close(mc.SentBroadcastTx)
 }
 
 // Reset ...

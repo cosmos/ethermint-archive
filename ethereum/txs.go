@@ -18,6 +18,7 @@ import (
 func (b *Backend) txBroadcastLoop() {
 	b.txSub = b.ethereum.EventMux().Subscribe(core.TxPreEvent{})
 
+	//rpcClient.WaitForHeight(b.client, 8, nil)
 	waitForServer(b.client)
 
 	for obj := range b.txSub.Chan() {
