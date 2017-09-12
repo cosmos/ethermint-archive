@@ -18,18 +18,10 @@ type MockClient struct {
 }
 
 // NewMockClient returns a pointer to a new non-syncing mock tendermint rpc client
-func NewMockClient() *MockClient {
+func NewMockClient(syncing bool) *MockClient {
 	return &MockClient{
 		make(chan struct{}),
-		false,
-	}
-}
-
-// NewMockSyncingClient returns a pointer to a new syncing mock tendermint rpc client
-func NewMockSyncingClient() *MockClient {
-	return &MockClient{
-		make(chan struct{}),
-		true,
+		syncing,
 	}
 }
 

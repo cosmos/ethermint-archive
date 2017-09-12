@@ -38,7 +38,7 @@ func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *t
 	}
 
 	// Setup the app and backend for a test case
-	mockClient = types.NewMockClient(false)
+	mockClient = types.NewMockClient()
 	node, backend, app, err := makeTestApp(temporaryDirectory, addresses, mockClient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
@@ -74,7 +74,7 @@ func TestStrictlyIncrementingNonces(t *testing.T) {
 
 	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
 	// expect a failure here since the nonce is not strictly increasing
-	assert.Equal(t, abciTypes.ErrBadNonce, app.CheckTx(tx3))
+	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(tx3).Code)
 	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
 
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
