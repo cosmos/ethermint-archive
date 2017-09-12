@@ -21,6 +21,12 @@ import (
 	abciTypes "github.com/tendermint/abci/types"
 )
 
+var (
+	amount   = big.NewInt(1000)
+	gasLimit = big.NewInt(21000)
+	gasPrice = big.NewInt(10)
+)
+
 func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *testing.T),
 	app *EthermintApplication, backend *ethereum.Backend, mockClient *types.MockClient) {
 	t.Log("Setup test case")
@@ -32,7 +38,7 @@ func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *t
 	}
 
 	// Setup the app and backend for a test case
-	mockClient = types.NewMockClient()
+	mockClient = types.NewMockClient(false)
 	node, backend, app, err := makeTestApp(temporaryDirectory, addresses, mockClient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)
@@ -59,24 +65,24 @@ func TestStrictlyIncrementingNonces(t *testing.T) {
 	nonceTwo := uint64(1)
 	nonceThree := uint64(2)
 
-	encodedTransactionOne := createSignedTransaction(t, privateKey, nonceOne,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
-	encodedTransactionTwo := createSignedTransaction(t, privateKey, nonceTwo,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
-	encodedTransactionThree := createSignedTransaction(t, privateKey, nonceThree,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
+	tx1 := createTxBytes(t, privateKey, nonceOne,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
+	tx2 := createTxBytes(t, privateKey, nonceTwo,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
+	tx3 := createTxBytes(t, privateKey, nonceThree,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
 	// expect a failure here since the nonce is not strictly increasing
-	assert.Equal(t, abciTypes.ErrBadNonce, app.CheckTx(encodedTransactionThree))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.ErrBadNonce, app.CheckTx(tx3))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
 
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
 	// expect a failure here since the nonce is not strictly increasing
-	assert.Equal(t, abciTypes.ErrInternalError.Code, app.DeliverTx(encodedTransactionThree).Code)
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.ErrInternalError.Code, app.DeliverTx(tx3).Code)
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
 
 	app.EndBlock(height)
 
@@ -85,7 +91,7 @@ func TestStrictlyIncrementingNonces(t *testing.T) {
 
 // TestBumpingNoncesWithRawTransaction sends a transaction over the RPC
 // interface of Tendermint.
-func TestBumpingNoncesWithRawTransaction(t *testing.T) {
+func TestBumpingNoncesViaRPC(t *testing.T) {
 	ctx := context.Background()
 	privateKey, address := generateKeyPair(t)
 	teardownTestCase, app, backend, mockClient := setupTestCase(t, []common.Address{address})
@@ -95,32 +101,32 @@ func TestBumpingNoncesWithRawTransaction(t *testing.T) {
 	nonceOne := uint64(0)
 	nonceTwo := uint64(1)
 
-	rawTransactionOne := createRawTransaction(t, privateKey, nonceOne,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
-	encodedTransactionOne, err := rlp.EncodeToBytes(rawTransactionOne)
+	rawTx1 := createTx(t, privateKey, nonceOne,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
+	tx1, err := rlp.EncodeToBytes(rawTx1)
 	if err != nil {
 		t.Errorf("Error encoding the transaction: %v", err)
 	}
 
-	rawTransactionTwo := createRawTransaction(t, privateKey, nonceTwo,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
+	rawTx2 := createTx(t, privateKey, nonceTwo,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
 
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
 
 	app.EndBlock(height)
 
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
 	// replays should fail - we're checking if the transaction got through earlier, by replaying the nonce
-	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(encodedTransactionOne).Code)
+	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(tx1).Code)
 	// ...on both interfaces of the app
-	assert.Equal(t, core.ErrNonceTooLow, backend.Ethereum().ApiBackend.SendTx(ctx, rawTransactionOne))
+	assert.Equal(t, core.ErrNonceTooLow, backend.Ethereum().ApiBackend.SendTx(ctx, rawTx1))
 
-	assert.Equal(t, nil, backend.Ethereum().ApiBackend.SendTx(ctx, rawTransactionTwo))
+	assert.Equal(t, nil, backend.Ethereum().ApiBackend.SendTx(ctx, rawTx2))
 
 	ticker := time.NewTicker(5 * time.Second)
 	select {
@@ -140,18 +146,18 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	nonceOne := uint64(0)
 	nonceTwo := uint64(1)
 
-	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
-	encodedTransactionTwo := createSignedTransaction(t, privateKeyOne, nonceTwo,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
+	tx1 := createTxBytes(t, privateKeyOne, nonceOne,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
+	tx2 := createTxBytes(t, privateKeyOne, nonceTwo,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
 
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
 
 	app.EndBlock(height)
 
@@ -169,18 +175,18 @@ func TestMultipleTxFromTwoAcc(t *testing.T) {
 	nonceOne := uint64(0)
 	nonceTwo := uint64(0)
 
-	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
-	encodedTransactionTwo := createSignedTransaction(t, privateKeyTwo, nonceTwo,
-		receiverAddress, big.NewInt(10), big.NewInt(21000), big.NewInt(10), nil)
+	tx1 := createTxBytes(t, privateKeyOne, nonceOne,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
+	tx2 := createTxBytes(t, privateKeyTwo, nonceTwo,
+		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
 
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
 
 	app.EndBlock(height)
 
@@ -192,25 +198,25 @@ func TestMultipleTxFromTwoAcc(t *testing.T) {
 func TestFromAccToAcc(t *testing.T) {
 	privateKeyOne, addressOne := generateKeyPair(t)
 	privateKeyTwo, addressTwo := generateKeyPair(t)
-	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne, addressTwo})
+	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne})
 	defer teardownTestCase(t)
 
 	height := uint64(1)
 	nonceOne := uint64(0)
 	nonceTwo := uint64(0)
 
-	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne,
-		addressTwo, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10), nil)
-	encodedTransactionTwo := createSignedTransaction(t, privateKeyTwo, nonceTwo,
-		receiverAddress, big.NewInt(2), big.NewInt(21000), big.NewInt(10), nil)
+	tx1 := createTxBytes(t, privateKeyOne, nonceOne,
+		addressTwo, big.NewInt(1000000), gasLimit, gasPrice, nil)
+	tx2 := createTxBytes(t, privateKeyTwo, nonceTwo,
+		receiverAddress, big.NewInt(50000), gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
 
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
 
 	app.EndBlock(height)
 
@@ -230,18 +236,18 @@ func TestFromAccToAcc2(t *testing.T) {
 	nonceOne := uint64(0)
 	nonceTwo := uint64(0)
 
-	encodedTransactionOne := createSignedTransaction(t, privateKeyOne, nonceOne,
-		addressTwo, big.NewInt(500000), big.NewInt(21000), big.NewInt(10), nil)
-	encodedTransactionTwo := createSignedTransaction(t, privateKeyTwo, nonceTwo,
-		receiverAddress, big.NewInt(1000000), big.NewInt(21000), big.NewInt(10), nil)
+	tx1 := createTxBytes(t, privateKeyOne, nonceOne,
+		addressTwo, big.NewInt(500000), gasLimit, gasPrice, nil)
+	tx2 := createTxBytes(t, privateKeyTwo, nonceTwo,
+		receiverAddress, big.NewInt(1000000), gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
 
 	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionOne))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(encodedTransactionTwo))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
+	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
 
 	app.EndBlock(height)
 

@@ -40,7 +40,7 @@ func generateKeyPair(t *testing.T) (*ecdsa.PrivateKey, common.Address) {
 	return privateKey, address
 }
 
-func createRawTransaction(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
+func createTx(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
 	to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *ethTypes.Transaction {
 
 	signer := ethTypes.HomesteadSigner{}
@@ -58,10 +58,10 @@ func createRawTransaction(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
 
 }
 
-func createSignedTransaction(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
+func createTxBytes(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
 	to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) []byte {
 
-	transaction := createRawTransaction(t, key, nonce, to, amount, gasLimit, gasPrice, data)
+	transaction := createTx(t, key, nonce, to, amount, gasLimit, gasPrice, data)
 
 	encodedTransaction, err := rlp.EncodeToBytes(transaction)
 	if err != nil {
@@ -125,8 +125,9 @@ func makeTestSystemNode(tempDatadir string, addresses []common.Address,
 }
 
 func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
-	gopath := os.Getenv("GOPATH")
-	genesisPath := filepath.Join(gopath, "src/github.com/tendermint/ethermint/setup/genesis.json")
+	// TODO: Figure out how to navigate upwards in go
+	currentDir := os.Getenv("GOPATH")
+	genesisPath := filepath.Join(currentDir, "src/github.com/tendermint/ethermint/setup/genesis.json")
 
 	file, err := os.Open(genesisPath)
 	if err != nil {
@@ -141,7 +142,7 @@ func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
 
 	balance, result := new(big.Int).SetString("10000000000000000000000000000000000", 10)
 	if !result {
-		return nil, errors.New("BigInt convertation error")
+		return nil, errors.New("BigInt conversion error")
 	}
 
 	for _, addr := range addresses {
