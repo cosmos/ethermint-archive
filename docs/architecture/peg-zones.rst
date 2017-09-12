@@ -4,7 +4,7 @@ Ethereum Peg Zones
 ==================
 **It is paramount that every CETH is backed by an ETH because otherwise, speculators will immediately attack the peg.**
 
-The goal of the Ethereum peg zone is to provide a way for people to exchange ETH into CETH (COSMOS ETH) and vice versa.
+The goal of the `Ethereum <./future-architecture.html>`__  peg zone is to provide a way for people to exchange ETH into CETH (COSMOS ETH) and vice versa.
 The implementation should happen within smart contracts written in solidity. Implementing the peg zone within the Ethermint codebase is dangerous because it will make it less flexible to future changes and will lead to greater divergence of the codebase from its upstream base. 
 
 Process
