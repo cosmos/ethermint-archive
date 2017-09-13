@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
@@ -125,9 +126,11 @@ func makeTestSystemNode(tempDatadir string, addresses []common.Address,
 }
 
 func makeTestGenesis(addresses []common.Address) (*core.Genesis, error) {
-	// TODO: Figure out how to navigate upwards in go
-	currentDir := os.Getenv("GOPATH")
-	genesisPath := filepath.Join(currentDir, "src/github.com/tendermint/ethermint/setup/genesis.json")
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	genesisPath := filepath.Join(strings.TrimSuffix(currentDir, "/app"), "setup/genesis.json")
 
 	file, err := os.Open(genesisPath)
 	if err != nil {
