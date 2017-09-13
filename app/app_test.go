@@ -194,7 +194,7 @@ func TestMultipleTxFromTwoAcc(t *testing.T) {
 }
 
 // TestFromAccToAcc sends a transaction from account A to account B and from
-// account B to a third address
+// account B to account C
 func TestFromAccToAcc(t *testing.T) {
 	privateKeyOne, addressOne := generateKeyPair(t)
 	privateKeyTwo, addressTwo := generateKeyPair(t)
