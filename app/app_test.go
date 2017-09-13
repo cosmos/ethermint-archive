@@ -222,34 +222,3 @@ func TestFromAccToAcc(t *testing.T) {
 
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 }
-
-// TestFromAccToAcc2 sends money from A to B and then all of B's money to C.
-// This tests whether checkTx works correctly and allows multiple transactions
-// per block.
-func TestFromAccToAcc2(t *testing.T) {
-	privateKeyOne, addressOne := generateKeyPair(t)
-	privateKeyTwo, addressTwo := generateKeyPair(t)
-	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne, addressTwo})
-	defer teardownTestCase(t)
-
-	height := uint64(1)
-	nonceOne := uint64(0)
-	nonceTwo := uint64(0)
-
-	tx1 := createTxBytes(t, privateKeyOne, nonceOne,
-		addressTwo, big.NewInt(500000), gasLimit, gasPrice, nil)
-	tx2 := createTxBytes(t, privateKeyTwo, nonceTwo,
-		receiverAddress, big.NewInt(1000000), gasLimit, gasPrice, nil)
-
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
-
-	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
-
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
-
-	app.EndBlock(height)
-
-	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
-}
