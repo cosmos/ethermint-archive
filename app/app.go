@@ -209,17 +209,16 @@ func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.R
 // validateTx checks the validity of a tx against the blockchain's current state.
 // it duplicates the logic in ethereum's tx_pool
 func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.Result {
-	currentState := app.checkTxState
-
-	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
-	if tx.Protected() {
-		signer = ethTypes.NewEIP155Signer(tx.ChainId())
-	}
 
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.Size() > maxTransactionSize {
 		return abciTypes.ErrInternalError.
 			AppendLog(core.ErrOversizedData.Error())
+	}
+
+	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
+	if tx.Protected() {
+		signer = ethTypes.NewEIP155Signer(tx.ChainId())
 	}
 
 	// Make sure the transaction is signed properly
@@ -236,8 +235,9 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 			AppendLog(core.ErrNegativeValue.Error())
 	}
 
-	// Make sure the account exist. Non existent accounts
-	// haven't got funds and well therefor never pass.
+	currentState := app.checkTxState
+
+	// Make sure the account exist - cant send from non-existing account.
 	if !currentState.Exist(from) {
 		return abciTypes.ErrBaseUnknownAddress.
 			AppendLog(core.ErrInvalidSender.Error())

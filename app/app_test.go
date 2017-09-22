@@ -46,8 +46,8 @@ func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *t
 
 	tearDown = func(t *testing.T) {
 		t.Log("Tearing down test case")
-		os.RemoveAll(temporaryDirectory)
 		node.Stop()
+		os.RemoveAll(temporaryDirectory)
 	}
 
 	return
@@ -61,15 +61,13 @@ func TestStrictlyIncrementingNonces(t *testing.T) {
 	defer teardownTestCase(t)
 
 	height := uint64(1)
-	nonceOne := uint64(0)
-	nonceTwo := uint64(1)
-	nonceThree := uint64(2)
 
-	tx1 := createTxBytes(t, privateKey, nonceOne,
+	// create txs with different nonces
+	tx1 := createTxBytes(t, privateKey, 0,
 		receiverAddress, amount, gasLimit, gasPrice, nil)
-	tx2 := createTxBytes(t, privateKey, nonceTwo,
+	tx2 := createTxBytes(t, privateKey, 1,
 		receiverAddress, amount, gasLimit, gasPrice, nil)
-	tx3 := createTxBytes(t, privateKey, nonceThree,
+	tx3 := createTxBytes(t, privateKey, 2,
 		receiverAddress, amount, gasLimit, gasPrice, nil)
 
 	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
