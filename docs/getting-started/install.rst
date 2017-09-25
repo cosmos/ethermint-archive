@@ -37,7 +37,7 @@ See the `tendermint website <https://tendermint.com/downloads>`__ to download th
 From Source
 -----------
 
-On all platforms, you'll need ``golang`` `installed <https://golang.org/doc/install>`__ installed. Then you can do:
+On all platforms, you'll need ``golang`` `installed <https://golang.org/doc/install>`__. Then you can do:
 
 ::
 

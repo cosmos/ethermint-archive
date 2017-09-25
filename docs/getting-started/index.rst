@@ -6,3 +6,4 @@ Getting Started
 
    install.rst
    getting-started.rst
+   using-mist.rst

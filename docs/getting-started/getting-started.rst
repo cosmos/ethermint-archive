@@ -6,7 +6,7 @@ Getting Started
 Running Ethermint requires both ``ethermint`` and ``tendermint`` installed. Review the installation instructions below:
 
 Setup Ethermint
-------------------
+---------------
 
 To get started, you need to initialise the genesis block for tendermint core and go-ethereum. We provide initialisation
 files with reasonable defaults and money allocated into a predefined account. If you installed from binary or docker
