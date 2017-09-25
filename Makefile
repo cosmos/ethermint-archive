@@ -18,6 +18,11 @@ build:
 		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
 		-o ./build/ethermint ./cmd/ethermint
 
+build_new:
+	@go build \
+		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
+		-o ./build/ethermint ./cmd/new_ethermint
+
 build_static:
 	@go build \
 		--ldflags "-extldflags '-static' -X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
