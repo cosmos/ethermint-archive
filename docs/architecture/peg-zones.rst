@@ -38,25 +38,24 @@ Components
 
 Ethereum Full Node
 ^^^^^^^^^^^^^^^^^^
-
-- sends notification to ethermint when an event is raised by a specified smart contract on ethereum
+- Sends notification to ethermint when an event is raised by a specified smart contract on ethereum
 
 Ethereum Smart Contract
 ^^^^^^^^^^^^^^^^^^^^^^^
 *Tendermint light client implemented in Solidity*
-- locks up ETH
-- triggers event upon receiving ETH
-- is a light client for tendermint and verifies the calls to its release function
+- Locks up ETH
+- Triggers event upon receiving ETH
+- Is a light client for tendermint and verifies the calls to its release function
 
 Ethermint Smart Contract
 ^^^^^^^^^^^^^^^^^^^^^^^^
-- burns CETH
-- triggers event upon receiving CETH
+- Burns CETH
+- Triggers event upon receiving CETH
 
 Ethermint
 ^^^^^^^^^
-- responds to notifications from ethereum full node by minting fresh CETH
-- sends transaction that invoke release function on ethereum
+- Responds to notifications from ethereum full node by minting fresh CETH
+- Sends transaction that invoke release function on ethereum
 
 Economic Incentive
 ------------------
@@ -76,5 +75,5 @@ Questions
 
 Invariants
 ----------
-- the amount of CETH in circulation is equal to the amount of ETH held by the smart contract on the Ethereum chain
+- The amount of CETH in circulation is equal to the amount of ETH held by the smart contract on the Ethereum chain
 

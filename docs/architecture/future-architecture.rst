@@ -100,10 +100,6 @@ Supported flags
 
 * all flags that Tendermint exposes
 
-
-**TODO: Define all remaining flags, such as ``--rpc``, ``--config``, etc.**
-
-
 Ethereum Developer Experience
 -----------------------------
 
@@ -171,9 +167,6 @@ Low Level Detail
 
 This section provides a package level description of the architecture. It, where applicable, also
 includes description of the actual APIs.
-
-**TODO: The details will be filled in as it is being developed.**
-
 
 cmd
 """
@@ -298,9 +291,6 @@ keep up with the state of the ethermint chain.
 We need to write a light-client package that unifies the tendermint and web3 connections and
 does the proving for you. It should expose a web3 RPC interface or C functions so that other
 languages can easily build on top of it.
-
-**TODO: Consult with Frey.**
-
 
 logging
 """""""

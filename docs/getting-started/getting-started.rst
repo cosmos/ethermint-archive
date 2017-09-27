@@ -24,8 +24,7 @@ these instructions.
 
         ethermint --datadir ~/.ethermint init
 
-* Note:
-You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
+* Note: You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
 
 ::
 
