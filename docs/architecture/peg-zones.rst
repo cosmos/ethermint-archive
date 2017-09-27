@@ -38,42 +38,50 @@ Components
 
 Ethereum Full Node
 ^^^^^^^^^^^^^^^^^^
-- Sends notification to ethermint when an event is raised by a specified smart contract on ethereum
+
+* Sends notification to ethermint when an event is raised by a specified smart contract on ethereum
 
 Ethereum Smart Contract
 ^^^^^^^^^^^^^^^^^^^^^^^
 *Tendermint light client implemented in Solidity*
-- Locks up ETH
-- Triggers event upon receiving ETH
-- Is a light client for tendermint and verifies the calls to its release function
+
+* Locks up ETH
+* Triggers event upon receiving ETH
+* Is a light client for tendermint and verifies the calls to its release function
 
 Ethermint Smart Contract
 ^^^^^^^^^^^^^^^^^^^^^^^^
-- Burns CETH
-- Triggers event upon receiving CETH
+
+* Burns CETH
+* Triggers event upon receiving CETH
 
 Ethermint
 ^^^^^^^^^
-- Responds to notifications from ethereum full node by minting fresh CETH
-- Sends transaction that invoke release function on ethereum
+
+* Responds to notifications from ethereum full node by minting fresh CETH
+* Sends transaction that invoke release function on ethereum
 
 Economic Incentive
 ------------------
-Ethermint can take a percentage of the CETH is a transaction fee.
-Ethermint can take a percentage of the ETH when releasing them.
+
+* Ethermint can take a percentage of the CETH is a transaction fee.
+* Ethermint can take a percentage of the ETH when releasing them.
 
 Questions
 ---------
-- How does a validator look that runs ethermint and basecoin at the same time?
-- Are the economic incentives good enough and can there be a market mechanism around establishing the correct percentage cut?
-- Is CETH used to pay for execution of the ethermint EVM?
-- What will happen if speculators attack the peg zone, because they believe that 1 CETH is not worth exactly 1 ETH?
-- Can there be a native currency on Ethermint that is not pegged against Ethereum?
-- What is the market mechanism behind the pricing of relaying a transaction?
-  - Maybe there is none and the fee is set as a percentage by the COSMOS validators
-- How will IBC work in relation to ethermint?
+
+* How does a validator look that runs ethermint and basecoin at the same time?
+* Are the economic incentives good enough and can there be a market mechanism around establishing the correct percentage cut?
+* Is CETH used to pay for execution of the ethermint EVM?
+* What will happen if speculators attack the peg zone, because they believe that 1 CETH is not worth exactly 1 ETH?
+* Can there be a native currency on Ethermint that is not pegged against Ethereum?
+* What is the market mechanism behind the pricing of relaying a transaction?
+
+        * Maybe there is none and the fee is set as a percentage by the COSMOS validators
+
+* How will IBC work in relation to ethermint?
 
 Invariants
 ----------
-- The amount of CETH in circulation is equal to the amount of ETH held by the smart contract on the Ethereum chain
 
+* The amount of CETH in circulation is equal to the amount of ETH held by the smart contract on the Ethereum chain
