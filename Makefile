@@ -68,7 +68,7 @@ test_race:
 test_integrations:
 	@bash ./tests/test.sh
 
-metalinter: ensure_tools
+metalinter: ensure_tools install
 	@gometalinter --install
 	gometalinter --vendor --deadline=600s --enable-all --disable=lll ./...
 
