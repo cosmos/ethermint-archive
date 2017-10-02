@@ -1,4 +1,4 @@
-package ethereum_test
+package ethereum
 
 import (
 	"flag"

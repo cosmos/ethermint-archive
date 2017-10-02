@@ -70,7 +70,7 @@ test_integrations:
 
 metalinter: ensure_tools install
 	@gometalinter --install
-	gometalinter --vendor --deadline=600s --enable-all --disable=lll ./...
+	gometalinter --vendor --deadline=1800s --enable-all --disable=lll ./...
 
 draw_deps:
 # requires brew install graphviz or apt-get install graphviz
