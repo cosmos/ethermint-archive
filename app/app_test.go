@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/tendermint/ethermint/ethereum"
-	"github.com/tendermint/ethermint/types"
 
 	abciTypes "github.com/tendermint/abci/types"
 )
@@ -28,7 +27,7 @@ var (
 )
 
 func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *testing.T),
-	app *EthermintApplication, backend *ethereum.Backend, mockClient *types.MockClient) {
+	app *EthermintApplication, backend *ethereum.Backend, mockClient *MockClient) {
 	t.Log("Setup test case")
 
 	// Setup the temporary directory for a test case
@@ -38,7 +37,7 @@ func setupTestCase(t *testing.T, addresses []common.Address) (tearDown func(t *t
 	}
 
 	// Setup the app and backend for a test case
-	mockClient = types.NewMockClient(false)
+	mockClient = NewMockClient()
 	node, backend, app, err := makeTestApp(temporaryDirectory, addresses, mockClient)
 	if err != nil {
 		t.Errorf("Error making test EthermintApplication: %v", err)

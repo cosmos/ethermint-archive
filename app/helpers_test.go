@@ -10,6 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tendermint/tmlibs/log"
+
+	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -21,14 +25,33 @@ import (
 
 	"github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/ethereum"
-	"github.com/tendermint/ethermint/types"
-
-	"github.com/tendermint/tmlibs/log"
 )
 
 var (
 	receiverAddress = common.StringToAddress("0x1234123412341234123412341234123412341234")
 )
+
+// implements: tendermint.rpc.client.HTTPClient
+type MockClient struct {
+	SentBroadcastTx chan struct{} // fires when we call broadcast_tx_sync
+}
+
+func NewMockClient() *MockClient { return &MockClient{make(chan struct{})} }
+
+func (mc *MockClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
+	_ = result
+	switch method {
+	case "status":
+		result = &ctypes.ResultStatus{}
+		return result, nil
+	case "broadcast_tx_sync":
+		close(mc.SentBroadcastTx)
+		result = &ctypes.ResultBroadcastTx{}
+		return result, nil
+	}
+
+	return nil, errors.New("Shouldn't happen.")
+}
 
 func generateKeyPair(t *testing.T) (*ecdsa.PrivateKey, common.Address) {
 	privateKey, err := crypto.GenerateKey()
@@ -78,7 +101,7 @@ func createTxBytes(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
 
 // mimics abciEthereumAction from cmd/ethermint/main.go
 func makeTestApp(tempDatadir string, addresses []common.Address,
-	mockClient *types.MockClient) (*node.Node, *ethereum.Backend, *EthermintApplication, error) {
+	mockClient *MockClient) (*node.Node, *ethereum.Backend, *EthermintApplication, error) {
 	stack, err := makeTestSystemNode(tempDatadir, addresses, mockClient)
 	if err != nil {
 		return nil, nil, nil, err
@@ -98,7 +121,7 @@ func makeTestApp(tempDatadir string, addresses []common.Address,
 
 // mimics MakeSystemNode from ethereum/node.go
 func makeTestSystemNode(tempDatadir string, addresses []common.Address,
-	mockClient *types.MockClient) (*node.Node, error) {
+	mockClient *MockClient) (*node.Node, error) {
 	// Configure the node's service container
 	nodeConf := utils.DefaultNodeConfig()
 	utils.SetEthermintNodeConfig(&nodeConf)

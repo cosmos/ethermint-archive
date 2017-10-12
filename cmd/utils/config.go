@@ -13,7 +13,7 @@ import (
 
 	"github.com/tendermint/ethermint/ethereum"
 
-	rpcClient "github.com/tendermint/tendermint/rpc/client"
+	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
 )
 
 const (
@@ -46,7 +46,7 @@ func MakeFullNode(ctx *cli.Context) *ethereum.Node {
 
 	tendermintLAddr := ctx.GlobalString(TendermintAddrFlag.Name)
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return ethereum.NewBackend(ctx, &cfg.Eth, rpcClient.NewHTTP(tendermintLAddr, "/websocket"))
+		return ethereum.NewBackend(ctx, &cfg.Eth, rpcClient.NewURIClient(tendermintLAddr))
 	}); err != nil {
 		ethUtils.Fatalf("Failed to register the ABCI application service: %v", err)
 	}
