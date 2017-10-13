@@ -46,7 +46,7 @@ test:
     - echo "$REPO" && ls "$REPO"
     - cd "$REPO" && make install
     - cd "$REPO" && make test_coverage
-    - cd "$REPO" && set -o pipefail && make test_integrations 2>&1 | tee test_integrations.log
+      # - cd "$REPO" && set -o pipefail && make test_integrations 2>&1 | tee test_integrations.log
    # should be uncommented when CI is more robust
    #- cd "$REPO" && make metalinter
 
