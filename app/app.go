@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -26,7 +25,9 @@ type EthermintApplication struct {
 	backend *ethereum.Backend // backend ethereum struct
 
 	// a closure to return the latest current state from the ethereum blockchain
-	currentState func() (*state.StateDB, error)
+	getCurrentState func() (*state.StateDB, error)
+
+	checkTxState *state.StateDB
 
 	// an ethereum rpc client we can forward queries to
 	rpcClient *rpc.Client
@@ -41,11 +42,18 @@ type EthermintApplication struct {
 // #stable - 0.4.0
 func NewEthermintApplication(backend *ethereum.Backend,
 	client *rpc.Client, strategy *emtTypes.Strategy) (*EthermintApplication, error) {
+
+	state, err := backend.Ethereum().BlockChain().State()
+	if err != nil {
+		return nil, err
+	}
+
 	app := &EthermintApplication{
-		backend:      backend,
-		rpcClient:    client,
-		currentState: backend.Ethereum().BlockChain().State,
-		strategy:     strategy,
+		backend:         backend,
+		rpcClient:       client,
+		getCurrentState: backend.Ethereum().BlockChain().State,
+		checkTxState:    state.Copy(),
+		strategy:        strategy,
 	}
 
 	if err := app.backend.ResetWork(app.Receiver()); err != nil {
@@ -62,6 +70,9 @@ func (app *EthermintApplication) SetLogger(log tmLog.Logger) {
 }
 
 var bigZero = big.NewInt(0)
+
+// maxTransactionSize is 32KB in order to prevent DOS attacks
+const maxTransactionSize = 32768
 
 // Info returns information about the last height and app_hash to the tendermint engine
 // #stable - 0.4.0
@@ -109,11 +120,11 @@ func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
 // #stable - 0.4.0
 func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
-	app.logger.Debug("CheckTx: Received valid transaction", "tx", tx) // nolint: errcheck
 	if err != nil {
 		app.logger.Debug("CheckTx: Received invalid transaction", "tx", tx) // nolint: errcheck
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
+	app.logger.Debug("CheckTx: Received valid transaction", "tx", tx) // nolint: errcheck
 
 	return app.validateTx(tx)
 }
@@ -164,6 +175,13 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 		app.logger.Error("Error getting latest ethereum state", "err", err) // nolint: errcheck
 		return abciTypes.ErrInternalError.AppendLog(err.Error())
 	}
+	state, err := app.getCurrentState()
+	if err != nil {
+		app.logger.Error("Error getting latest state", "err", err) // nolint: errcheck
+		return abciTypes.ErrInternalError.AppendLog(err.Error())
+	}
+
+	app.checkTxState = state.Copy()
 	return abciTypes.NewResultOK(blockHash[:], "")
 }
 
@@ -191,9 +209,11 @@ func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.R
 // validateTx checks the validity of a tx against the blockchain's current state.
 // it duplicates the logic in ethereum's tx_pool
 func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.Result {
-	currentState, err := app.currentState()
-	if err != nil {
-		return abciTypes.ErrInternalError.AppendLog(err.Error())
+
+	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
+	if tx.Size() > maxTransactionSize {
+		return abciTypes.ErrInternalError.
+			AppendLog(core.ErrOversizedData.Error())
 	}
 
 	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
@@ -201,38 +221,40 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 		signer = ethTypes.NewEIP155Signer(tx.ChainId())
 	}
 
+	// Make sure the transaction is signed properly
 	from, err := ethTypes.Sender(signer, tx)
 	if err != nil {
 		return abciTypes.ErrBaseInvalidSignature.
 			AppendLog(core.ErrInvalidSender.Error())
 	}
 
-	// Make sure the account exist. Non existent accounts
-	// haven't got funds and well therefor never pass.
+	// Transactions can't be negative. This may never happen using RLP decoded
+	// transactions but may occur if you create a transaction using the RPC.
+	if tx.Value().Sign() < 0 {
+		return abciTypes.ErrBaseInvalidInput.
+			AppendLog(core.ErrNegativeValue.Error())
+	}
+
+	currentState := app.checkTxState
+
+	// Make sure the account exist - cant send from non-existing account.
 	if !currentState.Exist(from) {
 		return abciTypes.ErrBaseUnknownAddress.
 			AppendLog(core.ErrInvalidSender.Error())
 	}
 
-	// Check for nonce errors
-	currentNonce := currentState.GetNonce(from)
-	if currentNonce > tx.Nonce() {
-		return abciTypes.ErrBadNonce.
-			AppendLog(fmt.Sprintf("Got: %d, Current: %d", tx.Nonce(), currentNonce))
-	}
-
 	// Check the transaction doesn't exceed the current block limit gas.
 	gasLimit := app.backend.GasLimit()
 	if gasLimit.Cmp(tx.Gas()) < 0 {
-		return abciTypes.ErrInternalError.AppendLog(core.ErrGasLimitReached.Error())
+		return abciTypes.ErrInternalError.
+			AppendLog(core.ErrGasLimitReached.Error())
 	}
 
-	// Transactions can't be negative. This may never happen
-	// using RLP decoded transactions but may occur if you create
-	// a transaction using the RPC for example.
-	if tx.Value().Cmp(common.Big0) < 0 {
-		return abciTypes.ErrBaseInvalidInput.
-			SetLog(core.ErrNegativeValue.Error())
+	// Check if nonce is not strictly increasing
+	nonce := currentState.GetNonce(from)
+	if nonce != tx.Nonce() {
+		return abciTypes.ErrBadNonce.
+			AppendLog(fmt.Sprintf("Nonce is not strictly increasing. Expected: %d; Got: %d", nonce, tx.Nonce()))
 	}
 
 	// Transactor should have enough funds to cover the costs
@@ -241,14 +263,23 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	if currentBalance.Cmp(tx.Cost()) < 0 {
 		return abciTypes.ErrInsufficientFunds.
 			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s", currentBalance, tx.Cost()))
-
 	}
 
 	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true) // homestead == true
 	if tx.Gas().Cmp(intrGas) < 0 {
 		return abciTypes.ErrBaseInsufficientFees.
-			SetLog(core.ErrIntrinsicGas.Error())
+			AppendLog(core.ErrIntrinsicGas.Error())
 	}
+
+	// Update ether balances
+	// amount + gasprice * gaslimit
+	currentState.SubBalance(from, tx.Cost())
+	// tx.To() returns a pointer to a common address. It returns nil
+	// if it is a contract creation transaction.
+	if to := tx.To(); to != nil {
+		currentState.AddBalance(*to, tx.Value())
+	}
+	currentState.SetNonce(from, tx.Nonce()+1)
 
 	return abciTypes.OK
 }
