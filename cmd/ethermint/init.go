@@ -18,7 +18,7 @@ import (
 	emtUtils "github.com/tendermint/ethermint/cmd/utils"
 )
 
-// nolint: vetshadow
+// nolint: gocyclo
 func initCmd(ctx *cli.Context) error {
 	genesisPath := ctx.Args().First()
 	genesis, err := emtUtils.ParseGenesisOrDefault(genesisPath)
@@ -35,7 +35,8 @@ func initCmd(ctx *cli.Context) error {
 	if canInvokeTendermintInit {
 		tendermintHome := filepath.Join(ethermintDataDir, "tendermint")
 		tendermintArgs := []string{"init", "--home", tendermintHome}
-		if _, err := invokeTendermint(tendermintArgs...); err != nil {
+		_, err = invokeTendermint(tendermintArgs...)
+		if err != nil {
 			ethUtils.Fatalf("tendermint init error: %v", err)
 		}
 		log.Info("successfully invoked `tendermint`", "args", tendermintArgs)
@@ -72,7 +73,9 @@ func initCmd(ctx *cli.Context) error {
 		if _, err := f.Write([]byte(content)); err != nil {
 			log.Error("write content %q err: %v", storeFileName, err)
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -96,20 +99,22 @@ var keystoreFilesMap = map[string]string{
 `,
 }
 
+// nolint: unparam
 func invokeTendermintNoTimeout(args ...string) ([]byte, error) {
-	return __invokeTendermint(context.TODO(), args...)
+	return _invokeTendermint(context.TODO(), args...)
 }
 
-func __invokeTendermint(ctx context.Context, args ...string) ([]byte, error) {
+func _invokeTendermint(ctx context.Context, args ...string) ([]byte, error) {
 	log.Info("Invoking `tendermint`", "args", args)
 	cmd := exec.CommandContext(ctx, "tendermint", args...)
 	return cmd.CombinedOutput()
 }
 
+// nolint: unparam
 func invokeTendermint(args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return __invokeTendermint(ctx, args...)
+	return _invokeTendermint(ctx, args...)
 }
 
 func canInvokeTendermint(ctx *cli.Context) bool {

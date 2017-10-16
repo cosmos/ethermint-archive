@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 )
 
-var defaultGenesis *core.Genesis = func() *core.Genesis {
+var defaultGenesis = func() *core.Genesis {
 	g := new(core.Genesis)
 	if err := json.Unmarshal(defaultGenesisBlob, g); err != nil {
 		log.Fatalf("parsing defaultGenesis: %v", err)
@@ -22,7 +22,7 @@ var defaultGenesis *core.Genesis = func() *core.Genesis {
 	return g
 }()
 
-func bigString(s string) *big.Int {
+func bigString(s string) *big.Int { // nolint: unparam
 	b, _ := big.NewInt(0).SetString(s, 10)
 	return b
 }
