@@ -55,7 +55,7 @@ var (
 		Value: GenesisTargetGasLimit.Uint64(),
 	}
 
-	// WithTendermint flag asks to start Tendermint
+	// WithTendermintFlag asks to start Tendermint
 	// `tendermint init` and `tendermint node` when `ethermint init`
 	// and `ethermint` are invoked respectively.
 	WithTendermintFlag = cli.BoolFlag{
