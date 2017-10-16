@@ -37,7 +37,7 @@ type Backend struct {
 	// pending ...
 	pending *pending
 
-	// client for forwarding txs to tendermint
+	// client for forwarding txs to Tendermint
 	client rpcClient.HTTPClient
 }
 
