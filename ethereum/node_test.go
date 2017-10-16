@@ -1,4 +1,4 @@
-package ethereum_test
+package ethereum
 
 import (
 	"flag"
@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/node"
-
-	"github.com/tendermint/ethermint/ethereum"
 )
 
 var dummyApp = &cli.App{
@@ -28,7 +26,7 @@ func TestNewNodeConfig(t *testing.T) {
 		assert.Nil(t, err, "expecting no panics")
 	}()
 
-	ncfg := ethereum.NewNodeConfig(dummyContext)
+	ncfg := NewNodeConfig(dummyContext)
 	assert.NotNil(t, ncfg, "expecting a non-nil config")
 }
 
@@ -38,7 +36,7 @@ func TestNewEthConfig(t *testing.T) {
 		assert.Nil(t, err, "expecting no panics")
 	}()
 
-	ecfg := ethereum.NewEthConfig(dummyContext, dummyNode)
+	ecfg := NewEthConfig(dummyContext, dummyNode)
 	assert.NotNil(t, ecfg, "expecting a non-nil config")
 }
 
@@ -46,7 +44,7 @@ func TestEnsureDisabledEthereumP2PStack(t *testing.T) {
 	cfg := new(node.Config)
 	*cfg = node.DefaultConfig
 	cfg.P2P.ListenAddr = ":34555"
-	node, err := ethereum.New(cfg)
+	node, err := New(cfg)
 	if err != nil {
 		t.Fatalf("cannot initialise new node from config: %v", err)
 	}
