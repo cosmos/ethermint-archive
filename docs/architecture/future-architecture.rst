@@ -31,13 +31,11 @@ Goals
 
 *NOTE: Ethermint supports a superset of Web3, since we are extending it with methods for IBC.*
 
-
 Implementation Process
 ----------------------
 
 This is not a rewrite from scratch. It is designed to be a second version that fixes some issues from the
-past. The current estimate is that it will take 2 developers working on it full-time 6 weeks. A lot of the
-ideas and current code can be used and packages will be replaces one by one.
+past. A lot of the ideas and current code can be used and packages will be replaced one by one.
 
 1. Implement the new CLI and logging in order to provide a similar experience as Tendermint.
 
@@ -55,8 +53,6 @@ ideas and current code can be used and packages will be replaces one by one.
 The reason that we live ethereum towards the middle is that we cannot change the ethereum object without
 having the previous packages.
 
-
-
 User Experience
 ---------------
 
@@ -64,26 +60,27 @@ The first entry point is installing ethermint. This is as easy as ``brew install
 installs the binaries for ethermint and tendermint in one step. Other platforms and package
 managers such as apt-get or choco are also supported.
 
-
 Supported commands
 ^^^^^^^^^^^^^^^^^^
 
 * ``ethermint version`` - prints the version of ethermint and tendermint and is used to verify the installation
 
 * ``ethermint`` - initialises and runs ethermint and tendermint. It is used to connect to the live ethermint network.
+
   * the initialisation files are included in the binary
   * a reasonable home directory is assumed
   * flags can be used to configure options such as RPC
 
 * ``ethermint testnet`` - initialises and runs ethermint and tendermint. It is used to connect to the test ethermint network.
+
   * the bullet points from above apply
   * flags can be used to configure which testnet to connect to
 
 * ``ethermint development`` - initialises and runs ethermint and tendermint. It is used to setup a local network.
+
   * the bullet points from above apply
   * private keys are included for the default account
   * flags can be used to work with multiple local networks
-
 
 Supported flags
 ^^^^^^^^^^^^^^^
@@ -100,10 +97,6 @@ Supported flags
 
 * all flags that Tendermint exposes
 
-
-**TODO: Define all remaining flags, such as ``--rpc``, ``--config``, etc.**
-
-
 Ethereum Developer Experience
 -----------------------------
 
@@ -112,7 +105,6 @@ needs. Switching between the two platform is as easy as changing one RPC endpoin
 modern Ethereum tooling such as Truffle as well as all UIs such as Mist.
 
 A developer has access to a superset of Web3. Our implementation also offers the ability to use IBC.
-
 
 Go Developer Experience
 -----------------------
@@ -129,7 +121,6 @@ Every public API will have properly formatted ``godocs`` which enable new develo
 Ethermint as a library.
 
 The documentation contains a subsection for developers that are using Ethermint as a library in Go.
-
 
 Architecture Design
 -------------------
@@ -152,19 +143,20 @@ We start by describing the high level packages that Ethermint has. The all live 
 * ethermint - the highest level package. It implements ABCI, coordinates the starting and shutting down of a node and wires together all the independent components.
 
 * rpc - contains all RPC endpoints. It re-exposes a lot of the go-ethereum RPC endpoints, but also adds our own whenever necessary, such as for syncing. It does not have some endpoints such as mining but also adds new ones for IBC.
-  * heavily leans on ``github.com/ethereum/go-ethereum/rpc``
 
-* account - provides key management and key storage. It also provides the code to use harware wallets.
+  * leans heavily on ``github.com/ethereum/go-ethereum/rpc``
+
+* account - provides key management and key storage. It also provides the code to use hardware wallets.
 
 * reward - implements different types of strategies to reward validators.
 
 * ibc - provides the functionality to handle IBC packets.
 
 * light - bundles all functionality (also by re-exporting) to write secure ethermint light clients for mobile phones
+
   * exposes a C API in order to be as language agnostic as possible
 
 * logging - unifies the logging for go-ethereum and tendermint.
-
 
 Low Level Detail
 ^^^^^^^^^^^^^^^^
@@ -172,22 +164,17 @@ Low Level Detail
 This section provides a package level description of the architecture. It, where applicable, also
 includes description of the actual APIs.
 
-**TODO: The details will be filled in as it is being developed.**
-
-
 cmd
 """
 
 The cmd package does not define new types, functions or methods. It is a user of the ethermint library.
 It integrates all other packages into a coherent application.
 
-
 cli
 """
 
 The cli package holds all the commands and flags. It allows a developer to create a new cli without
 having to write his own flags. It exposes the features described above.
-
 
 ethermint
 """""""""
@@ -205,9 +192,10 @@ an ethereum object which handles state management and execution. Lastly, it inst
 object which handles private keys either on disk or on an HSM.
 
 Ethermint:
+
 * Logger
 * Reward
-* Ibc
+* IBC
 
 * rpcServer - serves the web3 rpc server, depends on the config options
 * rpcClient - sends transaction that where created over web3 to tendermint
@@ -217,7 +205,6 @@ Ethermint:
 To start an ethermint instance Start() has to be called. This in turn starts all other goroutines,
 such as for the rpcServer, the rpcClient and the account.
 
-
 ethereum
 """"""""
 
@@ -225,6 +212,7 @@ The ethereum package resides in the internal package. It is responsible for all 
 execution.
 
 Ethereum:
+
 * state for persistence and actual state
 * checkState for ephemeral state
 * logger
@@ -233,13 +221,12 @@ Ethereum:
 The ethereum object is responsible for validating ethereum transactions and running them against a state.
 All VM, state and state transition logic is imported from go-ethereum. It handles tendermint messages
 such as BeginBlock and EndBlock. An important function is be able to respond to Commit.
-Ideally, ethereum should not build its own blockchain but should rather just provide a databse layer and
+Ideally, ethereum should not build its own blockchain but should rather just provide a database layer and
 leave the blockchain to tendermint. However it seems that in the current implementation of go-ethereum
 the state is tightly coupled to it being a blockchain state. This logic is not too different from
 what we currently have.
 
 The ethereum object implements ``BaseService`` and can be started and stopped properly.
-
 
 rpc
 """
@@ -254,14 +241,12 @@ It takes a reference to an ethereum object in order to answer questions about th
 It takes a reference to a rpcClient object in order to proxy ethereum transaction to Tendermint core.
 It takes a reference to an account object in order to provide functionality related to accounts.
 
-
 account
 """""""
 
 Accounts wraps a go-ethereum account manager and provides that functionality. Accounts cannot be unlocked
 by default when starting ethermint as that is a security risk. They have to be unlocked through some GUI.
 It stores the keys the same way that go-ethereum deals with it inside the ethermint directory.
-
 
 reward
 """"""
@@ -270,12 +255,10 @@ The reward strategy defines how to distribute rewards. It holds the address that
 rewards (``coinbase``) and decides how much and when that address should be rewarded. It is passed in by
 the user of the library.
 
-
 ibc
 """
 
-See :ref:`inter-blockchain-communication` for details on IBC.
-
+See `inter-blockchain-communication <./inter-blockchain-communication.html>`__ for details on IBC.
 
 light
 """""
@@ -290,7 +273,7 @@ It checks that the block is validly signed by a majority of the current validato
 that the information it received from web3 is valid as well and is backed by the app_hash that is
 within the tendermint block.
 
-This way we developers can write fully secure ethermint wallets that build on top of our RPC
+This way developers can write fully secure ethermint wallets that build on top of our RPC
 package so that it offers exactly the same web3 endpoints that they would normally work with.
 For example, you can write a phone wallet, which uses our light client package to securely
 keep up with the state of the ethermint chain.
@@ -299,14 +282,10 @@ We need to write a light-client package that unifies the tendermint and web3 con
 does the proving for you. It should expose a web3 RPC interface or C functions so that other
 languages can easily build on top of it.
 
-**TODO: Consult with Frey.**
-
-
 logging
 """""""
 
 Implemented like the current logging package.
-
 
 Tests
 ^^^^^
@@ -324,9 +303,7 @@ as expected.
 Integration tests for all RPC endpoints are run against a live network that is setup with docker
 containers.
 
-
 Dependencies
 ^^^^^^^^^^^^
 
 Dependencies are well encapsulated and do not span multiple packages.
-
