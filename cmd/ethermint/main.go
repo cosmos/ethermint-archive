@@ -7,6 +7,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/tendermint/ethermint/cmd/utils"
 	"github.com/tendermint/ethermint/version"
@@ -58,6 +59,7 @@ var (
 		utils.ABCIProtocolFlag,
 		utils.VerbosityFlag,
 		utils.ConfigFileFlag,
+		utils.WithTendermintFlag,
 	}
 )
 
@@ -77,6 +79,11 @@ func init() {
 			Usage:       "",
 			Description: "Print the version",
 		},
+		{
+			Action: resetCmd,
+			Name:   "unsafe_reset_all",
+			Usage:  "(unsafe) Remove ethermint database",
+		},
 	}
 
 	app.Flags = append(app.Flags, nodeFlags...)
@@ -95,7 +102,8 @@ func init() {
 }
 
 func versionCmd(ctx *cli.Context) error {
-	fmt.Println(version.Version)
+	fmt.Println("ethermint: ", version.Version)
+	fmt.Println("go-ethereum: ", params.Version)
 	return nil
 }
 

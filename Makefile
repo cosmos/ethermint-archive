@@ -1,7 +1,6 @@
 GOTOOLS = \
 					github.com/karalabe/xgo \
 					github.com/Masterminds/glide \
-					honnef.co/go/tools/cmd/megacheck \
 					github.com/alecthomas/gometalinter
 PACKAGES=$(shell go list ./... | grep -v '/vendor/')
 BUILD_TAGS?=ethermint
@@ -49,6 +48,7 @@ docker_push:
 
 clean:
 	@rm -rf build/
+	@rm -rf ethstats/
 
 publish:
 	@sh -c "'$(CURDIR)/scripts/publish.sh'"
@@ -57,16 +57,20 @@ test:
 	@echo "--> Running go test"
 	@go test $(PACKAGES)
 
+test_coverage:
+	@echo "--> Running go test with coverage"
+	@bash ./tests/scripts/test_coverage.sh
+
 test_race:
 	@echo "--> Running go test --race"
 	@go test -race $(PACKAGES)
 
-megacheck: ensure_tools
-	@for pkg in ${PACKAGES}; do megacheck "$$pkg"; done
+test_integrations:
+	@bash ./tests/test.sh
 
-metalinter: ensure_tools
+metalinter: ensure_tools install
 	@gometalinter --install
-	gometalinter --vendor --deadline=600s --enable-all --disable=lll ./...
+	gometalinter --vendor --disable-all --enable=unused ./...
 
 draw_deps:
 # requires brew install graphviz or apt-get install graphviz
@@ -96,4 +100,20 @@ tools:
 ensure_tools:
 	go get $(GOTOOLS)
 
-.PHONY: all install build build_race dist test test_race draw_deps list_deps get_deps get_vendor_deps tools ensure_tools docker_build docker_build_develop docker_push docker_push_develop
+ethstats:
+	@git clone https://github.com/tendermint/eth-net-intelligence-api $(CURDIR)/ethstats
+
+ethstats_setup: ethstats
+	@cd $(CURDIR)/ethstats && npm install && node scripts/configure.js
+
+ethstats_start:
+	@cd $(CURDIR)/ethstats && pm2 start ./app.json
+
+ethstats_stop:
+	@cd $(CURDIR)/ethstats && pm2 stop ./app.json
+
+.PHONY: all install build build_race dist \
+	test test_racetest_integrations \
+	draw_deps list_deps get_deps get_vendor_deps tools ensure_tools \
+	docker_build docker_build_develop docker_push docker_push_develop \
+	ethstats_setup ethstats_run ethstats_stop
