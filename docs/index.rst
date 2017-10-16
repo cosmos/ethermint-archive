@@ -12,13 +12,38 @@ Ethermint
    :align: center
 
 
-Contents
+Introduction
+============
+
+.. toctree::
+   :maxdepth: 2
+
+   introduction/what-is-ethermint.rst
+
+Getting Started
+===============
+
+.. toctree::
+   :maxdepth: 2
+
+   getting-started/install.rst
+   getting-started/getting-started.rst
+   getting-started/using-mist.rst
+
+Testnets
 ========
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
-   introduction/index.rst
-   getting-started/index.rst
-   testnets/index.rst
-   architecture/index.rst
+   testnets/venus.rst
+
+Architecture
+============
+
+.. toctree::
+   :maxdepth: 2
+
+   architecture/future-architecture.rst
+   architecture/inter-blockchain-communication.rst
+   architecture/peg-zones.rst
