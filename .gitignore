@@ -11,7 +11,7 @@ dist/
 scripts/kubernetes/ethermint.yaml
 ethstats/
 coverage.txt
-
+tests/integration/truffle/build
 ethstats/
 coverage.txt
 tests/tendermint_data/**/*.bak
