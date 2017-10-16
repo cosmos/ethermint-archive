@@ -16,6 +16,8 @@
 * no networking is started by the ethereum node
 * performance optimisation
 * doc updates
+* block state in calls for checkTx
+  * allows multiple transactions from the same account
 
 ## 0.4.0
 ### Breaking
