@@ -21,7 +21,7 @@ cd "$DIR"
 DIST_DIR="build/dist"
 
 # copy to s3
-aws s3 cp --recursive ${DIST_DIR} s3://ethermint/${VERSION} --acl public-read --exclude "*" --include "*.zip"
-aws s3 cp ${DIST_DIR}/ethermint_${VERSION}_SHA256SUMS s3://ethermint/${VERSION}/${VERSION}_SHA256SUMS --acl public-read
+aws --profile tendermint s3 cp --recursive ${DIST_DIR} s3://tendermint/binaries/ethermint/${VERSION} --acl public-read --exclude "*" --include "*.zip"
+aws --profile tendermint s3 cp ${DIST_DIR}/ethermint_${VERSION}_SHA256SUMS s3://tendermint/binaries/ethermint/${VERSION}/${VERSION}_SHA256SUMS --acl public-read
 
 exit 0
