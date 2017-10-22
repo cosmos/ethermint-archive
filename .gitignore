@@ -1,21 +1,33 @@
 ### Custom ###
-cmd/ethermint/ethermint
+# Allow developers to maintain a local todo file
+TODO.md
+
+# RTD/Sphinx
 docs/_build
+
+# glide
+vendor/
+
+# Build artifacts
+build/
+dist/
+
+# CI/CD
+coverage.txt
+
+# Test artifacts
+tests/integration/truffle/build
+tests/tendermint_data/**/*.bak
+tests/tendermint_data/**/*.toml
+scripts/kubernetes/ethermint.yaml
+
+# Unsorted
 data
 dev/data
 *.swp
 *.swo
-vendor/
-build/
-dist/
-scripts/kubernetes/ethermint.yaml
 ethstats/
-coverage.txt
-tests/integration/truffle/build
-ethstats/
-coverage.txt
-tests/tendermint_data/**/*.bak
-tests/tendermint_data/**/*.toml
+
 
 ### Go ###
 # Binaries for programs and plugins
