@@ -7,11 +7,11 @@ const Major = 0
 const Minor = 5
 
 // Fix version component of the current release
-const Fix = 2
+const Fix = 3
 
 var (
 	// Version is the full version string
-	Version = "0.5.2"
+	Version = "0.5.3"
 
 	// GitCommit is set with --ldflags "-X main.gitCommit=$(git rev-parse HEAD)"
 	GitCommit string
