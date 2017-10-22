@@ -36,6 +36,8 @@ var (
 		utils.TargetGasLimitFlag,
 		// Gas Price
 		ethUtils.GasPriceFlag,
+		// Network ID
+		ethUtils.NetworkIdFlag
 	}
 
 	rpcFlags = []cli.Flag{
