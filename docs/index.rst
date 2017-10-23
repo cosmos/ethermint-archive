@@ -7,8 +7,8 @@ Ethermint
 =========
 
 .. image:: assets/ethermint-logo.png
-   :height: 500px
-   :width: 500px
+   :height: 200px
+   :width: 200px
    :align: center
 
 

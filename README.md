@@ -1,18 +1,19 @@
-# [Ethermint](https://github.com/tendermint/ethermint)
+# [Ethermint](https://ethermint.network)
+
 ### Ethereum powered by Tendermint consensus
 
-### [Download the latest release](https://github.com/tendermint/ethermint/releases/tag/v0.2.2)
+### [Download the latest release](https://github.com/tendermint/ethermint/releases/latest)
 
 [![GitHub release](https://img.shields.io/badge/release-latest-blue.svg)]() [![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=develop)](https://travis-ci.org/tendermint/ethermint) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8.3-blue.svg)](https://github.com/moovweb/gvm) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=latest)](http://ethermint.readthedocs.io/en/latest/?badge=latest)
 
 ### Join the chat!
-[![Rocket.Chat](https://demo.rocket.chat/images/join-chat.svg)](https://cosmos.rocket.chat/)
+[riot.im](https://riot.im/app/#/room/#cosmos:matrix.org)
 
 We have a friendly community of like-minded people which are always eager to help someone in need of advice or just
 looking for casual banter.
 
 ### Code of Conduct
-Please read, understand and adhere to our [code of conduct](https://github.com/tendermint/ethermint/blob/develop/CODE_OF_CONDUCT.md).
+Please read, understand and adhere to our [code of conduct](CODE_OF_CONDUCT.md).
 
 ### Documentation
 We are using `godoc` for our documentation. In order to browse the interactive documentation,
@@ -46,16 +47,14 @@ The way it's built makes it easy to use existing Ethereum tools (geth attach, we
 ### Binary Distribution
 This installation involves the downloading of the binaries and subsequently moving them into your $PATH.
 
-Download the [binaries](https://github.com/tendermint/ethermint/releases/tag/v0.2.2) for your platform on the release page. Open a terminal window and switch into the folder that you downloaded ethermint to.
+Download the [binaries](https://github.com/tendermint/ethermint/releases/latest) for your platform on the release page. Open a terminal window and switch into the folder that you downloaded ethermint to.
 
 ```bash
 unzip -d /usr/local/bin ${the name of the ethermint binary}.zip 
 ```
 
 ### Docker
-We are currently building docker images for both [ethermint](https://hub.docker.com/r/adrianbrink/ethermint/) and [tendermint](https://hub.docker.com/r/adrianbrink/tendermint/). There are images for versioned releases, builds of master and builds of develop.
-
-// TODO: Add example of how to get a node up and running using docker
+We are currently building docker images for both [ethermint](https://hub.docker.com/r/tendermint/ethermint/) and [tendermint](https://hub.docker.com/tendermint/tendermint/). There are images for versioned releases, builds of master and builds of develop.
 
 ### Source
 Ethermint builds with go1.8.3 and hence go1.8.3 needs to be installed. In order to manage your go installation we recommend [GVM](https://github.com/moovweb/gvm).
@@ -166,8 +165,7 @@ geth attach http://localhost:8545
 This will drop you into a web3 console.
 
 ### Mist
-The mist tooling requires more setup, so be sure to read the explanations on the project site. Of course, you are 
-welcome to ask for help in our [slack channel](https://img.shields.io/badge/slack-join%20chat-brightgreen.sv).
+The mist tooling requires more setup, so be sure to read the explanations on the project site.
 ```bash
 meteor --no-release-check
 
