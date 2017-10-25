@@ -27,6 +27,7 @@ dev/data
 *.swp
 *.swo
 ethstats/
+dependency-graph.png
 
 
 ### Go ###
