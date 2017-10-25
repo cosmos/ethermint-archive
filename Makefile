@@ -41,6 +41,7 @@ linter:
 	gometalinter --install
 	gometalinter --vendor --tests --deadline=120s --disable-all \
 		--enable=unused \
+		--enable=lll --line-length=100 \
 		./...
 
 clean:

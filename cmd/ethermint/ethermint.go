@@ -15,13 +15,13 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 
-	abciApp "github.com/tendermint/ethermint/app"
-	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-	"github.com/tendermint/ethermint/ethereum"
-
 	"github.com/tendermint/abci/server"
 
 	cmn "github.com/tendermint/tmlibs/common"
+
+	abciApp "github.com/tendermint/ethermint/app"
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
+	"github.com/tendermint/ethermint/ethereum"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
@@ -42,11 +42,13 @@ func ethermintCmd(ctx *cli.Context) error {
 				// `tendermint node` might have already been invoked.
 				log.Info("tendermint init", "error", err)
 			} else {
-				log.Info("Successfully invoked `tendermint node`", "args", tendermintArgs)
+				log.Info("Successfully invoked `tendermint node`", "args",
+					tendermintArgs)
 			}
 		}()
 		pauseDuration := 3 * time.Second
-		log.Info(fmt.Sprintf("Invoked `tendermint node` sleeping for %s", pauseDuration), "args", tendermintArgs)
+		log.Info(fmt.Sprintf("Invoked `tendermint node` sleeping for %s", pauseDuration),
+			"args", tendermintArgs)
 		time.Sleep(pauseDuration)
 	}
 
@@ -134,10 +136,13 @@ func startNode(ctx *cli.Context, stack *ethereum.Node) {
 		for event := range events {
 			if event.Arrive {
 				if err := event.Wallet.Open(""); err != nil {
-					log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
+					log.Warn("New wallet appeared, failed to open", "url",
+						event.Wallet.URL(), "err", err)
 				} else {
-					log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", event.Wallet.Status())
-					event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+					log.Info("New wallet appeared", "url", event.Wallet.URL(),
+						"status", event.Wallet.Status())
+					event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath,
+						stateReader)
 				}
 			} else {
 				log.Info("Old wallet dropped", "url", event.Wallet.URL())
@@ -149,7 +154,9 @@ func startNode(ctx *cli.Context, stack *ethereum.Node) {
 
 // tries unlocking the specified account a few times.
 // nolint: unparam
-func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int, passwords []string) (accounts.Account, string) {
+func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int,
+	passwords []string) (accounts.Account, string) {
+
 	account, err := ethUtils.MakeAddress(ks, address)
 	if err != nil {
 		ethUtils.Fatalf("Could not list accounts: %v", err)
@@ -208,7 +215,9 @@ func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) 
 	return password
 }
 
-func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrError, auth string) accounts.Account {
+func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrError,
+	auth string) accounts.Account {
+
 	fmt.Printf("Multiple key files exist for address %x:\n", err.Addr)
 	for _, a := range err.Matches {
 		fmt.Println("  ", a.URL)
@@ -225,7 +234,7 @@ func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrErr
 		ethUtils.Fatalf("None of the listed files could be unlocked.")
 	}
 	fmt.Printf("Your passphrase unlocked %s\n", match.URL)
-	fmt.Println("In order to avoid this warning, you need to remove the following duplicate key files:")
+	fmt.Println("In order to avoid this warning, remove the following duplicate key files:")
 	for _, a := range err.Matches {
 		if a != *match {
 			fmt.Println("  ", a.URL)
