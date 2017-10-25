@@ -13,11 +13,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	emtTypes "github.com/tendermint/ethermint/types"
-
 	abciTypes "github.com/tendermint/abci/types"
 
 	rpcClient "github.com/tendermint/tendermint/rpc/lib/client"
+
+	emtTypes "github.com/tendermint/ethermint/types"
 )
 
 //----------------------------------------------------------------------
@@ -43,7 +43,8 @@ type Backend struct {
 
 // NewBackend creates a new Backend
 // #stable - 0.4.0
-func NewBackend(ctx *node.ServiceContext, config *eth.Config, client rpcClient.HTTPClient) (*Backend, error) {
+func NewBackend(ctx *node.ServiceContext, config *eth.Config,
+	client rpcClient.HTTPClient) (*Backend, error) {
 	p := newPending()
 
 	// eth.New takes a ServiceContext for the EventMux, the AccountManager,
@@ -86,8 +87,9 @@ func (b *Backend) Config() *eth.Config {
 
 // DeliverTx appends a transaction to the current block
 // #stable
-func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
-	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, b.ethereum.ApiBackend.ChainConfig(), tx)
+func (b *Backend) DeliverTx(tx *ethTypes.Transaction) abciTypes.Result {
+	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config,
+		b.ethereum.ApiBackend.ChainConfig(), tx)
 }
 
 // AccumulateRewards accumulates the rewards based on the given strategy
@@ -113,7 +115,8 @@ func (b *Backend) ResetWork(receiver common.Address) error {
 // UpdateHeaderWithTimeInfo uses the tendermint header to update the ethereum header
 // #unstable
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
-	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time, tmHeader.GetNumTxs())
+	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time,
+		tmHeader.GetNumTxs())
 }
 
 // GasLimit returns the maximum gas per block
@@ -182,6 +185,7 @@ func (NullBlockProcessor) ValidateBody(*ethTypes.Block) error { return nil }
 
 // ValidateState does not validate anything
 // #unstable
-func (NullBlockProcessor) ValidateState(block, parent *ethTypes.Block, state *state.StateDB, receipts ethTypes.Receipts, usedGas *big.Int) error {
+func (NullBlockProcessor) ValidateState(block, parent *ethTypes.Block, state *state.StateDB,
+	receipts ethTypes.Receipts, usedGas *big.Int) error {
 	return nil
 }
