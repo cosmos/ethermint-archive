@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"gopkg.in/urfave/cli.v1"
 
@@ -13,21 +14,43 @@ import (
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-
-	abciApp "github.com/tendermint/ethermint/app"
-	emtUtils "github.com/tendermint/ethermint/cmd/utils"
-	"github.com/tendermint/ethermint/ethereum"
 
 	"github.com/tendermint/abci/server"
 
 	cmn "github.com/tendermint/tmlibs/common"
+
+	abciApp "github.com/tendermint/ethermint/app"
+	emtUtils "github.com/tendermint/ethermint/cmd/utils"
+	"github.com/tendermint/ethermint/ethereum"
 )
 
 func ethermintCmd(ctx *cli.Context) error {
-	// Setup the go-ethereum node and start it
+	// Step 1: Setup the go-ethereum node and start it
 	node := emtUtils.MakeFullNode(ctx)
 	startNode(ctx, node)
+
+	// Step 2: If we can invoke `tendermint node`, let's do so
+	// in order to make ethermint as self contained as possible.
+	// See Issue https://github.com/tendermint/ethermint/issues/244
+	canInvokeTendermintNode := canInvokeTendermint(ctx)
+	if canInvokeTendermintNode {
+		tendermintHome := tendermintHomeFromEthermint(ctx)
+		tendermintArgs := []string{"--home", tendermintHome, "node"}
+		go func() {
+			if _, err := invokeTendermintNoTimeout(tendermintArgs...); err != nil {
+				// We shouldn't go *Fatal* because
+				// `tendermint node` might have already been invoked.
+				log.Info("tendermint init", "error", err)
+			} else {
+				log.Info("Successfully invoked `tendermint node`", "args",
+					tendermintArgs)
+			}
+		}()
+		pauseDuration := 3 * time.Second
+		log.Info(fmt.Sprintf("Invoked `tendermint node` sleeping for %s", pauseDuration),
+			"args", tendermintArgs)
+		time.Sleep(pauseDuration)
+	}
 
 	// Setup the ABCI server and start it
 	addr := ctx.GlobalString(emtUtils.ABCIAddrFlag.Name)
@@ -51,6 +74,7 @@ func ethermintCmd(ctx *cli.Context) error {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	ethApp.SetLogger(emtUtils.EthermintLogger().With("module", "ethermint"))
 
 	// Start the app on the ABCI server
 	srv, err := server.NewServer(addr, abci, ethApp)
@@ -59,7 +83,7 @@ func ethermintCmd(ctx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	srv.SetLogger(emtUtils.GetTMLogger().With("module", "abci-server"))
+	srv.SetLogger(emtUtils.EthermintLogger().With("module", "abci-server"))
 
 	if _, err := srv.Start(); err != nil {
 		fmt.Println(err)
@@ -75,8 +99,8 @@ func ethermintCmd(ctx *cli.Context) error {
 
 // nolint
 // startNode copies the logic from go-ethereum
-func startNode(ctx *cli.Context, stack *node.Node) {
-	ethUtils.StartNode(stack)
+func startNode(ctx *cli.Context, stack *ethereum.Node) {
+	emtUtils.StartNode(stack)
 
 	// Unlock any account specifically requested
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
@@ -112,10 +136,13 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		for event := range events {
 			if event.Arrive {
 				if err := event.Wallet.Open(""); err != nil {
-					log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
+					log.Warn("New wallet appeared, failed to open", "url",
+						event.Wallet.URL(), "err", err)
 				} else {
-					log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", event.Wallet.Status())
-					event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+					log.Info("New wallet appeared", "url", event.Wallet.URL(),
+						"status", event.Wallet.Status())
+					event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath,
+						stateReader)
 				}
 			} else {
 				log.Info("Old wallet dropped", "url", event.Wallet.URL())
@@ -127,7 +154,9 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 // tries unlocking the specified account a few times.
 // nolint: unparam
-func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int, passwords []string) (accounts.Account, string) {
+func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i int,
+	passwords []string) (accounts.Account, string) {
+
 	account, err := ethUtils.MakeAddress(ks, address)
 	if err != nil {
 		ethUtils.Fatalf("Could not list accounts: %v", err)
@@ -157,6 +186,7 @@ func unlockAccount(ctx *cli.Context, ks *keystore.KeyStore, address string, i in
 
 // getPassPhrase retrieves the passwor associated with an account, either fetched
 // from a list of preloaded passphrases, or requested interactively from the user.
+// nolint: unparam
 func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) string {
 	// If a list of passwords was supplied, retrieve from them
 	if len(passwords) > 0 {
@@ -185,7 +215,9 @@ func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) 
 	return password
 }
 
-func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrError, auth string) accounts.Account {
+func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrError,
+	auth string) accounts.Account {
+
 	fmt.Printf("Multiple key files exist for address %x:\n", err.Addr)
 	for _, a := range err.Matches {
 		fmt.Println("  ", a.URL)
@@ -202,7 +234,7 @@ func ambiguousAddrRecovery(ks *keystore.KeyStore, err *keystore.AmbiguousAddrErr
 		ethUtils.Fatalf("None of the listed files could be unlocked.")
 	}
 	fmt.Printf("Your passphrase unlocked %s\n", match.URL)
-	fmt.Println("In order to avoid this warning, you need to remove the following duplicate key files:")
+	fmt.Println("In order to avoid this warning, remove the following duplicate key files:")
 	for _, a := range err.Matches {
 		if a != *match {
 			fmt.Println("  ", a.URL)

@@ -11,15 +11,25 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/log"
+	//"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/ethereum/go-ethereum/ethdb"
+	abciTypes "github.com/tendermint/abci/types"
+
 	emtTypes "github.com/tendermint/ethermint/types"
 )
 
 //----------------------------------------------------------------------
-// pending manages concurrent access to the intermediate work object
+// Pending manages concurrent access to the intermediate work object
+// The ethereum tx pool fires TxPreEvent in a go-routine,
+// and the miner subscribes to this in another go-routine and processes the tx onto
+// an intermediate state. We used to use `unsafe` to overwrite the miner, but this
+// didn't work because it didn't affect the already launched go-routines.
+// So instead we introduce the Pending API in a small commit in go-ethereum
+// so we don't even start the miner there, and instead manage the intermediate state from here.
+// In the same commit we also fire the TxPreEvent synchronously so the order is preserved,
+// instead of using a go-routine.
 
 type pending struct {
 	mtx  *sync.Mutex
@@ -27,11 +37,14 @@ type pending struct {
 }
 
 func newPending() *pending {
+
 	return &pending{mtx: &sync.Mutex{}}
 }
 
 // execute the transaction
-func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, tx *ethTypes.Transaction) error {
+func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config,
+	chainConfig *params.ChainConfig, tx *ethTypes.Transaction) abciTypes.Result {
+
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -41,6 +54,7 @@ func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, cha
 
 // accumulate validator rewards
 func (p *pending) accumulateRewards(strategy *emtTypes.Strategy) {
+
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -49,6 +63,7 @@ func (p *pending) accumulateRewards(strategy *emtTypes.Strategy) {
 
 // commit and reset the work
 func (p *pending) commit(ethereum *eth.Ethereum, receiver common.Address) (common.Hash, error) {
+
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -68,6 +83,7 @@ func (p *pending) commit(ethereum *eth.Ethereum, receiver common.Address) (commo
 
 // return a new work object with the latest block and state from the chain
 func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address) (*work, error) {
+
 	state, err := blockchain.State()
 	if err != nil {
 		return nil, err
@@ -86,7 +102,9 @@ func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address
 	}, nil
 }
 
-func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
+func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64,
+	numTx uint64) {
+
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -101,7 +119,9 @@ func (p *pending) gasLimit() big.Int {
 // Implements: miner.Pending API (our custom patch to go-ethereum)
 
 // Return a new block and a copy of the state from the latest work
+// #unstable
 func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
+
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -134,13 +154,17 @@ type work struct {
 
 // nolint: unparam
 func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
+
 	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
 	w.header.GasUsed = w.totalUsedGas
 }
 
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,
 // and appends the tx, receipt, and logs
-func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, blockHash common.Hash, tx *ethTypes.Transaction) error {
+func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config,
+	chainConfig *params.ChainConfig, blockHash common.Hash,
+	tx *ethTypes.Transaction) abciTypes.Result {
+
 	w.state.Prepare(tx.Hash(), blockHash, w.txIndex)
 	receipt, _, err := core.ApplyTransaction(
 		chainConfig,
@@ -154,8 +178,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
 	)
 	if err != nil {
-		log.Info("DeliverTx error", "err", err)
-		return err
+		return abciTypes.ErrInternalError.AppendLog(err.Error())
 	}
 
 	logs := w.state.GetLogs(tx.Hash())
@@ -167,7 +190,7 @@ func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainC
 	w.receipts = append(w.receipts, receipt)
 	w.allLogs = append(w.allLogs, logs...)
 
-	return err
+	return abciTypes.Result{Code: abciTypes.CodeType_OK}
 }
 
 // Commit the ethereum state, update the header, make a new block and add it
@@ -190,16 +213,18 @@ func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Ha
 	blockHash := block.TxHash()
 
 	// save the block to disk
-	log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
+	// log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
 	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
 	if err != nil {
-		log.Info("Error inserting ethereum block in chain", "err", err)
+		// log.Info("Error inserting ethereum block in chain", "err", err)
 		return common.Hash{}, err
 	}
 	return blockHash, err
 }
 
-func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
+func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64,
+	numTx uint64) {
+
 	lastBlock := w.parent
 	parentHeader := &ethTypes.Header{
 		Difficulty: lastBlock.Difficulty(),
@@ -218,6 +243,7 @@ func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime u
 // Create a new block header from the previous block
 func newBlockHeader(receiver common.Address, prevBlock *ethTypes.Block) *ethTypes.Header {
 	return &ethTypes.Header{
+
 		Number:     prevBlock.Number().Add(prevBlock.Number(), big.NewInt(1)),
 		ParentHash: prevBlock.Hash(),
 		GasLimit:   core.CalcGasLimit(prevBlock),

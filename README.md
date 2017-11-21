@@ -1,27 +1,31 @@
-# [Ethermint](https://github.com/tendermint/ethermint)
+# [Ethermint](https://ethermint.network)
+
 ### Ethereum powered by Tendermint consensus
 
-### [Download the latest release](https://github.com/tendermint/ethermint/releases/tag/v0.2.2)
+### [Download the latest release](https://github.com/tendermint/ethermint/releases/latest)
 
-[![GitHub release](https://img.shields.io/badge/release-latest-blue.svg)]() [![](https://circleci.com/gh/tendermint/ethermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/ethermint/tree/master) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8-blue.svg)](https://github.com/moovweb/gvm) [![](https://img.shields.io/badge/issues-7-yellow.svg)](https://github.com/tendermint/ethermint/issues) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![GitHub release](https://img.shields.io/badge/release-latest-blue.svg)]() [![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=develop)](https://travis-ci.org/tendermint/ethermint) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8.3-blue.svg)](https://github.com/moovweb/gvm) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=latest)](http://ethermint.readthedocs.io/en/latest/?badge=latest)
 
 ### Join the chat!
-[![](https://img.shields.io/badge/slack-join%20chat-brightgreen.svg)](http://forum.tendermint.com:3000/)
+[riot.im](https://riot.im/app/#/room/#cosmos:matrix.org)
 
 We have a friendly community of like-minded people which are always eager to help someone in need of advice or just
 looking for casual banter.
 
 ### Code of Conduct
-Please read, understand and adhere to our [code of conduct](https://github.com/tendermint/ethermint/blob/develop/CODE_OF_CONDUCT.md).
+Please read, understand and adhere to our [code of conduct](CODE_OF_CONDUCT.md).
 
 ### Documentation
-We are using `godoc` for our documentation. In order to browse the [interactive documentation](http://localhost:6060/pkg/github.com/tendermint/ethermint/) please open a terminal window and navigate
-to the ethermint folder and run godoc.
-```bash
-cd $GOPATH/src/github.com/tendermint/ethermint
-
-godoc -http :6060
+We are using `godoc` for our documentation. In order to browse the interactive documentation,
+please open a terminal window and type this command
+```shell
+godoc -http=:6060
 ```
+
+and then go see the interactive Ethermint documentation at http://localhost:6060/pkg/github.com/tendermint/ethermint
+
+### Maintainer
+Adrian Brink - adrian@tendermint.com
 
 
 ----
@@ -43,16 +47,14 @@ The way it's built makes it easy to use existing Ethereum tools (geth attach, we
 ### Binary Distribution
 This installation involves the downloading of the binaries and subsequently moving them into your $PATH.
 
-Download the [binaries](https://github.com/tendermint/ethermint/releases/tag/v0.2.2) for your platform on the release page. Open a terminal window and switch into the folder that you downloaded ethermint to.
+Download the [binaries](https://github.com/tendermint/ethermint/releases/latest) for your platform on the release page. Open a terminal window and switch into the folder that you downloaded ethermint to.
 
 ```bash
 unzip -d /usr/local/bin ${the name of the ethermint binary}.zip 
 ```
 
 ### Docker
-We are currently building docker images for both [ethermint](https://hub.docker.com/r/adrianbrink/ethermint/) and [tendermint](https://hub.docker.com/r/adrianbrink/tendermint/). There are images for versioned releases, builds of master and builds of develop.
-
-// TODO: Add example of how to get a node up and running using docker
+We are currently building docker images for both [ethermint](https://hub.docker.com/r/tendermint/ethermint/) and [tendermint](https://hub.docker.com/tendermint/tendermint/). There are images for versioned releases, builds of master and builds of develop.
 
 ### Source
 Ethermint builds with go1.8.3 and hence go1.8.3 needs to be installed. In order to manage your go installation we recommend [GVM](https://github.com/moovweb/gvm).
@@ -100,31 +102,51 @@ You can choose where to store the ethermint files with `--datadir`. For this gui
 Before you can run ethermint you need to initialise tendermint and ethermint with their respective genesis states.
 Please switch into the folder where you have the initialisation files. If you installed from source you can just follow
 these instructions.
+
+```bash
+ethermint --datadir ~/.ethermint --with-tendermint init
+```
+which will also invoke `tendermint init --home ~/.ethermint/tendermint`. You can prevent Tendermint from
+being starting by excluding the flag `--with-tendermint` for example
+
+```bash
+ethermint --datadir ~/.ethermint init
+```
+and then you will have to invoke `tendermint` in another shell with the command
 ```bash
 tendermint init --home ~/.ethermint/tendermint
-
-cd $GOPATH/src/github.com/tendermint/ethermint
-
-ethermint --datadir ~/.ethermint init setup/genesis.json
-
-cp -r setup/keystore ~/.ethermint
 ```
-In the last step we copy the private key from the initialisation folder into the actual ethereum folder. 
 
+* Note:
+- You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
+```bash
+cp -r keystore ~/.ethermint
+```
 
 ### Running
 To execute ethermint we need to start two processes. The first one is for tendermint, which handles the P2P
 communication as well as the consensus process, while the second one is actually ethermint, which provides the
 go-ethereum functionality.
 
-```bash
-tendermint --home ~/.ethermint/tendermint node
+After running tendermint you will see a series of error messages: `abci.socketClient failed to connect to tcp://127.0.0.1:46658.  Retrying... module=abci-client connection=query`. This is normal, tendermint is trying to find an ABCI app to which to connect. Next we run the ABCI app that tendermint will attach itself to by running:
 
+```bash
 ethermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
 ```
 
-The **password** for the default account is *1234*.
+and then in a separate shell, invoke
+```bash
+tendermint --home ~/.ethermint/tendermint node
+```
 
+Alternatively, ethermint can start tendermint for you as a subprocess, by using
+flag `--with-tendermint` e.g.
+```bash
+ethermint --with-tendermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
+```
+
+* Note:
+The **password** for the default account is *1234*.
 
 ----
 
@@ -143,8 +165,7 @@ geth attach http://localhost:8545
 This will drop you into a web3 console.
 
 ### Mist
-The mist tooling requires more setup, so be sure to read the explanations on the project site. Of course, you are 
-welcome to ask for help in our [slack channel](https://img.shields.io/badge/slack-join%20chat-brightgreen.sv).
+The mist tooling requires more setup, so be sure to read the explanations on the project site.
 ```bash
 meteor --no-release-check
 
