@@ -56,7 +56,7 @@ func NewEthermintApplication(backend *ethereum.Backend,
 		strategy:        strategy,
 	}
 
-	if err := app.backend.ResetWork(app.Receiver()); err != nil {
+	if err := app.backend.InitEthState(app.Receiver()); err != nil {
 		return nil, err
 	}
 

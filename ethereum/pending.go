@@ -21,7 +21,7 @@ import (
 )
 
 //----------------------------------------------------------------------
-// Pending manages concurrent access to the intermediate work object
+// EthState manages concurrent access to the intermediate workState object
 // The ethereum tx pool fires TxPreEvent in a go-routine,
 // and the miner subscribes to this in another go-routine and processes the tx onto
 // an intermediate state. We used to use `unsafe` to overwrite the miner, but this
@@ -31,114 +31,130 @@ import (
 // In the same commit we also fire the TxPreEvent synchronously so the order is preserved,
 // instead of using a go-routine.
 
-type pending struct {
-	mtx  *sync.Mutex
-	work *work
+type EthState struct {
+	ethereum  *eth.Ethereum
+	ethConfig *eth.Config
+
+	mtx  sync.Mutex
+	work workState // latest working state
 }
 
-func newPending() *pending {
+func NewEthState() *EthState {
+	return &EthState{
+	// These are set with SetEthereum and SetEthConfig respectively.
+	// ethereum:  ethereum,
+	// ethConfig: ethConfig,
+	}
+}
 
-	return &pending{mtx: &sync.Mutex{}}
+func (es *EthState) SetEthereum(ethereum *eth.Ethereum) {
+	es.ethereum = ethereum
+}
+
+func (es *EthState) SetEthConfig(ethConfig *eth.Config) {
+	es.ethConfig = ethConfig
 }
 
 // execute the transaction
-func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config,
-	chainConfig *params.ChainConfig, tx *ethTypes.Transaction) abciTypes.Result {
+func (es *EthState) DeliverTx(tx *ethTypes.Transaction) abciTypes.Result {
+	es.mtx.Lock()
+	defer es.mtx.Unlock()
 
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
+	blockchain := es.ethereum.BlockChain()
+	chainConfig := es.ethereum.ApiBackend.ChainConfig()
 	blockHash := common.Hash{}
-	return p.work.deliverTx(blockchain, config, chainConfig, blockHash, tx)
+	return es.work.deliverTx(blockchain, es.ethConfig, chainConfig, blockHash, tx)
 }
 
-// accumulate validator rewards
-func (p *pending) accumulateRewards(strategy *emtTypes.Strategy) {
+// Accumulate validator rewards.
+func (es *EthState) AccumulateRewards(strategy *emtTypes.Strategy) {
+	es.mtx.Lock()
+	defer es.mtx.Unlock()
 
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	p.work.accumulateRewards(strategy)
+	es.work.accumulateRewards(strategy)
 }
 
-// commit and reset the work
-func (p *pending) commit(ethereum *eth.Ethereum, receiver common.Address) (common.Hash, error) {
+// Commit and reset the work.
+func (es *EthState) Commit(receiver common.Address) (common.Hash, error) {
+	es.mtx.Lock()
+	defer es.mtx.Unlock()
 
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	blockHash, err := p.work.commit(ethereum.BlockChain(), ethereum.ChainDb())
+	blockHash, err := es.work.commit(es.ethereum.BlockChain(), es.ethereum.ChainDb())
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	work, err := p.resetWork(ethereum.BlockChain(), receiver)
+	err = es.resetWork(receiver)
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	p.work = work
 	return blockHash, err
 }
 
-// return a new work object with the latest block and state from the chain
-func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address) (*work, error) {
+func (es *EthState) ResetWork(receiver common.Address) error {
+	es.mtx.Lock()
+	defer es.mtx.Unlock()
 
+	return es.resetWork(receiver)
+}
+
+func (es *EthState) resetWork(receiver common.Address) error {
+
+	blockchain := es.ethereum.BlockChain()
 	state, err := blockchain.State()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	currentBlock := blockchain.CurrentBlock()
 	ethHeader := newBlockHeader(receiver, currentBlock)
 
-	return &work{
+	es.work = workState{
 		header:       ethHeader,
 		parent:       currentBlock,
 		state:        state,
 		txIndex:      0,
 		totalUsedGas: big.NewInt(0),
 		gp:           new(core.GasPool).AddGas(ethHeader.GasLimit),
-	}, nil
+	}
+	return nil
 }
 
-func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64,
-	numTx uint64) {
+func (es *EthState) UpdateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
+	es.mtx.Lock()
+	defer es.mtx.Unlock()
 
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-
-	p.work.updateHeaderWithTimeInfo(config, parentTime, numTx)
+	es.work.updateHeaderWithTimeInfo(config, parentTime, numTx)
 }
 
-func (p *pending) gasLimit() big.Int {
-	return big.Int(*p.work.gp)
+func (es *EthState) GasLimit() big.Int {
+	return big.Int(*es.work.gp)
 }
 
 //----------------------------------------------------------------------
 // Implements: miner.Pending API (our custom patch to go-ethereum)
 
-// Return a new block and a copy of the state from the latest work
+// Return a new block and a copy of the state from the latest work.
 // #unstable
-func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
-
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
+func (es *EthState) Pending() (*ethTypes.Block, *state.StateDB) {
+	es.mtx.Lock()
+	defer es.mtx.Unlock()
 
 	return ethTypes.NewBlock(
-		p.work.header,
-		p.work.transactions,
+		es.work.header,
+		es.work.transactions,
 		nil,
-		p.work.receipts,
-	), p.work.state.Copy()
+		es.work.receipts,
+	), es.work.state.Copy()
 }
 
 //----------------------------------------------------------------------
 //
 
 // The work struct handles block processing.
-// It's updated with each DeliverTx and reset on Commit
-type work struct {
+// It's updated with each DeliverTx and reset on Commit.
+type workState struct {
 	header *ethTypes.Header
 	parent *ethTypes.Block
 	state  *state.StateDB
@@ -153,66 +169,68 @@ type work struct {
 }
 
 // nolint: unparam
-func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
+func (ws *workState) accumulateRewards(strategy *emtTypes.Strategy) {
 
-	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
-	w.header.GasUsed = w.totalUsedGas
+	ethash.AccumulateRewards(ws.state, ws.header, []*ethTypes.Header{})
+	ws.header.GasUsed = ws.totalUsedGas
 }
 
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,
-// and appends the tx, receipt, and logs
-func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config,
+// and appends the tx, receipt, and logs.
+func (ws *workState) deliverTx(blockchain *core.BlockChain, config *eth.Config,
 	chainConfig *params.ChainConfig, blockHash common.Hash,
 	tx *ethTypes.Transaction) abciTypes.Result {
 
-	w.state.Prepare(tx.Hash(), blockHash, w.txIndex)
+	ws.state.Prepare(tx.Hash(), blockHash, ws.txIndex)
 	receipt, _, err := core.ApplyTransaction(
 		chainConfig,
 		blockchain,
 		nil, // defaults to address of the author of the header
-		w.gp,
-		w.state,
-		w.header,
+		ws.gp,
+		ws.state,
+		ws.header,
 		tx,
-		w.totalUsedGas,
+		ws.totalUsedGas,
 		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
 	)
 	if err != nil {
 		return abciTypes.ErrInternalError.AppendLog(err.Error())
 	}
 
-	logs := w.state.GetLogs(tx.Hash())
+	logs := ws.state.GetLogs(tx.Hash())
 
-	w.txIndex++
+	ws.txIndex++
 
 	// The slices are allocated in updateHeaderWithTimeInfo
-	w.transactions = append(w.transactions, tx)
-	w.receipts = append(w.receipts, receipt)
-	w.allLogs = append(w.allLogs, logs...)
+	ws.transactions = append(ws.transactions, tx)
+	ws.receipts = append(ws.receipts, receipt)
+	ws.allLogs = append(ws.allLogs, logs...)
 
 	return abciTypes.Result{Code: abciTypes.CodeType_OK}
 }
 
-// Commit the ethereum state, update the header, make a new block and add it
-// to the ethereum blockchain. The application root hash is the hash of the ethereum block.
-func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Hash, error) {
+// Commit the ethereum state, update the header, make a new block and add it to
+// the ethereum blockchain. The application root hash is the hash of the
+// ethereum block.
+func (ws *workState) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Hash, error) {
 
-	// commit ethereum state and update the header
-	hashArray, err := w.state.CommitTo(db.NewBatch(), false) // XXX: ugh hardforks
+	// Commit ethereum state and update the header.
+	hashArray, err := ws.state.CommitTo(db.NewBatch(), false) // XXX: ugh hardforks
 	if err != nil {
 		return common.Hash{}, err
 	}
-	w.header.Root = hashArray
+	ws.header.Root = hashArray
 
-	for _, log := range w.allLogs {
+	for _, log := range ws.allLogs {
 		log.BlockHash = hashArray
 	}
 
-	// create block object and compute final commit hash (hash of the ethereum block)
-	block := ethTypes.NewBlock(w.header, w.transactions, nil, w.receipts)
-	blockHash := block.TxHash()
+	// Create block object and compute final commit hash (hash of the ethereum
+	// block).
+	block := ethTypes.NewBlock(ws.header, ws.transactions, nil, ws.receipts)
+	blockHash := block.Hash()
 
-	// save the block to disk
+	// Save the block to disk.
 	// log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
 	_, err = blockchain.InsertChain([]*ethTypes.Block{block})
 	if err != nil {
@@ -222,28 +240,26 @@ func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Ha
 	return blockHash, err
 }
 
-func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64,
-	numTx uint64) {
+func (ws *workState) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
 
-	lastBlock := w.parent
+	lastBlock := ws.parent
 	parentHeader := &ethTypes.Header{
 		Difficulty: lastBlock.Difficulty(),
 		Number:     lastBlock.Number(),
 		Time:       lastBlock.Time(),
 	}
-	w.header.Time = new(big.Int).SetUint64(parentTime)
-	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime, parentHeader)
-	w.transactions = make([]*ethTypes.Transaction, 0, numTx)
-	w.receipts = make([]*ethTypes.Receipt, 0, numTx)
-	w.allLogs = make([]*ethTypes.Log, 0, numTx)
+	ws.header.Time = new(big.Int).SetUint64(parentTime)
+	ws.header.Difficulty = ethash.CalcDifficulty(config, parentTime, parentHeader)
+	ws.transactions = make([]*ethTypes.Transaction, 0, numTx)
+	ws.receipts = make([]*ethTypes.Receipt, 0, numTx)
+	ws.allLogs = make([]*ethTypes.Log, 0, numTx)
 }
 
 //----------------------------------------------------------------------
 
-// Create a new block header from the previous block
+// Create a new block header from the previous block.
 func newBlockHeader(receiver common.Address, prevBlock *ethTypes.Block) *ethTypes.Header {
 	return &ethTypes.Header{
-
 		Number:     prevBlock.Number().Add(prevBlock.Number(), big.NewInt(1)),
 		ParentHash: prevBlock.Hash(),
 		GasLimit:   core.CalcGasLimit(prevBlock),
