@@ -55,7 +55,7 @@ func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
 	height := currentBlock.Number()
-	hash := currentBlock.Hash()
+	hash := currentBlock.TxHash()
 
 	// This check determines whether it is the first time ethermint gets started.
 	// If it is the first time, then we have to respond with an empty hash, since
