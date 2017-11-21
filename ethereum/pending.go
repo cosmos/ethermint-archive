@@ -187,7 +187,7 @@ func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Ha
 
 	// create block object and compute final commit hash (hash of the ethereum block)
 	block := ethTypes.NewBlock(w.header, w.transactions, nil, w.receipts)
-	blockHash := block.Hash()
+	blockHash := block.TxHash()
 
 	// save the block to disk
 	log.Info("Committing block", "stateHash", hashArray, "blockHash", blockHash)
