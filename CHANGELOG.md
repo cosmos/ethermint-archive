@@ -1,5 +1,17 @@
 # Changelog
 
+## Ongoing
+### Breaking
+* none so far
+
+### Features
+* no empty blocks is implemented
+  * Ethermint will halt until there are transactions
+
+### Fixes
+* none so far
+
+
 ## v0.5.0 (2017-10-22)
 ### Breaking
 * none
