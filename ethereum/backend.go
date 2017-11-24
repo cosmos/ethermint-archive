@@ -28,14 +28,14 @@ import (
 // #stable - 0.4.0
 type Backend struct {
 	// backing ethereum structures
-	config   *eth.Config
-	ethereum *eth.Ethereum
+	ethereum  *eth.Ethereum
+	ethConfig *eth.Config
 
 	// txBroadcastLoop subscription
 	txSub *event.TypeMuxSubscription
 
-	// pending ...
-	pending *pending
+	// EthState
+	es *EthState
 
 	// client for forwarding txs to Tendermint
 	client rpcClient.HTTPClient
@@ -43,43 +43,48 @@ type Backend struct {
 
 // NewBackend creates a new Backend
 // #stable - 0.4.0
-func NewBackend(ctx *node.ServiceContext, config *eth.Config,
+func NewBackend(ctx *node.ServiceContext, ethConfig *eth.Config,
 	client rpcClient.HTTPClient) (*Backend, error) {
-	p := newPending()
+
+	// Create working ethereum state.
+	es := NewEthState()
 
 	// eth.New takes a ServiceContext for the EventMux, the AccountManager,
 	// and some basic functions around the DataDir.
-	ethereum, err := eth.New(ctx, config, p)
+	ethereum, err := eth.New(ctx, ethConfig, es)
 	if err != nil {
 		return nil, err
 	}
 
-	// send special event to go-ethereum to switch homestead=true
+	es.SetEthereum(ethereum)
+	es.SetEthConfig(ethConfig)
+
+	// send special event to go-ethereum to switch homestead=true.
 	currentBlock := ethereum.BlockChain().CurrentBlock()
 	ethereum.EventMux().Post(core.ChainHeadEvent{currentBlock}) // nolint: vet, errcheck
 
-	// We don't need PoW/Uncle validation
+	// We don't need PoW/Uncle validation.
 	ethereum.BlockChain().SetValidator(NullBlockProcessor{})
 
 	ethBackend := &Backend{
-		ethereum: ethereum,
-		pending:  p,
-		client:   client,
-		config:   config,
+		ethereum:  ethereum,
+		ethConfig: ethConfig,
+		es:        es,
+		client:    client,
 	}
 	return ethBackend, nil
 }
 
-// Ethereum returns the underlying the ethereum object
+// Ethereum returns the underlying the ethereum object.
 // #stable
 func (b *Backend) Ethereum() *eth.Ethereum {
 	return b.ethereum
 }
 
-// Config returns the eth.Config
+// Config returns the eth.Config.
 // #stable
 func (b *Backend) Config() *eth.Config {
-	return b.config
+	return b.ethConfig
 }
 
 //----------------------------------------------------------------------
@@ -88,41 +93,38 @@ func (b *Backend) Config() *eth.Config {
 // DeliverTx appends a transaction to the current block
 // #stable
 func (b *Backend) DeliverTx(tx *ethTypes.Transaction) abciTypes.Result {
-	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config,
-		b.ethereum.ApiBackend.ChainConfig(), tx)
+	return b.es.DeliverTx(tx)
 }
 
 // AccumulateRewards accumulates the rewards based on the given strategy
 // #unstable
 func (b *Backend) AccumulateRewards(strategy *emtTypes.Strategy) {
-	b.pending.accumulateRewards(strategy)
+	b.es.AccumulateRewards(strategy)
 }
 
 // Commit finalises the current block
 // #unstable
 func (b *Backend) Commit(receiver common.Address) (common.Hash, error) {
-	return b.pending.commit(b.ethereum, receiver)
+	return b.es.Commit(receiver)
 }
 
-// ResetWork resets the current block to a fresh object
+// InitEthState initializes the EthState
 // #unstable
-func (b *Backend) ResetWork(receiver common.Address) error {
-	work, err := b.pending.resetWork(b.ethereum.BlockChain(), receiver)
-	b.pending.work = work
-	return err
+func (b *Backend) InitEthState(receiver common.Address) error {
+	return b.es.ResetWorkState(receiver)
 }
 
 // UpdateHeaderWithTimeInfo uses the tendermint header to update the ethereum header
 // #unstable
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
-	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time,
+	b.es.UpdateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time,
 		tmHeader.GetNumTxs())
 }
 
 // GasLimit returns the maximum gas per block
 // #unstable
 func (b *Backend) GasLimit() big.Int {
-	return b.pending.gasLimit()
+	return b.es.GasLimit()
 }
 
 //----------------------------------------------------------------------
@@ -135,7 +137,7 @@ func (b *Backend) APIs() []rpc.API {
 	retApis := []rpc.API{}
 	for _, v := range apis {
 		if v.Namespace == "net" {
-			v.Service = NewNetRPCService(b.config.NetworkId)
+			v.Service = NewNetRPCService(b.ethConfig.NetworkId)
 		}
 		if v.Namespace == "miner" {
 			continue
