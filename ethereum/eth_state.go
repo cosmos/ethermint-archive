@@ -39,11 +39,11 @@ type EthState struct {
 	work workState // latest working state
 }
 
+// After NewEthState, call SetEthereum and SetEthConfig.
 func NewEthState() *EthState {
 	return &EthState{
-	// These are set with SetEthereum and SetEthConfig respectively.
-	// ethereum:  ethereum,
-	// ethConfig: ethConfig,
+		ethereum:  nil, // set with SetEthereum
+		ethConfig: nil, // set with SetEthConfig
 	}
 }
 
@@ -55,7 +55,7 @@ func (es *EthState) SetEthConfig(ethConfig *eth.Config) {
 	es.ethConfig = ethConfig
 }
 
-// execute the transaction
+// Execute the transaction.
 func (es *EthState) DeliverTx(tx *ethTypes.Transaction) abciTypes.Result {
 	es.mtx.Lock()
 	defer es.mtx.Unlock()
@@ -84,7 +84,7 @@ func (es *EthState) Commit(receiver common.Address) (common.Hash, error) {
 		return common.Hash{}, err
 	}
 
-	err = es.resetWork(receiver)
+	err = es.resetWorkState(receiver)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -92,14 +92,14 @@ func (es *EthState) Commit(receiver common.Address) (common.Hash, error) {
 	return blockHash, err
 }
 
-func (es *EthState) ResetWork(receiver common.Address) error {
+func (es *EthState) ResetWorkState(receiver common.Address) error {
 	es.mtx.Lock()
 	defer es.mtx.Unlock()
 
-	return es.resetWork(receiver)
+	return es.resetWorkState(receiver)
 }
 
-func (es *EthState) resetWork(receiver common.Address) error {
+func (es *EthState) resetWorkState(receiver common.Address) error {
 
 	blockchain := es.ethereum.BlockChain()
 	state, err := blockchain.State()
@@ -121,7 +121,9 @@ func (es *EthState) resetWork(receiver common.Address) error {
 	return nil
 }
 
-func (es *EthState) UpdateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
+func (es *EthState) UpdateHeaderWithTimeInfo(
+	config *params.ChainConfig, parentTime uint64, numTx uint64) {
+
 	es.mtx.Lock()
 	defer es.mtx.Unlock()
 
@@ -240,7 +242,8 @@ func (ws *workState) commit(blockchain *core.BlockChain, db ethdb.Database) (com
 	return blockHash, err
 }
 
-func (ws *workState) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
+func (ws *workState) updateHeaderWithTimeInfo(
+	config *params.ChainConfig, parentTime uint64, numTx uint64) {
 
 	lastBlock := ws.parent
 	parentHeader := &ethTypes.Header{

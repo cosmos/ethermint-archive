@@ -111,8 +111,7 @@ func (b *Backend) Commit(receiver common.Address) (common.Hash, error) {
 // InitEthState initializes the EthState
 // #unstable
 func (b *Backend) InitEthState(receiver common.Address) error {
-	err := b.es.ResetWork(receiver)
-	return err
+	return b.es.ResetWorkState(receiver)
 }
 
 // UpdateHeaderWithTimeInfo uses the tendermint header to update the ethereum header
