@@ -117,12 +117,6 @@ and then you will have to invoke `tendermint` in another shell with the command
 tendermint init --home ~/.ethermint/tendermint
 ```
 
-* Note:
-- You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
-```bash
-cp -r keystore ~/.ethermint
-```
-
 ### Running
 To execute ethermint we need to start two processes. The first one is for tendermint, which handles the P2P
 communication as well as the consensus process, while the second one is actually ethermint, which provides the
