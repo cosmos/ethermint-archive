@@ -15,10 +15,10 @@ BUILD_FLAGS = -ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`gi
 all: get_vendor_deps install test
 
 install:
-	go install $(BUILD_FLAGS) ./cmd/ethermint
+	CGO_ENABLED=1 go install $(BUILD_FLAGS) ./cmd/ethermint
 
 build:
-	go build $(BUILD_FLAGS) -o ./build/ethermint ./cmd/ethermint
+	CGO_ENABLED=1 go build $(BUILD_FLAGS) -o ./build/ethermint ./cmd/ethermint
 
 test:
 	@echo "--> Running go test"
