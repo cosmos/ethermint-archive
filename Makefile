@@ -8,29 +8,29 @@ BUILD_TAGS? := ethermint
 
 VERSION_TAG := 0.5.3
 
+BUILD_FLAGS = -ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"
+
 
 ### Development ###
-all: install test
+all: get_vendor_deps install test
 
-install: get_vendor_deps
-	@echo "--> Running go install"
-	go install \
-		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
-		./cmd/ethermint
+install:
+	go install $(BUILD_FLAGS) ./cmd/ethermint
 
 build:
-	@echo "--> Running go build"
-	go build \
-		--ldflags "-extldflags '-static' -X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
-		-race -o ./build/ethermint ./cmd/ethermint
+	go build $(BUILD_FLAGS) -o ./build/ethermint ./cmd/ethermint
 
 test:
 	@echo "--> Running go test"
-	go test $(PACKAGES)
+	@go test $(PACKAGES)
+
+test_race:
+	@echo "--> Running go test --race"
+	@go test -v -race $(PACKAGES)
 
 test_integrations:
 	@echo "--> Running integration tests"
-	bash ./tests/test.sh
+	@bash ./tests/test.sh
 
 test_coverage:
 	@echo "--> Running go test with coverage"
@@ -59,13 +59,18 @@ draw_deps:
 	goviz -i github.com/tendermint/ethermint/cmd/ethermint -d 2 | dot -Tpng -o dependency-graph.png
 
 get_vendor_deps:
+	@hash glide 2>/dev/null || go get github.com/Masterminds/glide
+	@rm -rf vendor/
 	@echo "--> Running glide install"
-	glide install --strip-vendor
+	@glide install
 
-ensure_tools:
+tools:
 	@echo "--> Installing tools"
 	go get $(GOTOOLS)
 
+update_tools:
+	@echo "--> Updating tools"
+	@go get -u $(GOTOOLS)
 
 ### Building and Publishing ###
 # dist builds binaries for all platforms and packages them for distribution
