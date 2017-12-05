@@ -63,23 +63,23 @@ make get_vendor_deps
 if [ ! -z "$TARGETS" ]; then
   echo "==> Building Static Binaries..."
   TARGETS=${TARGETS::${#TARGETS}-1}
-  xgo -go="latest" \
+  xgo -go="1.8.3" \
     -targets="${TARGETS}" \
     -ldflags "-extldflags '-static' -X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT} -X ${GIT_IMPORT}.GitDescribe=${GIT_DESCRIBE}" \
     -dest "build/pkg" \
     -tags="${BUILD_TAGS}" \
-    ${DIR}/cmd/ethermint
+    "${DIR}/cmd/ethermint"
 fi
 
 if [ ! -z "$NON_STATIC_TARGETS" ]; then
   echo "==> Building Non-Static Binaries..."
   NON_STATIC_TARGETS=${NON_STATIC_TARGETS::${#NON_STATIC_TARGETS}-1}
-  xgo -go="latest" \
+  xgo -go="1.8.3" \
     -targets="${NON_STATIC_TARGETS}" \
     -ldflags "-X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT} -X ${GIT_IMPORT}.GitDescribe=${GIT_DESCRIBE}" \
     -dest "build/pkg" \
     -tags="${BUILD_TAGS}" \
-    ${DIR}/cmd/ethermint
+    "${DIR}/cmd/ethermint"
 fi
 
 for FILE in $(ls ./build/pkg); do
