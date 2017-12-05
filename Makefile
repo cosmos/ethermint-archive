@@ -115,3 +115,8 @@ ethstats_start:
 
 ethstats_stop:
 	@cd $(CURDIR)/ethstats && pm2 stop ./app.json
+
+.PHONY: all install build test test_race test_integrations test_coverage linter
+	clean draw_deps get_vendor_deps tools update_tools dist publish
+	docker_build_develop docker_push_develop docker_build docker_push ethstats
+	ethstats_setup ethstats_start ethstats_stop
