@@ -63,6 +63,8 @@ get_vendor_deps:
 	@rm -rf vendor/
 	@echo "--> Running glide install"
 	@glide install
+	@# ethereum/node.go:53:23: cannot use ctx (type *"github.com/tendermint/ethermint/vendor/gopkg.in/urfave/cli.v1".Context) as type *"github.com/tendermint/ethermint/vendor/github.com/ethereum/go-ethereum/vendor/gopkg.in/urfave/cli.v1".Context in argument to utils.SetEthConfig
+	@rm -rf vendor/github.com/ethereum/go-ethereum/vendor
 
 tools:
 	@echo "--> Installing tools"
