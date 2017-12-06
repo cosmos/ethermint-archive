@@ -20,8 +20,7 @@ DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 cd "$DIR"
 
 # Get the git commit
-GIT_COMMIT="$(git rev-parse HEAD)"
-GIT_DESCRIBE="$(git describe --tags --always)"
+GIT_COMMIT="$(git rev-parse --short HEAD)"
 GIT_IMPORT="github.com/tendermint/ethermint/version"
 
 # Determine the arch/os combos we're building for

@@ -8,7 +8,7 @@ BUILD_TAGS? := ethermint
 
 VERSION_TAG := 0.5.3
 
-BUILD_FLAGS = -ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`"
+BUILD_FLAGS = -ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse --short HEAD`"
 
 
 ### Development ###
