@@ -1,6 +1,6 @@
-GOTOOLS := github.com/karalabe/xgo \
-					github.com/Masterminds/glide \
-					github.com/alecthomas/gometalinter
+GOTOOLS := \
+					 github.com/karalabe/xgo \
+					 github.com/alecthomas/gometalinter
 
 PACKAGES := $(shell glide novendor)
 
