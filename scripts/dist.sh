@@ -19,31 +19,26 @@ DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 # Change into that dir because we expect that.
 cd "$DIR"
 
+# xgo requires GOPATH
+if [ ! -z "$GOPATH" ]; then
+	GOPATH=$(go env GOPATH)
+fi
+
 # Get the git commit
-GIT_COMMIT="$(git rev-parse HEAD)"
-GIT_DESCRIBE="$(git describe --tags --always)"
+GIT_COMMIT="$(git rev-parse --short HEAD)"
 GIT_IMPORT="github.com/tendermint/ethermint/version"
 
 # Determine the arch/os combos we're building for
-XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
-XC_OS=${XC_OS:-"solaris darwin freebsd linux windows"}
-
-IGNORE=("darwin/arm solaris/amd64 freebsd/amd64")
-NON_STATIC=("darwin/386 darwin/amd64")
+XC_ARCH=${XC_ARCH:-"386 amd64 arm-5 arm-6 arm-7 mips mipsle mips64 mips64le"}
+XC_OS=${XC_OS:-"darwin linux windows"}
+IGNORE=("darwin/arm darwin/386")
 
 TARGETS=""
-NON_STATIC_TARGETS=""
-
 for os in $XC_OS; do
     for arch in $XC_ARCH; do
         target="$os/$arch"
 
         case ${IGNORE[@]} in *$target*) continue;; esac
-        case ${NON_STATIC[@]} in *$target*)
-          NON_STATIC_TARGETS="$target,$NON_STATIC_TARGETS"
-          continue;;
-        esac
-
         TARGETS="$target,$TARGETS"
     done
 done
@@ -60,36 +55,26 @@ make tools
 make get_vendor_deps
 
 # Build!
-if [ ! -z "$TARGETS" ]; then
-  echo "==> Building Static Binaries..."
-  TARGETS=${TARGETS::${#TARGETS}-1}
-  xgo -go="latest" \
-    -targets="${TARGETS}" \
-    -ldflags "-extldflags '-static' -X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT} -X ${GIT_IMPORT}.GitDescribe=${GIT_DESCRIBE}" \
-    -dest "build/pkg" \
-    -tags="${BUILD_TAGS}" \
-    ${DIR}/cmd/ethermint
-fi
+# ldflags: -s Omit the symbol table and debug information.
+#	         -w Omit the DWARF symbol table.
+echo "==> Building..."
+TARGETS=${TARGETS::${#TARGETS}-1}
+xgo -go="1.8.3" \
+	-targets="${TARGETS}" \
+	-ldflags "-s -w -X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT}" \
+	-dest "build/pkg" \
+	-tags="${BUILD_TAGS}" \
+	"${DIR}/cmd/ethermint"
 
-if [ ! -z "$NON_STATIC_TARGETS" ]; then
-  echo "==> Building Non-Static Binaries..."
-  NON_STATIC_TARGETS=${NON_STATIC_TARGETS::${#NON_STATIC_TARGETS}-1}
-  xgo -go="latest" \
-    -targets="${NON_STATIC_TARGETS}" \
-    -ldflags "-X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT} -X ${GIT_IMPORT}.GitDescribe=${GIT_DESCRIBE}" \
-    -dest "build/pkg" \
-    -tags="${BUILD_TAGS}" \
-    ${DIR}/cmd/ethermint
-fi
-
+echo "==> Renaming exe files..."
 for FILE in $(ls ./build/pkg); do
     f=${FILE#*-}
     if [[ $f == *"exe" ]]
     then
         f=${f%.*}
     fi
-    echo $f
-    mkdir -p ./build/pkg/$f
+    echo "$f"
+    mkdir -p "./build/pkg/$f"
 
     name="ethermint"
     if [[ $FILE == *"exe" ]]
@@ -99,7 +84,7 @@ for FILE in $(ls ./build/pkg); do
     echo $name
 
     pushd ./build/pkg
-    mv $FILE $f/$name
+    mv "$FILE" "$f/$name"
     popd
 done
 
