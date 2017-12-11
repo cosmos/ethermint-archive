@@ -4,7 +4,7 @@
 
 ### [Download the latest release](https://github.com/tendermint/ethermint/releases/latest)
 
-[![GitHub release](https://img.shields.io/badge/release-latest-blue.svg)]() [![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=develop)](https://travis-ci.org/tendermint/ethermint) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8.3-blue.svg)](https://github.com/moovweb/gvm) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=latest)](http://ethermint.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=develop)](https://travis-ci.org/tendermint/ethermint) [![](https://tokei.rs/b1/github/tendermint/ethermint)](https://github.com/tendermint/ethermint) [![](https://img.shields.io/badge/go-1.8.3-blue.svg)](https://github.com/moovweb/gvm) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=latest)](http://ethermint.readthedocs.io/en/latest/?badge=latest)
 
 ### Join the chat!
 [riot.im](https://riot.im/app/#/room/#cosmos:matrix.org)
@@ -45,47 +45,68 @@ The way it's built makes it easy to use existing Ethereum tools (geth attach, we
 ## Installation
 
 ### Binary Distribution
-This installation involves the downloading of the binaries and subsequently moving them into your $PATH.
 
-Download the [binaries](https://github.com/tendermint/ethermint/releases/latest) for your platform on the release page. Open a terminal window and switch into the folder that you downloaded ethermint to.
+This installation involves the downloading of the binaries and subsequently
+moving them into your $PATH.
+
+Download the
+[binaries](https://github.com/tendermint/ethermint/releases/latest) for your
+platform on the release page. Open a terminal window and switch into the folder
+that you downloaded ethermint to.
 
 ```bash
-unzip -d /usr/local/bin ${the name of the ethermint binary}.zip 
+unzip -d /usr/local/bin ${the name of the ethermint binary}.zip
 ```
 
 ### Docker
-We are currently building docker images for both [ethermint](https://hub.docker.com/r/tendermint/ethermint/) and [tendermint](https://hub.docker.com/tendermint/tendermint/). There are images for versioned releases, builds of master and builds of develop.
+
+We are currently building docker images for both
+[ethermint](https://hub.docker.com/r/tendermint/ethermint/) and
+[tendermint](https://hub.docker.com/tendermint/tendermint/). There are images
+for versioned releases and builds of develop.
 
 ### Source
-Ethermint builds with go1.8.3 and hence go1.8.3 needs to be installed. In order to manage your go installation we recommend [GVM](https://github.com/moovweb/gvm).
+
+Ethermint builds with go 1.8.3 and hence go 1.8.3 needs to be installed. In
+order to manage your go installation we recommend
+[GVM](https://github.com/moovweb/gvm).
 
 Once go is installed and configured you can download ethermint.
+
 ```bash
 go get -u -d github.com/tendermint/ethermint
 ```
-This places the ethermint source code into the appropriate directory in your $GOPATH.
+
+This places the ethermint source code into the appropriate directory in your
+$GOPATH.
 
 Next you need to switch into the ethermint directory and install it.
+
 ```bash
 cd $GOPATH/src/github.com/tendermint/ethermint
 
+make get_vendor_deps
 make install
 ```
+
 This will download all the necessary dependencies and install ethermint in your $PATH.
 
 
 ### Tendermint
-Ethermint relies on the [Tendermint](https://github.com/tendermint/tendermint) executable to provide the networking and consensus engines.
+
+Ethermint relies on the [Tendermint](https://github.com/tendermint/tendermint)
+executable to provide the networking and consensus engine.
 
 ```bash
 go get -u -d github.com/tendermint/tendermint
 
 cd $GOPATH/src/github.com/tendermint/tendermint
 
+make get_vendor_deps
 make install
 ```
-This will download all the necessary dependencies and install tendermint in your $PATH.
 
+This will download all the necessary dependencies and install tendermint in your $PATH.
 
 ----
 
@@ -147,7 +168,7 @@ The **password** for the default account is *1234*.
 
 ## Connecting to Ethermint
 Ethermint is fully compatible with the standard go-ethereum tooling such as [geth](https://github.com/ethereum/go-ethereum/wiki/Geth), [mist](https://github.com/ethereum/mist) and [truffle](https://github.com/trufflesuite/truffle). Please
-install whichever tooling suits you best. 
+install whichever tooling suits you best.
 
 Below we are explaining how to connect these tools to ethermint. For installation instructions please visit the respective projects.
 

@@ -1,6 +1,6 @@
-GOTOOLS := github.com/karalabe/xgo \
-					github.com/Masterminds/glide \
-					github.com/alecthomas/gometalinter
+GOTOOLS := \
+					 github.com/karalabe/xgo \
+					 github.com/alecthomas/gometalinter
 
 PACKAGES := $(shell glide novendor)
 
@@ -8,29 +8,29 @@ BUILD_TAGS? := ethermint
 
 VERSION_TAG := 0.5.3
 
+BUILD_FLAGS = -ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse --short HEAD`"
+
 
 ### Development ###
-all: install test
+all: get_vendor_deps install test
 
-install: get_vendor_deps
-	@echo "--> Running go install"
-	go install \
-		--ldflags "-X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
-		./cmd/ethermint
+install:
+	CGO_ENABLED=1 go install $(BUILD_FLAGS) ./cmd/ethermint
 
 build:
-	@echo "--> Running go build"
-	go build \
-		--ldflags "-extldflags '-static' -X github.com/tendermint/ethermint/version.GitCommit=`git rev-parse HEAD`" \
-		-race -o ./build/ethermint ./cmd/ethermint
+	CGO_ENABLED=1 go build $(BUILD_FLAGS) -o ./build/ethermint ./cmd/ethermint
 
 test:
 	@echo "--> Running go test"
-	go test $(PACKAGES)
+	@go test $(PACKAGES)
+
+test_race:
+	@echo "--> Running go test --race"
+	@go test -v -race $(PACKAGES)
 
 test_integrations:
 	@echo "--> Running integration tests"
-	bash ./tests/test.sh
+	@bash ./tests/test.sh
 
 test_coverage:
 	@echo "--> Running go test with coverage"
@@ -59,13 +59,20 @@ draw_deps:
 	goviz -i github.com/tendermint/ethermint/cmd/ethermint -d 2 | dot -Tpng -o dependency-graph.png
 
 get_vendor_deps:
+	@hash glide 2>/dev/null || go get github.com/Masterminds/glide
+	@rm -rf vendor/
 	@echo "--> Running glide install"
-	glide install --strip-vendor
+	@glide install
+	@# ethereum/node.go:53:23: cannot use ctx (type *"github.com/tendermint/ethermint/vendor/gopkg.in/urfave/cli.v1".Context) as type *"github.com/tendermint/ethermint/vendor/github.com/ethereum/go-ethereum/vendor/gopkg.in/urfave/cli.v1".Context in argument to utils.SetEthConfig
+	@rm -rf vendor/github.com/ethereum/go-ethereum/vendor
 
-ensure_tools:
+tools:
 	@echo "--> Installing tools"
 	go get $(GOTOOLS)
 
+update_tools:
+	@echo "--> Updating tools"
+	@go get -u $(GOTOOLS)
 
 ### Building and Publishing ###
 # dist builds binaries for all platforms and packages them for distribution
@@ -110,3 +117,8 @@ ethstats_start:
 
 ethstats_stop:
 	@cd $(CURDIR)/ethstats && pm2 stop ./app.json
+
+.PHONY: all install build test test_race test_integrations test_coverage linter
+	clean draw_deps get_vendor_deps tools update_tools dist publish
+	docker_build_develop docker_push_develop docker_build docker_push ethstats
+	ethstats_setup ethstats_start ethstats_stop
