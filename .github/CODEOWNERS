@@ -2,3 +2,5 @@
 
 # Everything goes through Adrian. For now.
 *       @adrianbrink
+*.md	@zramsay
+*.rst	@zramsay
