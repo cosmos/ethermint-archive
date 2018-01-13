@@ -1,6 +1,5 @@
 # CODEOWNERS: https://help.github.com/articles/about-codeowners/
 
-# Everything goes through Adrian. For now.
-*       @adrianbrink
+*     @jaekwon
 *.md	@zramsay
 *.rst	@zramsay
