@@ -42,7 +42,8 @@ func initCmd(ctx *cli.Context) error {
 		log.Info("successfully invoked `tendermint`", "args", tendermintArgs)
 	}
 
-	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(ethermintDataDir, "ethermint/chaindata"), 0, 0)
+	chainDb, err := ethdb.NewLDBDatabase(filepath.Join(ethermintDataDir,
+		"ethermint/chaindata"), 0, 0)
 	if err != nil {
 		ethUtils.Fatalf("could not open database: %v", err)
 	}
@@ -81,6 +82,7 @@ func initCmd(ctx *cli.Context) error {
 	return nil
 }
 
+// nolint=lll
 var keystoreFilesMap = map[string]string{
 	// https://github.com/tendermint/ethermint/blob/edc95f9d47ba1fb7c8161182533b5f5d5c5d619b/setup/keystore/UTC--2016-10-21T22-30-03.071787745Z--7eff122b94897ea5b0e2a9abf47b86337fafebdc
 	// OR

@@ -34,7 +34,9 @@ func (mc *MockClient) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
 }
 
 // ABCIQuery ...
-func (mc *MockClient) ABCIQuery(path string, data data.Bytes, prove bool) (*ctypes.ResultABCIQuery, error) {
+func (mc *MockClient) ABCIQuery(path string, data data.Bytes,
+	prove bool) (*ctypes.ResultABCIQuery, error) {
+
 	return &ctypes.ResultABCIQuery{}, nil
 }
 
@@ -89,7 +91,9 @@ func (mc *MockClient) Genesis() (*ctypes.ResultGenesis, error) {
 }
 
 // BlockchainInfo ...
-func (mc *MockClient) BlockchainInfo(minHeight, maxHeight int) (*ctypes.ResultBlockchainInfo, error) {
+func (mc *MockClient) BlockchainInfo(minHeight,
+	maxHeight int) (*ctypes.ResultBlockchainInfo, error) {
+
 	return &ctypes.ResultBlockchainInfo{}, nil
 }
 
