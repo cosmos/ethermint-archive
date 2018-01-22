@@ -24,13 +24,6 @@ these instructions.
 
         ethermint --datadir ~/.ethermint init
 
-* Note: You can optionally copy a keystore to the Ethereum folder that you used in the steps above i.e `~/.ethermint` e.g
-
-::
-
-        cp -r keystore ~/.ethermint
-
-
 Run Ethermint
 -------------
 
@@ -45,6 +38,19 @@ go-ethereum functionality.
         ethermint --datadir ~/.ethermint --rpc --rpcaddr=0.0.0.0 --ws --wsaddr=0.0.0.0 --rpcapi eth,net,web3,personal,admin
 
 The **password** for the default account is *1234*, which we'll need below.
+
+For development purposes, you can enable tendermint to only produce blocks when there are transactions. Add to the
+``~/.ethermint/tendermint/config.toml`` file:
+
+::
+
+        [consensus]
+        create_empty_blocks = false
+
+        # create_empty_blocks_interval = 5
+
+Notice the alternative feature which allows you to set an empty block interval. However, blocks will be produced without waiting
+for the interval if there are transactions.
 
 Connect to Geth
 ---------------

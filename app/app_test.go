@@ -118,7 +118,8 @@ func TestBumpingNoncesViaRPC(t *testing.T) {
 
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 
-	// replays should fail - we're checking if the transaction got through earlier, by replaying the nonce
+	// replays should fail - we're checking if the transaction got through earlier, by
+	// replaying the nonce
 	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(tx1).Code)
 	// ...on both interfaces of the app
 	assert.Equal(t, core.ErrNonceTooLow, backend.Ethereum().ApiBackend.SendTx(ctx, rawTx1))

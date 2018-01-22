@@ -38,7 +38,9 @@ type MockClient struct {
 
 func NewMockClient() *MockClient { return &MockClient{make(chan struct{})} }
 
-func (mc *MockClient) Call(method string, params map[string]interface{}, result interface{}) (interface{}, error) {
+func (mc *MockClient) Call(method string, params map[string]interface{},
+	result interface{}) (interface{}, error) {
+
 	_ = result
 	switch method {
 	case "status":
@@ -64,8 +66,8 @@ func generateKeyPair(t *testing.T) (*ecdsa.PrivateKey, common.Address) {
 	return privateKey, address
 }
 
-func createTx(t *testing.T, key *ecdsa.PrivateKey, nonce uint64,
-	to common.Address, amount, gasLimit, gasPrice *big.Int, data []byte) *ethTypes.Transaction {
+func createTx(t *testing.T, key *ecdsa.PrivateKey, nonce uint64, to common.Address, amount,
+	gasLimit, gasPrice *big.Int, data []byte) *ethTypes.Transaction {
 
 	signer := ethTypes.HomesteadSigner{}
 

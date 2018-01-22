@@ -56,7 +56,7 @@ func NewEthermintApplication(backend *ethereum.Backend,
 		strategy:        strategy,
 	}
 
-	if err := app.backend.ResetWork(app.Receiver()); err != nil {
+	if err := app.backend.InitEthState(app.Receiver()); err != nil {
 		return nil, err
 	}
 
@@ -80,7 +80,7 @@ func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
 	height := currentBlock.Number()
-	hash := currentBlock.Hash()
+	hash := currentBlock.TxHash()
 
 	app.logger.Debug("Info", "height", height) // nolint: errcheck
 
@@ -121,7 +121,8 @@ func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
 func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
 	if err != nil {
-		app.logger.Debug("CheckTx: Received invalid transaction", "tx", tx) // nolint: errcheck
+		// nolint: errcheck
+		app.logger.Debug("CheckTx: Received invalid transaction", "tx", tx)
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 	app.logger.Debug("CheckTx: Received valid transaction", "tx", tx) // nolint: errcheck
@@ -134,15 +135,18 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.Result {
 func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 	tx, err := decodeTx(txBytes)
 	if err != nil {
-		app.logger.Debug("DelivexTx: Received invalid transaction", "tx", tx, "err", err) // nolint: errcheck
+		// nolint: errcheck
+		app.logger.Debug("DelivexTx: Received invalid transaction", "tx", tx, "err", err)
 		return abciTypes.ErrEncodingError.AppendLog(err.Error())
 	}
 	app.logger.Debug("DeliverTx: Received valid transaction", "tx", tx) // nolint: errcheck
 
-	err = app.backend.DeliverTx(tx)
-	if err != nil {
-		app.logger.Error("DeliverTx: Error delivering tx to ethereum backend", "tx", tx, "err", err) // nolint: errcheck
-		return abciTypes.ErrInternalError.AppendLog(err.Error())
+	res := app.backend.DeliverTx(tx)
+	if res.IsErr() {
+		// nolint: errcheck
+		app.logger.Error("DeliverTx: Error delivering tx to ethereum backend", "tx", tx,
+			"err", err)
+		return res
 	}
 	app.CollectTx(tx)
 
@@ -172,7 +176,8 @@ func (app *EthermintApplication) Commit() abciTypes.Result {
 	app.logger.Debug("Commit") // nolint: errcheck
 	blockHash, err := app.backend.Commit(app.Receiver())
 	if err != nil {
-		app.logger.Error("Error getting latest ethereum state", "err", err) // nolint: errcheck
+		// nolint: errcheck
+		app.logger.Error("Error getting latest ethereum state", "err", err)
 		return abciTypes.ErrInternalError.AppendLog(err.Error())
 	}
 	state, err := app.getCurrentState()
@@ -191,15 +196,18 @@ func (app *EthermintApplication) Query(query abciTypes.RequestQuery) abciTypes.R
 	app.logger.Debug("Query") // nolint: errcheck
 	var in jsonRequest
 	if err := json.Unmarshal(query.Data, &in); err != nil {
-		return abciTypes.ResponseQuery{Code: abciTypes.ErrEncodingError.Code, Log: err.Error()}
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrEncodingError.Code,
+			Log: err.Error()}
 	}
 	var result interface{}
 	if err := app.rpcClient.Call(&result, in.Method, in.Params...); err != nil {
-		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code, Log: err.Error()}
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code,
+			Log: err.Error()}
 	}
 	bytes, err := json.Marshal(result)
 	if err != nil {
-		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code, Log: err.Error()}
+		return abciTypes.ResponseQuery{Code: abciTypes.ErrInternalError.Code,
+			Log: err.Error()}
 	}
 	return abciTypes.ResponseQuery{Code: abciTypes.OK.Code, Value: bytes}
 }
@@ -254,7 +262,8 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	nonce := currentState.GetNonce(from)
 	if nonce != tx.Nonce() {
 		return abciTypes.ErrBadNonce.
-			AppendLog(fmt.Sprintf("Nonce is not strictly increasing. Expected: %d; Got: %d", nonce, tx.Nonce()))
+			AppendLog(fmt.Sprintf("Nonce not strictly increasing. Expected %d Got %d",
+				nonce, tx.Nonce()))
 	}
 
 	// Transactor should have enough funds to cover the costs
@@ -262,7 +271,8 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	currentBalance := currentState.GetBalance(from)
 	if currentBalance.Cmp(tx.Cost()) < 0 {
 		return abciTypes.ErrInsufficientFunds.
-			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s", currentBalance, tx.Cost()))
+			AppendLog(fmt.Sprintf("Current balance: %s, tx cost: %s",
+				currentBalance, tx.Cost()))
 	}
 
 	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true) // homestead == true
