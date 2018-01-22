@@ -31,7 +31,7 @@ build_web3js_docker_test_image:
 	docker build --no-cache -t ethermint_js_test -f ./tests/integration/truffle/Dockerfile ./tests/integration/truffle
 
 clean_tests:
-	bash tests/p2p/stop_tests.sh $(NODES)
+	bash tests/p2p/stop_tests.sh $(NODES) || true
 
 create_network: clean_tests
 	@echo "--> Creating docker network"
