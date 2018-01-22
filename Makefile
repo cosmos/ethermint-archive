@@ -19,13 +19,17 @@ install:
 build:
 	CGO_ENABLED=1 go build $(BUILD_FLAGS) -o ./build/ethermint ./cmd/ethermint
 
-test:
-	@echo "--> Running go test"
-	@go test $(PACKAGES)
+#### tests
 
-test_race:
-	@echo "--> Running go test --race"
-	@go test -v -race $(PACKAGES)
+build_docker_test_image:
+	@echo "--> Building ethermint docker test image"
+	docker build --no-cache -t ethermint_tester -f ./tests/Dockerfile .
+
+build_web3js_docker_test_image:
+
+test_coverage:
+	@echo "--> Running go test with coverage"
+	bash ./tests/test_coverage.sh
 
 test_integrations:
 	@echo "--> Running integration tests"
@@ -36,9 +40,13 @@ test_integrations:
 
 	# @bash ./tests/test.sh
 
-test_coverage:
-	@echo "--> Running go test with coverage"
-	bash ./tests/test_coverage.sh
+test:
+	@echo "--> Running go test"
+	@go test $(PACKAGES)
+
+test_race:
+	@echo "--> Running go test --race"
+	@go test -v -race $(PACKAGES)
 
 clean:
 	@echo "--> Cleaning the build and dependency files"

@@ -19,14 +19,14 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 DATA_DIR="$DIR/tendermint_data"
 
 # Build docker image for ethermint from current source code
-echo
-echo "* [$(date +"%T")] building ethermint docker image"
-bash "$DIR/docker/build.sh"
+#echo
+#echo "* [$(date +"%T")] building ethermint docker image"
+#bash "$DIR/docker/build.sh"
 
 # Build docker image for web3 js tests
-echo
-echo "* [$(date +"%T")] building nodejs docker image"
-bash "$DIR/integration/truffle/build.sh"
+#echo
+#echo "* [$(date +"%T")] building nodejs docker image"
+#bash "$DIR/integration/truffle/build.sh"
 
 # stop existing container and remove network
 set +e
