@@ -1,6 +1,5 @@
 GOTOOLS := \
-					 github.com/karalabe/xgo \
-					 github.com/alecthomas/gometalinter
+					 github.com/karalabe/x
 
 PACKAGES := $(shell glide novendor)
 
@@ -30,19 +29,16 @@ test_race:
 
 test_integrations:
 	@echo "--> Running integration tests"
-	@bash ./tests/test.sh
+	make test_coverage
+	make test_
+	make test_
+	make test_
+
+	# @bash ./tests/test.sh
 
 test_coverage:
 	@echo "--> Running go test with coverage"
-	bash ./tests/scripts/test_coverage.sh
-
-linter:
-	@echo "--> Running metalinter"
-	gometalinter --install
-	gometalinter --vendor --tests --deadline=120s --disable-all \
-		--enable=unused \
-		--enable=lll --line-length=100 \
-		./...
+	bash ./tests/test_coverage.sh
 
 clean:
 	@echo "--> Cleaning the build and dependency files"
