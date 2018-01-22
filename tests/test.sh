@@ -4,7 +4,7 @@
 set -eux
 
 # count of tendermint/ethermint node
-N=4
+NODES=4
 
 # Docker version and info
 docker version
@@ -29,22 +29,22 @@ DATA_DIR="$DIR/tendermint_data"
 #bash "$DIR/integration/truffle/build.sh"
 
 # stop existing container and remove network
-set +e
-bash "$DIR/p2p/stop_tests.sh" $N
-set -e
+#set +e
+#bash "$DIR/p2p/stop_tests.sh" $NODES
+#set -e
 
-echo
-echo "* [$(date +"%T")] create docker network"
-docker network create --driver bridge --subnet 172.58.0.0/16 ethermint_net
+#echo
+#echo "* [$(date +"%T")] create docker network"
+#docker network create --driver bridge --subnet 172.58.0.0/16 ethermint_net
 
 # Generate seeds parameter to connect all tendermint nodes in one cluster
-SEEDS=$(bash $DIR/p2p/seeds.sh $N)
+SEEDS=$(bash $DIR/p2p/seeds.sh $NODES)
 if [[ "$SEEDS" != "" ]]; then
 	SEEDS="--p2p.seeds $SEEDS"
 fi
 
 # Start N nodes of tendermint and N node of ethermint.
-for i in $(seq 1 "$N"); do
+for i in $(seq 1 "$NODES"); do
 	echo
 	echo "* [$(date +"%T")] run tendermint $i container"
 
@@ -90,11 +90,3 @@ docker run --net=ethermint_net \
     -e WEB3_HOST=$ETHERMINT_IP \
     -e WEB3_PORT=8545 \
     ethermint_js_test npm test
-
-# Stop and remove containers. Remove network
-echo
-echo "* [$(date +"%T")] stop containers"
-bash "$DIR/p2p/stop_tests.sh" $N
-
-echo
-echo "* [$(date +"%T")] done"

@@ -20,12 +20,25 @@ build:
 	CGO_ENABLED=1 go build $(BUILD_FLAGS) -o ./build/ethermint ./cmd/ethermint
 
 #### tests
+NODES := 4
 
 build_docker_test_image:
 	@echo "--> Building ethermint docker test image"
 	docker build --no-cache -t ethermint_tester -f ./tests/Dockerfile .
 
 build_web3js_docker_test_image:
+	@echo "--> Building wed3js docker test image"
+	docker build --no-cache -t ethermint_js_test -f ./tests/integration/truffle/Dockerfile ./tests/integration/truffle
+
+clean_tests:
+	bash tests/p2p/stop_tests.sh $(NODES)
+
+create_network: clean_tests
+	@echo "--> Creating docker network"
+	docker network create --driver bridge --subnet 172.58.0.0/16 ethermint_net
+
+run_tests:
+	bash ./tests/test.sh
 
 test_coverage:
 	@echo "--> Running go test with coverage"
@@ -34,9 +47,11 @@ test_coverage:
 test_integrations:
 	@echo "--> Running integration tests"
 	make test_coverage
-	make test_
-	make test_
-	make test_
+	make build_docker_test_image
+	make build_web3js_docker_test_image
+	make create_network
+	make run_tests
+	make clean_tests
 
 	# @bash ./tests/test.sh
 
