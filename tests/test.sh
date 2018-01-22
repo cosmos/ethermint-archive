@@ -85,7 +85,7 @@ sleep 60
 echo
 echo "* [$(date +"%T")] run tests"
 docker run --net=ethermint_net \
-    --rm -it \
+    --rm -i \
     -e NODE_ENV=test \
     -e WEB3_HOST=$ETHERMINT_IP \
     -e WEB3_PORT=8545 \
