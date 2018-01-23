@@ -75,7 +75,10 @@ func TestStrictlyIncrementingNonces(t *testing.T) {
 	assert.Equal(t, errors.CodeTypeBadNonce, app.CheckTx(tx3).Code)
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock(abciTypes.RequestBeginBlock{Hash: []byte{}, Header: &abciTypes.Header{Height: height, Time: 1}})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
 	// expect a failure here since the nonce is not strictly increasing
@@ -111,7 +114,10 @@ func TestBumpingNoncesViaRPC(t *testing.T) {
 
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
 
-	app.BeginBlock(abciTypes.RequestBeginBlock{Hash: []byte{}, Header: &abciTypes.Header{Height: height, Time: 1}})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
 
@@ -153,7 +159,10 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock(abciTypes.RequestBeginBlock{Hash: []byte{}, Header: &abciTypes.Header{Height: height, Time: 1}})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx2).Code)
@@ -182,7 +191,10 @@ func TestMultipleTxFromTwoAcc(t *testing.T) {
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock(abciTypes.RequestBeginBlock{Hash: []byte{}, Header: &abciTypes.Header{Height: height, Time: 1}})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx2).Code)
@@ -212,7 +224,10 @@ func TestFromAccToAcc(t *testing.T) {
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
 	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock(abciTypes.RequestBeginBlock{Hash: []byte{}, Header: &abciTypes.Header{Height: height, Time: 1}})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
 	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx2).Code)

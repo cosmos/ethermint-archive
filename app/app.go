@@ -13,9 +13,9 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 	emtTypes "github.com/tendermint/ethermint/types"
 
+	"github.com/cosmos/cosmos-sdk/errors"
 	abciTypes "github.com/tendermint/abci/types"
 	tmLog "github.com/tendermint/tmlibs/log"
-	"github.com/cosmos/cosmos-sdk/errors"
 )
 
 // EthermintApplication implements an ABCI application
@@ -107,17 +107,21 @@ func (app *EthermintApplication) Info(req abciTypes.RequestInfo) abciTypes.Respo
 
 // SetOption sets a configuration option
 // #stable - 0.4.0
-func (app *EthermintApplication) SetOption(req abciTypes.RequestSetOption) abciTypes.ResponseSetOption {
+func (app *EthermintApplication) SetOption(req abciTypes.RequestSetOption) (
+	abciTypes.ResponseSetOption) {
+
 	app.logger.Debug("SetOption", "key", req.GetKey(), "value", req.GetValue()) // nolint: errcheck
-	return abciTypes.ResponseSetOption {}
+	return abciTypes.ResponseSetOption{}
 }
 
 // InitChain initializes the validator set
 // #stable - 0.4.0
-func (app *EthermintApplication) InitChain(req abciTypes.RequestInitChain) abciTypes.ResponseInitChain {
+func (app *EthermintApplication) InitChain(req abciTypes.RequestInitChain) (
+	abciTypes.ResponseInitChain) {
+
 	app.logger.Debug("InitChain") // nolint: errcheck
 	app.SetValidators(req.GetValidators())
-	return abciTypes.ResponseInitChain {}
+	return abciTypes.ResponseInitChain{}
 }
 
 // CheckTx checks a transaction is valid but does not mutate the state
@@ -127,9 +131,9 @@ func (app *EthermintApplication) CheckTx(txBytes []byte) abciTypes.ResponseCheck
 	if err != nil {
 		// nolint: errcheck
 		app.logger.Debug("CheckTx: Received invalid transaction", "tx", tx)
-		return abciTypes.ResponseCheckTx {
+		return abciTypes.ResponseCheckTx{
 			Code: errors.CodeTypeInternalErr,
-			Log: err.Error(),
+			Log:  err.Error(),
 		}
 	}
 	app.logger.Debug("CheckTx: Received valid transaction", "tx", tx) // nolint: errcheck
@@ -144,9 +148,9 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.ResponseDel
 	if err != nil {
 		// nolint: errcheck
 		app.logger.Debug("DelivexTx: Received invalid transaction", "tx", tx, "err", err)
-		return abciTypes.ResponseDeliverTx {
+		return abciTypes.ResponseDeliverTx{
 			Code: errors.CodeTypeInternalErr,
-			Log: err.Error(),
+			Log:  err.Error(),
 		}
 	}
 	app.logger.Debug("DeliverTx: Received valid transaction", "tx", tx) // nolint: errcheck
@@ -160,24 +164,28 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.ResponseDel
 	}
 	app.CollectTx(tx)
 
-	return abciTypes.ResponseDeliverTx {
+	return abciTypes.ResponseDeliverTx{
 		Code: abciTypes.CodeTypeOK,
 	}
 }
 
 // BeginBlock starts a new Ethereum block
 // #stable - 0.4.0
-func (app *EthermintApplication) BeginBlock(beginBlock abciTypes.RequestBeginBlock) abciTypes.ResponseBeginBlock {
+func (app *EthermintApplication) BeginBlock(beginBlock abciTypes.RequestBeginBlock) (
+	abciTypes.ResponseBeginBlock) {
+
 	app.logger.Debug("BeginBlock") // nolint: errcheck
 
 	// update the eth header with the tendermint header
 	app.backend.UpdateHeaderWithTimeInfo(beginBlock.GetHeader())
-	return abciTypes.ResponseBeginBlock {}
+	return abciTypes.ResponseBeginBlock{}
 }
 
 // EndBlock accumulates rewards for the validators and updates them
 // #stable - 0.4.0
-func (app *EthermintApplication) EndBlock(endBlock abciTypes.RequestEndBlock) abciTypes.ResponseEndBlock {
+func (app *EthermintApplication) EndBlock(endBlock abciTypes.RequestEndBlock) (
+	abciTypes.ResponseEndBlock) {
+
 	app.logger.Debug("EndBlock", "height", endBlock.GetHeight()) // nolint: errcheck
 	app.backend.AccumulateRewards(app.strategy)
 	return app.GetUpdatedValidators()
@@ -191,22 +199,22 @@ func (app *EthermintApplication) Commit() abciTypes.ResponseCommit {
 	if err != nil {
 		// nolint: errcheck
 		app.logger.Error("Error getting latest ethereum state", "err", err)
-		return abciTypes.ResponseCommit {
+		return abciTypes.ResponseCommit{
 			Code: errors.CodeTypeInternalErr,
-			Log: err.Error(),
+			Log:  err.Error(),
 		}
 	}
 	state, err := app.getCurrentState()
 	if err != nil {
 		app.logger.Error("Error getting latest state", "err", err) // nolint: errcheck
-		return abciTypes.ResponseCommit {
+		return abciTypes.ResponseCommit{
 			Code: errors.CodeTypeInternalErr,
-			Log: err.Error(),
+			Log:  err.Error(),
 		}
 	}
 
 	app.checkTxState = state.Copy()
-	return abciTypes.ResponseCommit {
+	return abciTypes.ResponseCommit{
 		Data: blockHash[:],
 	}
 }
@@ -241,7 +249,9 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.Size() > maxTransactionSize {
-		return abciTypes.ResponseCheckTx{Code: errors.CodeTypeInternalErr, Log: core.ErrOversizedData.Error()}
+		return abciTypes.ResponseCheckTx {
+			Code: errors.CodeTypeInternalErr,
+			Log: core.ErrOversizedData.Error()}
 	}
 
 	var signer ethTypes.Signer = ethTypes.FrontierSigner{}
@@ -253,26 +263,34 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	from, err := ethTypes.Sender(signer, tx)
 	if err != nil {
 		// TODO: Add errors.CodeTypeInvalidSignature ?
-		return abciTypes.ResponseCheckTx{Code: errors.CodeTypeInternalErr, Log: core.ErrInvalidSender.Error()}
+		return abciTypes.ResponseCheckTx {
+			Code: errors.CodeTypeInternalErr,
+			Log: core.ErrInvalidSender.Error()}
 	}
 
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if tx.Value().Sign() < 0 {
-		return abciTypes.ResponseCheckTx{Code: errors.CodeTypeBaseInvalidInput, Log: core.ErrNegativeValue.Error()}
+		return abciTypes.ResponseCheckTx {
+			Code: errors.CodeTypeBaseInvalidInput,
+			Log: core.ErrNegativeValue.Error()}
 	}
 
 	currentState := app.checkTxState
 
 	// Make sure the account exist - cant send from non-existing account.
 	if !currentState.Exist(from) {
-		return abciTypes.ResponseCheckTx{Code: errors.CodeTypeUnknownAddress, Log: core.ErrInvalidSender.Error()}
+		return abciTypes.ResponseCheckTx {
+			Code: errors.CodeTypeUnknownAddress,
+			Log: core.ErrInvalidSender.Error()}
 	}
 
 	// Check the transaction doesn't exceed the current block limit gas.
 	gasLimit := app.backend.GasLimit()
 	if gasLimit.Cmp(tx.Gas()) < 0 {
-		return abciTypes.ResponseCheckTx{Code: errors.CodeTypeInternalErr, Log: core.ErrGasLimitReached.Error()}
+		return abciTypes.ResponseCheckTx {
+			Code: errors.CodeTypeInternalErr,
+			Log: core.ErrGasLimitReached.Error()}
 	}
 
 	// Check if nonce is not strictly increasing
@@ -280,7 +298,9 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 	if nonce != tx.Nonce() {
 		return abciTypes.ResponseCheckTx{
 			Code: errors.CodeTypeBadNonce,
-			Log: fmt.Sprintf("Nonce not strictly increasing. Expected %d Got %d", nonce, tx.Nonce())}
+			Log:  fmt.Sprintf(
+				"Nonce not strictly increasing. Expected %d Got %d",
+				nonce, tx.Nonce())}
 	}
 
 	// Transactor should have enough funds to cover the costs
@@ -290,12 +310,16 @@ func (app *EthermintApplication) validateTx(tx *ethTypes.Transaction) abciTypes.
 		return abciTypes.ResponseCheckTx{
 			// TODO: Add errors.CodeTypeInsufficientFunds ?
 			Code: errors.CodeTypeBaseInvalidInput,
-			Log: fmt.Sprintf("Current balance: %s, tx cost: %s", currentBalance, tx.Cost())}
+			Log:  fmt.Sprintf(
+				"Current balance: %s, tx cost: %s",
+				currentBalance, tx.Cost())}
 	}
 
 	intrGas := core.IntrinsicGas(tx.Data(), tx.To() == nil, true) // homestead == true
 	if tx.Gas().Cmp(intrGas) < 0 {
-		return abciTypes.ResponseCheckTx{Code: errors.CodeTypeBaseInvalidInput, Log: core.ErrIntrinsicGas.Error()}
+		return abciTypes.ResponseCheckTx {
+			Code: errors.CodeTypeBaseInvalidInput,
+			Log: core.ErrIntrinsicGas.Error()}
 	}
 
 	// Update ether balances
