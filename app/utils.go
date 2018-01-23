@@ -52,7 +52,7 @@ func (app *EthermintApplication) SetValidators(validators []*abciTypes.Validator
 // #unstable
 func (app *EthermintApplication) GetUpdatedValidators() abciTypes.ResponseEndBlock {
 	if app.strategy != nil {
-		return abciTypes.ResponseEndBlock{Diffs: app.strategy.GetUpdatedValidators()}
+		return abciTypes.ResponseEndBlock{ValidatorUpdates: app.strategy.GetUpdatedValidators()}
 	}
 	return abciTypes.ResponseEndBlock{}
 }

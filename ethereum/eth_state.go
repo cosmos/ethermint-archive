@@ -18,6 +18,7 @@ import (
 	abciTypes "github.com/tendermint/abci/types"
 
 	emtTypes "github.com/tendermint/ethermint/types"
+	"github.com/cosmos/cosmos-sdk/errors"
 )
 
 //----------------------------------------------------------------------
@@ -56,7 +57,7 @@ func (es *EthState) SetEthConfig(ethConfig *eth.Config) {
 }
 
 // Execute the transaction.
-func (es *EthState) DeliverTx(tx *ethTypes.Transaction) abciTypes.Result {
+func (es *EthState) DeliverTx(tx *ethTypes.Transaction) abciTypes.ResponseDeliverTx {
 	es.mtx.Lock()
 	defer es.mtx.Unlock()
 
@@ -181,7 +182,7 @@ func (ws *workState) accumulateRewards(strategy *emtTypes.Strategy) {
 // and appends the tx, receipt, and logs.
 func (ws *workState) deliverTx(blockchain *core.BlockChain, config *eth.Config,
 	chainConfig *params.ChainConfig, blockHash common.Hash,
-	tx *ethTypes.Transaction) abciTypes.Result {
+	tx *ethTypes.Transaction) abciTypes.ResponseDeliverTx {
 
 	ws.state.Prepare(tx.Hash(), blockHash, ws.txIndex)
 	receipt, _, err := core.ApplyTransaction(
@@ -196,7 +197,7 @@ func (ws *workState) deliverTx(blockchain *core.BlockChain, config *eth.Config,
 		vm.Config{EnablePreimageRecording: config.EnablePreimageRecording},
 	)
 	if err != nil {
-		return abciTypes.ErrInternalError.AppendLog(err.Error())
+		return abciTypes.ResponseDeliverTx{Code: errors.CodeTypeInternalErr, Log: err.Error()}
 	}
 
 	logs := ws.state.GetLogs(tx.Hash())
@@ -208,7 +209,7 @@ func (ws *workState) deliverTx(blockchain *core.BlockChain, config *eth.Config,
 	ws.receipts = append(ws.receipts, receipt)
 	ws.allLogs = append(ws.allLogs, logs...)
 
-	return abciTypes.Result{Code: abciTypes.CodeType_OK}
+	return abciTypes.ResponseDeliverTx{Code: abciTypes.CodeTypeOK}
 }
 
 // Commit the ethereum state, update the header, make a new block and add it to

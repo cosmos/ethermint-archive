@@ -1,11 +1,11 @@
 package: github.com/tendermint/ethermint
 import:
 - package: github.com/tendermint/tendermint
-  version: 0.10.x
+  version: 0.15.x
 - package: github.com/tendermint/tmlibs
-  version: 0.2.x
+  version: 0.6.x
 - package: github.com/tendermint/abci
-  version: 0.5.x
+  version: 0.9.x
 - package: github.com/ethereum/go-ethereum
   version: f1.6.7
   repo: https://github.com/tendermint/go-ethereum.git
@@ -15,3 +15,9 @@ import:
   version: 1.x
 - package: github.com/mattn/go-colorable
   version: 0.x
+- package: google.golang.org/grpc
+  repo: https://github.com/grpc/grpc-go
+  vcs: git
+- package: google.golang.org/genproto
+  repo: https://github.com/google/go-genproto
+  vcs: git
