@@ -18,6 +18,7 @@ import (
 	"github.com/tendermint/ethermint/ethereum"
 
 	abciTypes "github.com/tendermint/abci/types"
+	"github.com/cosmos/cosmos-sdk/errors"
 )
 
 var (
@@ -59,7 +60,7 @@ func TestStrictlyIncrementingNonces(t *testing.T) {
 	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{address})
 	defer teardownTestCase(t)
 
-	height := uint64(1)
+	height := int64(1)
 
 	// create txs with different nonces
 	tx1 := createTxBytes(t, privateKey, 0,
@@ -69,21 +70,24 @@ func TestStrictlyIncrementingNonces(t *testing.T) {
 	tx3 := createTxBytes(t, privateKey, 2,
 		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
 	// expect a failure here since the nonce is not strictly increasing
-	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(tx3).Code)
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
+	assert.Equal(t, errors.CodeTypeBadNonce, app.CheckTx(tx3).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
 	// expect a failure here since the nonce is not strictly increasing
-	assert.Equal(t, abciTypes.ErrInternalError.Code, app.DeliverTx(tx3).Code)
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
+	assert.Equal(t, errors.CodeTypeInternalErr, app.DeliverTx(tx3).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx2).Code)
 
-	app.EndBlock(height)
+	app.EndBlock(abciTypes.RequestEndBlock{height})
 
-	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.Commit().Code)
 }
 
 // TestBumpingNoncesWithRawTransaction sends a transaction over the RPC
@@ -94,7 +98,7 @@ func TestBumpingNoncesViaRPC(t *testing.T) {
 	teardownTestCase, app, backend, mockClient := setupTestCase(t, []common.Address{address})
 	defer teardownTestCase(t)
 
-	height := uint64(1)
+	height := int64(1)
 	nonceOne := uint64(0)
 	nonceTwo := uint64(1)
 
@@ -108,19 +112,22 @@ func TestBumpingNoncesViaRPC(t *testing.T) {
 	rawTx2 := createTx(t, privateKey, nonceTwo,
 		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
 
-	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
 
-	app.EndBlock(height)
+	app.EndBlock(abciTypes.RequestEndBlock{height})
 
-	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.Commit().Code)
 
 	// replays should fail - we're checking if the transaction got through earlier, by
 	// replaying the nonce
-	assert.Equal(t, abciTypes.ErrBadNonce.Code, app.CheckTx(tx1).Code)
+	assert.Equal(t, errors.CodeTypeBadNonce, app.CheckTx(tx1).Code)
 	// ...on both interfaces of the app
 	assert.Equal(t, core.ErrNonceTooLow, backend.Ethereum().ApiBackend.SendTx(ctx, rawTx1))
 
@@ -140,7 +147,7 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{address})
 	defer teardownTestCase(t)
 
-	height := uint64(1)
+	height := int64(1)
 	nonceOne := uint64(0)
 	nonceTwo := uint64(1)
 
@@ -149,17 +156,20 @@ func TestMultipleTxOneAcc(t *testing.T) {
 	tx2 := createTxBytes(t, privateKeyOne, nonceTwo,
 		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx2).Code)
 
-	app.EndBlock(height)
+	app.EndBlock(abciTypes.RequestEndBlock{height})
 
-	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.Commit().Code)
 }
 
 // TestMultipleTxFromTwoAcc sends multiple txs from two different accounts
@@ -169,7 +179,7 @@ func TestMultipleTxFromTwoAcc(t *testing.T) {
 	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne, addressTwo})
 	defer teardownTestCase(t)
 
-	height := uint64(1)
+	height := int64(1)
 	nonceOne := uint64(0)
 	nonceTwo := uint64(0)
 
@@ -178,17 +188,20 @@ func TestMultipleTxFromTwoAcc(t *testing.T) {
 	tx2 := createTxBytes(t, privateKeyTwo, nonceTwo,
 		receiverAddress, amount, gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx2).Code)
 
-	app.EndBlock(height)
+	app.EndBlock(abciTypes.RequestEndBlock{height})
 
-	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.Commit().Code)
 }
 
 // TestFromAccToAcc sends a transaction from account A to account B and from
@@ -199,7 +212,7 @@ func TestFromAccToAcc(t *testing.T) {
 	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{addressOne})
 	defer teardownTestCase(t)
 
-	height := uint64(1)
+	height := int64(1)
 	nonceOne := uint64(0)
 	nonceTwo := uint64(0)
 
@@ -208,15 +221,18 @@ func TestFromAccToAcc(t *testing.T) {
 	tx2 := createTxBytes(t, privateKeyTwo, nonceTwo,
 		receiverAddress, big.NewInt(50000), gasLimit, gasPrice, nil)
 
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.CheckTx(tx2))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx1).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.CheckTx(tx2).Code)
 
-	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+	app.BeginBlock(
+		abciTypes.RequestBeginBlock {
+			Hash: []byte{},
+			Header: &abciTypes.Header{Height: height, Time: 1}})
 
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx1))
-	assert.Equal(t, abciTypes.OK, app.DeliverTx(tx2))
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx1).Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.DeliverTx(tx2).Code)
 
-	app.EndBlock(height)
+	app.EndBlock(abciTypes.RequestEndBlock{height})
 
-	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
+	assert.Equal(t, abciTypes.CodeTypeOK, app.Commit().Code)
 }

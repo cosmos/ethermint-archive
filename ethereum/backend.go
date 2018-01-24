@@ -92,7 +92,7 @@ func (b *Backend) Config() *eth.Config {
 
 // DeliverTx appends a transaction to the current block
 // #stable
-func (b *Backend) DeliverTx(tx *ethTypes.Transaction) abciTypes.Result {
+func (b *Backend) DeliverTx(tx *ethTypes.Transaction) abciTypes.ResponseDeliverTx {
 	return b.es.DeliverTx(tx)
 }
 
@@ -117,8 +117,8 @@ func (b *Backend) InitEthState(receiver common.Address) error {
 // UpdateHeaderWithTimeInfo uses the tendermint header to update the ethereum header
 // #unstable
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
-	b.es.UpdateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time,
-		tmHeader.GetNumTxs())
+	b.es.UpdateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), uint64(tmHeader.Time),
+		uint64(tmHeader.GetNumTxs()))
 }
 
 // GasLimit returns the maximum gas per block

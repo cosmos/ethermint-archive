@@ -85,7 +85,7 @@ func ethermintCmd(ctx *cli.Context) error {
 
 	srv.SetLogger(emtUtils.EthermintLogger().With("module", "abci-server"))
 
-	if _, err := srv.Start(); err != nil {
+	if err := srv.Start(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

@@ -28,7 +28,7 @@ func (strategy *TxBasedValidatorsStrategy) CollectTx(tx *ethTypes.Transaction) {
 			strategy.currentValidators,
 			&types.Validator{
 				PubKey: tx.Data(),
-				Power:  tx.Value().Uint64(),
+				Power:  tx.Value().Int64(),
 			},
 		)
 	}
