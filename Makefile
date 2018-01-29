@@ -1,6 +1,5 @@
 GOTOOLS := \
-					 github.com/karalabe/xgo \
-					 github.com/alecthomas/gometalinter
+					 github.com/karalabe/x
 
 PACKAGES := $(shell glide novendor)
 
@@ -20,6 +19,42 @@ install:
 build:
 	CGO_ENABLED=1 go build $(BUILD_FLAGS) -o ./build/ethermint ./cmd/ethermint
 
+#### tests
+NODES := 4
+
+build_docker_test_image:
+	@echo "--> Building ethermint docker test image"
+	docker build --no-cache -t ethermint_tester -f ./tests/Dockerfile .
+
+build_web3js_docker_test_image:
+	@echo "--> Building wed3js docker test image"
+	docker build --no-cache -t ethermint_js_test -f ./tests/integration/truffle/Dockerfile ./tests/integration/truffle
+
+clean_tests:
+	bash tests/p2p/stop_tests.sh $(NODES) || true
+
+create_network: clean_tests
+	@echo "--> Creating docker network"
+	docker network create --driver bridge --subnet 172.58.0.0/16 ethermint_net
+
+run_tests:
+	bash ./tests/test.sh
+
+test_coverage:
+	@echo "--> Running go test with coverage"
+	bash ./tests/test_coverage.sh
+
+test_integrations:
+	@echo "--> Running integration tests"
+	make test_coverage
+	make build_docker_test_image
+	make build_web3js_docker_test_image
+	make create_network
+	make run_tests
+	make clean_tests
+
+	# @bash ./tests/test.sh
+
 test:
 	@echo "--> Running go test"
 	@go test $(PACKAGES)
@@ -27,22 +62,6 @@ test:
 test_race:
 	@echo "--> Running go test --race"
 	@go test -v -race $(PACKAGES)
-
-test_integrations:
-	@echo "--> Running integration tests"
-	@bash ./tests/test.sh
-
-test_coverage:
-	@echo "--> Running go test with coverage"
-	bash ./tests/scripts/test_coverage.sh
-
-linter:
-	@echo "--> Running metalinter"
-	gometalinter --install
-	gometalinter --vendor --tests --deadline=120s --disable-all \
-		--enable=unused \
-		--enable=lll --line-length=100 \
-		./...
 
 clean:
 	@echo "--> Cleaning the build and dependency files"
