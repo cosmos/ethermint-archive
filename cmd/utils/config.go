@@ -96,6 +96,7 @@ func DefaultNodeConfig() node.Config {
 func SetEthermintNodeConfig(cfg *node.Config) {
 	cfg.P2P.MaxPeers = 0
 	cfg.P2P.NoDiscovery = true
+	cfg.NoUSB = true // tests were randomly panic'ing due to cgo issues
 }
 
 // SetEthermintEthConfig takes a ethereum configuration and applies ethermint specific configuration
