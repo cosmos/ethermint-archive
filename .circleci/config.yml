@@ -23,7 +23,7 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run: make get_vendor_deps
-      - run: make test
+      - run: make test_race
       - run: make tools
       - run: make linter
       - run: make test_coverage && bash <(curl -s https://codecov.io/bash) -f coverage.txt
