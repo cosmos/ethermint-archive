@@ -220,3 +220,20 @@ func TestFromAccToAcc(t *testing.T) {
 
 	assert.Equal(t, abciTypes.OK.Code, app.Commit().Code)
 }
+
+// TestInfo commit a block, then response to a Info
+func TestInfo(t *testing.T) {
+	_, address := generateKeyPair(t)
+	teardownTestCase, app, _, _ := setupTestCase(t, []common.Address{address})
+	defer teardownTestCase(t)
+
+	blockchain := app.backend.Ethereum().BlockChain()
+	var height uint64 = 1
+	app.BeginBlock([]byte{}, &abciTypes.Header{Height: height, Time: 1})
+	app.EndBlock(height)
+	app.Commit()
+
+	expected := blockchain.LastBlockHash().Bytes()
+	response := app.Info()
+	assert.Equal(t, expected, response.LastBlockAppHash)
+}
