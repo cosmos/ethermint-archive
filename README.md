@@ -5,7 +5,7 @@ Ethereum powered by Tendermint consensus
 [![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=develop)](https://travis-ci.org/tendermint/ethermint) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=master)](http://ethermint.readthedocs.io/en/latest/?badge=master)
 
 
-The latest version of Ethermint only works with Tendermint up to 0.14.0.
+**The latest version of Ethermint only works with Tendermint up to 0.14.0**.
 
 
 ## Features
