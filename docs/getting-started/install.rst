@@ -18,6 +18,7 @@ MacOS
 
 ::
 
+    brew tap tendermint/homebrew-tendermint
     brew install ethermint
 
 Windows
