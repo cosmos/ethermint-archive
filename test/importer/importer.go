@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
+	"runtime"
 	"time"
 
 	"github.com/cosmos/ethermint/core"
@@ -62,7 +64,7 @@ func (imp *Importer) Import() {
 
 		// get balance of one of the genesis account having 200 ETH
 		b := gethStateDB.GetBalance(genInvestor)
-		fmt.Printf("balance of %s: %s\n", genInvestor.String(), b)
+		log.Printf("balance of %s: %s\n", genInvestor.String(), b)
 
 		// commit the geth stateDB with 'false' to delete empty objects
 		genRoot, err := gethStateDB.Commit(false)
@@ -72,8 +74,8 @@ func (imp *Importer) Import() {
 
 		commitID := imp.EthermintDB.Commit()
 
-		fmt.Printf("commitID after genesis: %v\n", commitID)
-		fmt.Printf("genesis state root hash: %x\n", genRoot[:])
+		log.Printf("commitID after genesis: %v\n", commitID)
+		log.Printf("genesis state root hash: %x\n", genRoot[:])
 	}
 
 	// file with blockchain data exported from geth by using "geth exportdb"
@@ -124,7 +126,7 @@ func (imp *Importer) Import() {
 		}
 
 		if lastSkipped > 0 {
-			fmt.Printf("skipped blocks up to %d\n", lastSkipped)
+			log.Printf("skipped blocks up to %d\n", lastSkipped)
 			lastSkipped = 0
 		}
 
@@ -208,23 +210,29 @@ func (imp *Importer) Import() {
 
 		n++
 		if (n % 10000) == 0 {
-			fmt.Printf("processed %d blocks, time so far: %v\n", n, time.Since(startTime))
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+
+			log.Printf("processed %d blocks, time so far: %v\n", n, time.Since(startTime))
+			log.Printf("total alloc: %dMB, alloc: %dMB, sys: %dMB, numGC: %d\n",
+				bytesToMB(m.TotalAlloc), bytesToMB(m.Alloc), bytesToMB(m.Sys), int(m.NumGC),
+			)
 		}
 
-		// Check for interrupts
+		// check for interrupts
 		select {
 		case interrupt = <-imp.InterruptCh:
-			fmt.Println("interrupted, please wait for cleanup...")
+			log.Println("interrupted, please wait for cleanup...")
 		default:
 		}
 	}
 
-	fmt.Printf("processed %d blocks\n", n)
+	log.Printf("processed %d blocks\n", n)
 
 	imp.EthermintDB.Tracing = true
 
 	// try to create a new geth stateDB from root of the block 500
-	fmt.Printf("root at block 500: %x\n", root500[:])
+	log.Printf("root at block 500: %x\n", root500[:])
 
 	state500, err := ethstate.New(root500, imp.EthermintDB)
 	if err != nil {
@@ -240,7 +248,7 @@ func (imp *Importer) Import() {
 
 	miner501BalanceAt501 := state501.GetBalance(miner501)
 
-	fmt.Printf("investor's balance after block 500: %d\n", state500.GetBalance(genInvestor))
-	fmt.Printf("miner of block 501's balance after block 500: %d\n", miner501BalanceAt500)
-	fmt.Printf("miner of block 501's balance after block 501: %d\n", miner501BalanceAt501)
+	log.Printf("investor's balance after block 500: %d\n", state500.GetBalance(genInvestor))
+	log.Printf("miner of block 501's balance after block 500: %d\n", miner501BalanceAt500)
+	log.Printf("miner of block 501's balance after block 501: %d\n", miner501BalanceAt501)
 }

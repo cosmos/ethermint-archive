@@ -41,3 +41,7 @@ func accumulateRewards(config *ethparams.ChainConfig, state *ethstate.StateDB, h
 
 	state.AddBalance(header.Coinbase, reward)
 }
+
+func bytesToMB(b uint64) uint64 {
+	return b / 1024 / 1024
+}
