@@ -27,3 +27,7 @@
 
 [prune]
   go-tests = true
+
+[[constraint]]
+  name = "github.com/gorilla/rpc"
+  version = "1.1.0"
