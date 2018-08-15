@@ -49,7 +49,11 @@ func main() {
 		interruptCh <- true
 	}()
 
-	stateDB := dbm.NewDB("state", dbm.LevelDBBackend, *datadir)
+	//stateDB := dbm.NewDB("state", dbm.LevelDBBackend, *datadir)
+	stateDB, err := OpenBoltDb(path.Join(*datadir, "state"))
+	if err != nil {
+		panic(fmt.Sprintf("failed to open BoltDB database: %v", err))
+	}
 	codeDB := dbm.NewDB("code", dbm.LevelDBBackend, *datadir)
 
 	ethermintDB, err := state.NewDatabase(stateDB, codeDB, *cachesize)
