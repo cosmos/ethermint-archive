@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -14,14 +15,22 @@ type BoltDb struct {
 
 // Implements dbm.Iterator
 type BoltIterator struct {
+	tx *bolt.Tx
+	cursor *bolt.Cursor
+	start, end []byte
+	reverse bool
 }
 
 func (bit *BoltIterator) Domain() (start []byte, end []byte) {
-	return nil, nil
+	return bit.start, bit.end
 }
 
 func (bit *BoltIterator) Valid() bool {
-	return false
+	if bit.reverse {
+		return bytes.Compare(bit.start, bit.end) > 0
+	} else {
+		return bytes.Compare(bit.start, bit.end) < 0
+	}
 }
 
 func (bit *BoltIterator) Next() {
@@ -36,6 +45,7 @@ func (bit *BoltIterator) Value() (value []byte) {
 }
 
 func (bit *BoltIterator) Close() {
+	bit.tx.Rollback()
 }
 
 // Implements dbm.Batch
@@ -66,6 +76,14 @@ func OpenBoltDb(filename string) (*BoltDb, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Create the bucket if does not exist
+	if err := db.Update(func (tx *bolt.Tx) error {
+		_, e := tx.CreateBucketIfNotExists(bucket)
+		return e
+	}); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return &BoltDb{
 		db: db,
 	}, nil
@@ -92,11 +110,23 @@ func (bdb *BoltDb) DeleteSync([]byte) {
 }
 
 func (bdb *BoltDb) Iterator(start, end []byte) dbm.Iterator {
-	return &BoltIterator{}
+	tx, err := bdb.db.Begin(false /*writeable*/)
+	if err != nil {
+		panic(err)
+	}
+	b := tx.Bucket(bucket)
+	cursor := b.Cursor()
+	return &BoltIterator{tx: tx, cursor: cursor, start: start, end: end, reverse: false}
 }
 
 func (bdb *BoltDb) ReverseIterator(start, end []byte) dbm.Iterator {
-	return nil
+	tx, err := bdb.db.Begin(false /*writeable*/)
+	if err != nil {
+		panic(err)
+	}
+	b := tx.Bucket(bucket)
+	cursor := b.Cursor()
+	return &BoltIterator{tx: tx, cursor: cursor, start: start, end: end, reverse: true}
 }
 
 func (bdb *BoltDb) Close() {
