@@ -11,8 +11,6 @@ import (
 
 	"github.com/cosmos/ethermint/state"
 	"github.com/cosmos/ethermint/test/importer"
-
-	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
 var (
@@ -49,8 +47,15 @@ func main() {
 		interruptCh <- true
 	}()
 
-	stateDB := dbm.NewDB("state", dbm.LevelDBBackend, *datadir)
-	codeDB := dbm.NewDB("code", dbm.LevelDBBackend, *datadir)
+	//stateDB := dbm.NewDB("state", dbm.LevelDBBackend, *datadir)
+	stateDB, err := OpenBoltDb(path.Join(*datadir, "state"))
+	if err != nil {
+		panic(fmt.Sprintf("failed to open BoltDB database: %v", err))
+	}
+	codeDB, err := OpenBoltDb(path.Join(*datadir, "code"))
+	if err != nil {
+		panic(fmt.Sprintf("failed to open BoltDB database: %v", err))
+	}
 
 	ethermintDB, err := state.NewDatabase(stateDB, codeDB, *cachesize)
 	if err != nil {
