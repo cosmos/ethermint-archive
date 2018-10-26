@@ -17,11 +17,11 @@ func TestMsgEthereumTx(t *testing.T) {
 
 	msg1 := NewMsgEthereumTx(0, addr, nil, 100000, nil, []byte("test"))
 	require.NotNil(t, msg1)
-	require.Equal(t, *msg1.data.Recipient, addr)
+	require.Equal(t, *msg1.Data.Recipient, addr)
 
 	msg2 := NewMsgEthereumTxContract(0, nil, 100000, nil, []byte("test"))
 	require.NotNil(t, msg2)
-	require.Nil(t, msg2.data.Recipient)
+	require.Nil(t, msg2.Data.Recipient)
 
 	msg3 := NewMsgEthereumTx(0, addr, nil, 100000, nil, []byte("test"))
 	require.Equal(t, msg3.Route(), RouteMsgEthereumTx)
@@ -83,7 +83,7 @@ func TestMsgEthereumTxRLPDecode(t *testing.T) {
 
 	err := rlp.Decode(bytes.NewReader(raw), &msg)
 	require.NoError(t, err)
-	require.Equal(t, expectedMsg.data, msg.data)
+	require.Equal(t, expectedMsg.Data, msg.Data)
 }
 
 func TestMsgEthereumTxHash(t *testing.T) {
@@ -106,4 +106,18 @@ func TestMsgEthereumTxSig(t *testing.T) {
 	resultAddr, err := msg.VerifySig(chainID)
 	require.NoError(t, err)
 	require.Equal(t, addr, resultAddr)
+}
+
+func TestMsgEthereumTxAmino(t *testing.T) {
+	addr := GenerateEthAddress()
+	msg := NewMsgEthereumTx(0, addr, nil, 100000, nil, []byte("test"))
+
+	raw, err := msgCodec.MarshalBinary(msg)
+	require.NoError(t, err)
+
+	var msg2 MsgEthereumTx
+
+	err = msgCodec.UnmarshalBinary(raw, &msg2)
+	require.NoError(t, err)
+	require.Equal(t, msg.Data, msg2.Data)
 }

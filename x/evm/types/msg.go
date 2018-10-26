@@ -28,7 +28,7 @@ const (
 // MsgEthereumTx encapsulates an Ethereum transaction as an SDK message.
 type (
 	MsgEthereumTx struct {
-		data TxData
+		Data TxData
 
 		// caches
 		hash atomic.Value
@@ -108,7 +108,7 @@ func newMsgEthereumTx(
 		txData.Price.Set(gasPrice)
 	}
 
-	return &MsgEthereumTx{data: txData}
+	return &MsgEthereumTx{Data: txData}
 }
 
 // Route returns the route value of an MsgEthereumTx.
@@ -120,11 +120,11 @@ func (msg MsgEthereumTx) Type() string { return TypeMsgEthereumTx }
 // ValidateBasic implements the sdk.Msg interface. It performs basic validation
 // checks of a Transaction. If returns an sdk.Error if validation fails.
 func (msg MsgEthereumTx) ValidateBasic() sdk.Error {
-	if msg.data.Price.Sign() != 1 {
+	if msg.Data.Price.Sign() != 1 {
 		return types.ErrInvalidValue(types.DefaultCodespace, "price must be positive")
 	}
 
-	if msg.data.Amount.Sign() != 1 {
+	if msg.Data.Amount.Sign() != 1 {
 		return types.ErrInvalidValue(types.DefaultCodespace, "amount must be positive")
 	}
 
@@ -153,26 +153,26 @@ func (msg MsgEthereumTx) GetSignBytes() []byte {
 // given chainID used for signing.
 func (msg MsgEthereumTx) RLPSignBytes(chainID *big.Int) ethcmn.Hash {
 	return rlpHash([]interface{}{
-		msg.data.AccountNonce,
-		msg.data.Price,
-		msg.data.GasLimit,
-		msg.data.Recipient,
-		msg.data.Amount,
-		msg.data.Payload,
+		msg.Data.AccountNonce,
+		msg.Data.Price,
+		msg.Data.GasLimit,
+		msg.Data.Recipient,
+		msg.Data.Amount,
+		msg.Data.Payload,
 		chainID, uint(0), uint(0),
 	})
 }
 
 // EncodeRLP implements the rlp.Encoder interface.
 func (msg *MsgEthereumTx) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, &msg.data)
+	return rlp.Encode(w, &msg.Data)
 }
 
 // DecodeRLP implements the rlp.Decoder interface.
 func (msg *MsgEthereumTx) DecodeRLP(s *rlp.Stream) error {
 	_, size, _ := s.Kind()
 
-	err := s.Decode(&msg.data)
+	err := s.Decode(&msg.Data)
 	if err == nil {
 		msg.size.Store(ethcmn.StorageSize(rlp.ListSize(size)))
 	}
@@ -221,9 +221,9 @@ func (msg *MsgEthereumTx) Sign(chainID *big.Int, priv *ecdsa.PrivateKey) {
 		v.Add(v, chainIDMul)
 	}
 
-	msg.data.V = v
-	msg.data.R = r
-	msg.data.S = s
+	msg.Data.V = v
+	msg.Data.R = r
+	msg.Data.S = s
 }
 
 // VerifySig attempts to verify a Transaction's signature for a given chainID.
@@ -247,7 +247,7 @@ func (msg MsgEthereumTx) VerifySig(chainID *big.Int) (ethcmn.Address, error) {
 	}
 
 	txHash := msg.RLPSignBytes(chainID)
-	sig := recoverEthSig(msg.data.R, msg.data.S, msg.data.V, chainID)
+	sig := recoverEthSig(msg.Data.R, msg.Data.S, msg.Data.V, chainID)
 
 	pub, err := ethcrypto.Ecrecover(txHash[:], sig)
 	if err != nil {
