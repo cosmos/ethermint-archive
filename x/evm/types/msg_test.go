@@ -112,12 +112,12 @@ func TestMsgEthereumTxAmino(t *testing.T) {
 	addr := GenerateEthAddress()
 	msg := NewMsgEthereumTx(0, addr, nil, 100000, nil, []byte("test"))
 
-	raw, err := msgCodec.MarshalBinary(msg)
+	raw, err := msgCodec.MarshalBinaryBare(msg)
 	require.NoError(t, err)
 
 	var msg2 MsgEthereumTx
 
-	err = msgCodec.UnmarshalBinary(raw, &msg2)
+	err = msgCodec.UnmarshalBinaryBare(raw, &msg2)
 	require.NoError(t, err)
 	require.Equal(t, msg.Data, msg2.Data)
 }
