@@ -6,6 +6,7 @@ var msgCodec = codec.New()
 
 func init() {
 	cdc := codec.New()
+
 	RegisterCodec(cdc)
 	codec.RegisterCrypto(cdc)
 
