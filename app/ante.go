@@ -33,8 +33,6 @@ func init() {
 //
 // NOTE: The EVM will already consume (intrinsic) gas for signature verification
 // and covering input size as well as handling nonce incrementing.
-//
-// TODO: support simulation and fee collection
 func AnteHandler(ak auth.AccountKeeper, _ auth.FeeCollectionKeeper) sdk.AnteHandler {
 	return func(
 		ctx sdk.Context, tx sdk.Tx, sim bool,
