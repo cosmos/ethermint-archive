@@ -65,7 +65,8 @@ type (
 
 // NewMsgEthereumTx returns a reference to a new Ethereum transaction message.
 func NewMsgEthereumTx(
-	nonce uint64, to ethcmn.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, payload []byte,
+	nonce uint64, to ethcmn.Address, amount *big.Int,
+	gasLimit uint64, gasPrice *big.Int, payload []byte,
 ) *MsgEthereumTx {
 
 	return newMsgEthereumTx(nonce, &to, amount, gasLimit, gasPrice, payload)
@@ -188,6 +189,7 @@ func (msg *MsgEthereumTx) Hash() ethcmn.Hash {
 
 	v := rlpHash(msg)
 	msg.hash.Store(v)
+
 	return v
 }
 
@@ -233,9 +235,8 @@ func (msg MsgEthereumTx) VerifySig(chainID *big.Int) (ethcmn.Address, error) {
 
 	if sc := msg.from.Load(); sc != nil {
 		sigCache := sc.(sigCache)
-		// If the signer used to derive from in a previous
-		// call is not the same as used current, invalidate
-		// the cache.
+		// If the signer used to derive from in a previous call is not the same as
+		// used current, invalidate the cache.
 		if sigCache.signer.Equal(signer) {
 			return sigCache.from, nil
 		}
