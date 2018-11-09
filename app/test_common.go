@@ -1,4 +1,4 @@
-package handlers
+package app
 
 import (
 	"github.com/cosmos/cosmos-sdk/store"
