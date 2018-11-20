@@ -101,6 +101,11 @@ func newTestEthTx(ctx sdk.Context, msg *evmtypes.MsgEthereumTx, priv tmcrypto.Pr
 		panic(fmt.Sprintf("invalid chainID: %s", ctx.ChainID()))
 	}
 
-	msg.Sign(chainID, crypto.PrivKeyToSecp256k1(priv))
+	privKey, err := crypto.PrivKeyToSecp256k1(priv)
+	if err != nil {
+		panic(fmt.Sprintf("failed to convert private key: %s", err))
+	}
+
+	msg.Sign(chainID, privKey)
 	return auth.NewStdTx([]sdk.Msg{msg}, auth.StdFee{}, nil, "")
 }

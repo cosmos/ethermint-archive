@@ -11,12 +11,12 @@ import (
 
 // PrivKeyToSecp256k1 accepts a Tendermint private key and attempts to convert
 // it to a SECP256k1 ecdsa.PrivateKey.
-func PrivKeyToSecp256k1(priv tmcrypto.PrivKey) *ecdsa.PrivateKey {
+func PrivKeyToSecp256k1(priv tmcrypto.PrivKey) (*ecdsa.PrivateKey, error) {
 	secp256k1Key, ok := priv.(tmsecp256k1.PrivKeySecp256k1)
 	if !ok {
-		panic(fmt.Sprintf("invalid private key type: %T", priv))
+		return nil, fmt.Errorf("invalid private key type: %T", priv)
 	}
 
 	ecdsaPrivKey, _ := secp256k1.PrivKeyFromBytes(secp256k1.S256(), secp256k1Key[:])
-	return ecdsaPrivKey.ToECDSA()
+	return ecdsaPrivKey.ToECDSA(), nil
 }
