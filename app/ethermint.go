@@ -104,7 +104,7 @@ func NewEthermintApp(logger tmlog.Logger, db dbm.DB, baseAppOpts ...func(*bam.Ba
 	app.SetInitChainer(app.initChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
-	app.SetAnteHandler(AnteHandler(app.accountKeeper, app.feeCollKeeper))
+	app.SetAnteHandler(NewAnteHandler(app.accountKeeper, app.feeCollKeeper))
 
 	app.MountStoresIAVL(
 		app.mainKey, app.accountKey, app.stakeKey, app.slashingKey,

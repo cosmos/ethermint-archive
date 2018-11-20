@@ -10,6 +10,7 @@ import (
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
+	"github.com/cosmos/ethermint/types"
 	evmtypes "github.com/cosmos/ethermint/x/evm/types"
 )
 
@@ -175,7 +176,7 @@ func validateAccount(ctx sdk.Context, accs []auth.Account, sigs []auth.StdSignat
 	for i := 0; i < len(accs); i++ {
 		// the account number must be zero on InitChain
 		if ctx.BlockHeight() == 0 && sigs[i].AccountNumber != 0 {
-			return sdk.ErrInvalidSequence(
+			return types.ErrInvalidAccountNumber(
 				fmt.Sprintf(
 					"invalid account number for block height 0; got %d, expected 0",
 					sigs[i].AccountNumber,
@@ -186,7 +187,7 @@ func validateAccount(ctx sdk.Context, accs []auth.Account, sigs []auth.StdSignat
 		// validate the account number
 		accnum := accs[i].GetAccountNumber()
 		if ctx.BlockHeight() != 0 && accnum != sigs[i].AccountNumber {
-			return sdk.ErrInvalidSequence(
+			return types.ErrInvalidAccountNumber(
 				fmt.Sprintf(
 					"invalid account number; got %d, expected %d",
 					sigs[i].AccountNumber, accnum,
@@ -196,7 +197,7 @@ func validateAccount(ctx sdk.Context, accs []auth.Account, sigs []auth.StdSignat
 
 		// validate the sequence number
 		seq := accs[i].GetSequence()
-	
+
 		if seq != sigs[i].Sequence {
 			return sdk.ErrInvalidSequence(
 				fmt.Sprintf(
