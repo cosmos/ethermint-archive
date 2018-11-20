@@ -26,14 +26,14 @@ func init() {
 	copy(dummySecp256k1Pubkey[:], bz)
 }
 
-// AnteHandler is responsible for attempting to route an Ethereum or SDK
-// transaction to an internal ante handler for performing transaction-level
-// processing (e.g. fee payment, signature verification) before being passed
-// onto it's respective handler.
+// NewAnteHandler returns an ante handelr responsible for attempting to route an
+// Ethereum or SDK transaction to an internal ante handler for performing
+// transaction-level processing (e.g. fee payment, signature verification) before
+// being passed onto it's respective handler.
 //
 // NOTE: The EVM will already consume (intrinsic) gas for signature verification
 // and covering input size as well as handling nonce incrementing.
-func AnteHandler(ak auth.AccountKeeper, _ auth.FeeCollectionKeeper) sdk.AnteHandler {
+func NewAnteHandler(ak auth.AccountKeeper, _ auth.FeeCollectionKeeper) sdk.AnteHandler {
 	return func(
 		ctx sdk.Context, tx sdk.Tx, sim bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
@@ -196,6 +196,7 @@ func validateAccount(ctx sdk.Context, accs []auth.Account, sigs []auth.StdSignat
 
 		// validate the sequence number
 		seq := accs[i].GetSequence()
+	
 		if seq != sigs[i].Sequence {
 			return sdk.ErrInvalidSequence(
 				fmt.Sprintf(

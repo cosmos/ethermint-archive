@@ -6,13 +6,15 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 )
 
-func createTestMultiStore() (sdk.MultiStore, *sdk.KVStoreKey) {
+func setupMultiStore() (sdk.MultiStore, *sdk.KVStoreKey, *sdk.KVStoreKey) {
 	db := dbm.NewMemDB()
 	capKey := sdk.NewKVStoreKey("capkey")
+	capKey2 := sdk.NewKVStoreKey("capkey2")
 	ms := store.NewCommitMultiStore(db)
 
 	ms.MountStoreWithDB(capKey, sdk.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(capKey2, sdk.StoreTypeIAVL, db)
 	ms.LoadLatestVersion()
 
-	return ms, capKey
+	return ms, capKey, capKey2
 }
