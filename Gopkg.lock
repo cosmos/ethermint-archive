@@ -33,7 +33,7 @@
   revision = "d4cc87b860166d00d6b5b9e0d3b3d71d6088d4d4"
 
 [[projects]]
-  digest = "1:1c4375d48f10cdc09e23da61d5ff59f8ad8af4d542ef9db303c6194963ba7fcc"
+  digest = "1:c3d2df1884132f520bfc5b4256bac03dbc2aa04cca61907430837d29450b05d1"
   name = "github.com/cosmos/cosmos-sdk"
   packages = [
     "baseapp",
@@ -56,8 +56,7 @@
     "x/stake/types",
   ]
   pruneopts = "T"
-  revision = "a4af659b3359be3268e38e041fe68996db062621"
-  version = "v0.26.0"
+  revision = "41fc538ac7d1d8587e6c983d677ca5f4309b129f"
 
 [[projects]]
   digest = "1:9f42202ac457c462ad8bb9642806d275af9ab4850cf0b1960b9c6f083d4a309a"
@@ -372,14 +371,16 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:f4f3858737fd9db5cf3ef8019c918a798a987d4d11f7e531c54dfe70d4708642"
+  digest = "1:98aa8bc119587e8bddd558bf2921a645ea6c0ff3195760142113d4dc7cab509f"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
+    "prometheus/internal",
     "prometheus/promhttp",
   ]
   pruneopts = "T"
-  revision = "ae27198cdd90bf12cd134ad79d1366a6cf49f632"
+  revision = "abad2d1bd44235a26707c172eab6bca5bf2dbad3"
+  version = "v0.9.1"
 
 [[projects]]
   branch = "master"
@@ -545,7 +546,7 @@
   version = "v0.11.1"
 
 [[projects]]
-  digest = "1:53e4fd05888ccaea1be447def70fa75ac0e92ddb2789c5b48666fc634973bc03"
+  digest = "1:ea9b485e28ee25ef860451187afdec9c38630932e1f999114eb7cab7f8c89966"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -574,7 +575,6 @@
     "libs/clist",
     "libs/common",
     "libs/db",
-    "libs/errors",
     "libs/events",
     "libs/fail",
     "libs/flowrate",
@@ -609,8 +609,8 @@
     "version",
   ]
   pruneopts = "T"
-  revision = "6e9aee546061423864fef3f9fa332ef37c3dca96"
-  version = "v0.26.1-rc1"
+  revision = "22dcc92232cd04ce7381043e09d85dd536ae3b96"
+  version = "v0.26.3"
 
 [[projects]]
   digest = "1:d738326441b0b732070d727891855573dcb579e74d82fcf9a9459d3257f2eb0c"
@@ -792,6 +792,7 @@
     "github.com/pkg/errors",
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
+    "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/tendermint/abci/types",
     "github.com/tendermint/tendermint/crypto",
     "github.com/tendermint/tendermint/crypto/secp256k1",

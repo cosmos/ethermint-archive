@@ -7,7 +7,8 @@
 
 [[constraint]]
   name = "github.com/cosmos/cosmos-sdk"
-  version = "=v0.26.0"
+  # TODO: Replace this with 0.27
+  revision = "41fc538ac7d1d8587e6c983d677ca5f4309b129f"
 
 [[constraint]]
   name = "github.com/hashicorp/golang-lru"
@@ -52,7 +53,7 @@
 
 [[override]]
   name = "github.com/tendermint/tendermint"
-  version = "v0.26.1-rc1" # TODO replace w/ 0.26.1
+  version = "v0.26.1"
 
 [[override]]
   name = "golang.org/x/sys"
