@@ -100,8 +100,7 @@ func defaultAnteHandler(
 		}
 	}()
 
-	err := validateBasic(stdTx)
-	if err != nil {
+	if err := stdTx.ValidateBasic(); err != nil {
 		return newCtx, err.Result(), true
 	}
 
@@ -142,35 +141,6 @@ func defaultAnteHandler(
 
 // ----------------------------------------------------------------------------
 // Auxiliary
-
-// validateBasic performs basic validation with low overhead that depend on a
-// context.
-func validateBasic(tx auth.StdTx) (err sdk.Error) {
-	// assert that there are signatures
-	sigs := tx.GetSignatures()
-	if len(sigs) == 0 {
-		return sdk.ErrUnauthorized("no signers found")
-	}
-
-	// assert that number of signatures is correct
-	var signerAddrs = tx.GetSigners()
-	if len(sigs) != len(signerAddrs) {
-		return sdk.ErrUnauthorized("invalid number of signers")
-	}
-
-	// validate memo does not exceed the maximum allowed number of characters
-	memo := tx.GetMemo()
-	if len(memo) > maxMemoCharacters {
-		return sdk.ErrMemoTooLarge(
-			fmt.Sprintf(
-				"maximum number of characters exceed in memo; got: %d, max: %d",
-				maxMemoCharacters, len(memo),
-			),
-		)
-	}
-
-	return nil
-}
 
 func validateAccount(ctx sdk.Context, accs []auth.Account, sigs []auth.StdSignature) sdk.Result {
 	for i := 0; i < len(accs); i++ {

@@ -8,7 +8,7 @@
 [[constraint]]
   name = "github.com/cosmos/cosmos-sdk"
   # TODO: Replace this with 0.27
-  revision = "41fc538ac7d1d8587e6c983d677ca5f4309b129f"
+  revision = "1ea0e4c457fc105b48131a60e3d28c6c1bb32cc0"
 
 [[constraint]]
   name = "github.com/hashicorp/golang-lru"

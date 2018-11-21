@@ -33,7 +33,7 @@
   revision = "d4cc87b860166d00d6b5b9e0d3b3d71d6088d4d4"
 
 [[projects]]
-  digest = "1:c3d2df1884132f520bfc5b4256bac03dbc2aa04cca61907430837d29450b05d1"
+  digest = "1:e70ff0ca07fdc5dfe6cf280917ae4434f069f164a0bf18681e37cb19b01ee151"
   name = "github.com/cosmos/cosmos-sdk"
   packages = [
     "baseapp",
@@ -56,7 +56,7 @@
     "x/stake/types",
   ]
   pruneopts = "T"
-  revision = "41fc538ac7d1d8587e6c983d677ca5f4309b129f"
+  revision = "1ea0e4c457fc105b48131a60e3d28c6c1bb32cc0"
 
 [[projects]]
   digest = "1:9f42202ac457c462ad8bb9642806d275af9ab4850cf0b1960b9c6f083d4a309a"
@@ -795,6 +795,7 @@
     "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/tendermint/abci/types",
     "github.com/tendermint/tendermint/crypto",
+    "github.com/tendermint/tendermint/crypto/ed25519",
     "github.com/tendermint/tendermint/crypto/secp256k1",
     "github.com/tendermint/tendermint/libs/common",
     "github.com/tendermint/tendermint/libs/db",
