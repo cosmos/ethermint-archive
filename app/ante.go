@@ -64,13 +64,17 @@ func NewAnteHandler(ak auth.AccountKeeper, _ auth.FeeCollectionKeeper) sdk.AnteH
 // ----------------------------------------------------------------------------
 // Ethereum Ante Handler
 
+// ethAnteHandler defines an internal ante handler for an Ethereum transaction
+// ethTx that implements the sdk.Msg interface. The Ethereum transaction is a
+// single message inside a auth.StdTx.
+//
+// For now we simply pass the transaction on as the EVM shares common business
+// logic of an ante handler. Anything not handled by the EVM that should be
+// prior to transaction processing, should be done here.
 func ethAnteHandler(
 	ctx sdk.Context, ethTx *evmtypes.MsgEthereumTx, ak auth.AccountKeeper,
 ) (newCtx sdk.Context, res sdk.Result, abort bool) {
 
-	// For now we simply pass the transaction on as the EVM shares common business
-	// logic of an ante handler. Anything not handled by the EVM that should be
-	// prior to transaction processing, should be done here.
 	return ctx, sdk.Result{}, false
 }
 
