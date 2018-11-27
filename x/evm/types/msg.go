@@ -132,7 +132,7 @@ func (msg MsgEthereumTx) ValidateBasic() sdk.Error {
 	return nil
 }
 
-// GetSigners returns the expecter signers for an Ethereum transaction message.
+// GetSigners returns the expected signers for an Ethereum transaction message.
 // For such a message, there should exist only a single 'signer'.
 //
 // NOTE: This method cannot be used as a chain ID is needed to recover the signer
