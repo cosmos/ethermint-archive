@@ -9,8 +9,10 @@ Ethermint needs to parse and handle transactions routed for both the EVM and for
 the Cosmos hub. We attempt to achieve this by mimicking
 [Geth's](https://github.com/ethereum/go-ethereum) `Transaction` structure and
 treat it as a unique Cosmos SDK message type. An Ethereum transaction is a single
-`sdk.Msg` contained in an `auth.StdTx`. All relevant Ethereum transaction information
-is contained in this message. This includes the signature, gas, payload, etc.
+[`sdk.Msg`](https://godoc.org/github.com/cosmos/cosmos-sdk/types#Msg) contained
+in an [`auth.StdTx`](https://godoc.org/github.com/cosmos/cosmos-sdk/x/auth#StdTx).
+All relevant Ethereum transaction information is contained in this message. This
+includes the signature, gas, payload, etc.
 
 Being that Ethermint implements the Tendermint ABCI application interface, as
 transactions are consumed, they are passed through a series of handlers. Once such
@@ -36,7 +38,7 @@ signatures. A `Transaction` is expected to have a single signature for Ethereum
 routed transactions. However, just as in Cosmos, Ethermint will support multiple
 signers for non-Ethereum transactions. Signatures over the
 `Transaction` type are identical to Ethereum and the signatures will not be duplicated
-in the embedding `auth.StdTx`.
+in the embedding [`auth.StdTx`](https://godoc.org/github.com/cosmos/cosmos-sdk/x/auth#StdTx).
 
 ## Gas & Fees
 
