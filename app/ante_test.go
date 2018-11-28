@@ -7,7 +7,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
-	"github.com/cosmos/ethermint/types"
 	evmtypes "github.com/cosmos/ethermint/x/evm/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -160,7 +159,7 @@ func TestSDKInvalidAcc(t *testing.T) {
 	accSeqs := []int64{acc1.GetSequence()}
 
 	tx := newTestSDKTx(setup.ctx, msgs, privKeys, accNums, accSeqs, fee)
-	requireInvalidTx(t, setup.anteHandler, setup.ctx, tx, false, types.CodeInvalidAccountNumber)
+	requireInvalidTx(t, setup.anteHandler, setup.ctx, tx, false, sdk.CodeInvalidSequence)
 
 	// require validation failure with invalid sequence (nonce)
 	accNums = []int64{acc1.GetAccountNumber()}
