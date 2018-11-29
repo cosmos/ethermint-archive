@@ -95,17 +95,29 @@ func TestMsgEthereumTxHash(t *testing.T) {
 }
 
 func TestMsgEthereumTxSig(t *testing.T) {
-	priv, _ := ethcrypto.GenerateKey()
-	addr := PrivKeyToEthAddress(priv)
-
-	msg := NewMsgEthereumTx(0, addr, nil, 100000, nil, []byte("test"))
 	chainID := big.NewInt(3)
 
-	msg.Sign(chainID, priv)
+	priv1, _ := ethcrypto.GenerateKey()
+	priv2, _ := ethcrypto.GenerateKey()
+	addr1 := PrivKeyToEthAddress(priv1)
+	addr2 := PrivKeyToEthAddress(priv2)
 
-	resultAddr, err := msg.VerifySig(chainID)
+	// require valid signature passes validation
+	msg := NewMsgEthereumTx(0, addr1, nil, 100000, nil, []byte("test"))
+	msg.Sign(chainID, priv1)
+
+	signer, err := msg.VerifySig(chainID)
 	require.NoError(t, err)
-	require.Equal(t, addr, resultAddr)
+	require.Equal(t, addr1, signer)
+	require.NotEqual(t, addr2, signer)
+
+	// require invalid chain ID fail validation
+	msg = NewMsgEthereumTx(0, addr1, nil, 100000, nil, []byte("test"))
+	msg.Sign(chainID, priv1)
+
+	signer, err = msg.VerifySig(big.NewInt(4))
+	require.Error(t, err)
+	require.Equal(t, ethcmn.Address{}, signer)
 }
 
 func TestMsgEthereumTxAmino(t *testing.T) {
