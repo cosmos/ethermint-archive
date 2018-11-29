@@ -1,29 +1,13 @@
 package app
 
 import (
-	"encoding/hex"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 
 	evmtypes "github.com/cosmos/ethermint/x/evm/types"
 )
 
-var dummySecp256k1Pubkey secp256k1.PubKeySecp256k1 // used for tx simulation
-
-const (
-	memoCostPerByte     = 1
-	maxMemoCharacters   = 100
-	secp256k1VerifyCost = 100
-)
-
-func init() {
-	bz, _ := hex.DecodeString("035AD6810A47F073553FF30D2FCC7E0D3B1C0B74B61A1AAA2582344037151E143A")
-	copy(dummySecp256k1Pubkey[:], bz)
-}
-
-// NewAnteHandler returns an ante handelr responsible for attempting to route an
+// NewAnteHandler returns an ante handler responsible for attempting to route an
 // Ethereum or SDK transaction to an internal ante handler for performing
 // transaction-level processing (e.g. fee payment, signature verification) before
 // being passed onto it's respective handler.
