@@ -176,10 +176,10 @@ func (so *stateObject) SetNonce(nonce uint64) {
 		prev:    so.account.Sequence,
 	})
 
-	so.setNonce(int64(nonce))
+	so.setNonce(nonce)
 }
 
-func (so *stateObject) setNonce(nonce int64) {
+func (so *stateObject) setNonce(nonce uint64) {
 	so.account.Sequence = nonce
 }
 

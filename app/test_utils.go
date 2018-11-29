@@ -73,7 +73,7 @@ func newTestAddrKey() (sdk.AccAddress, tmcrypto.PrivKey) {
 
 func newTestSDKTx(
 	ctx sdk.Context, msgs []sdk.Msg, privs []tmcrypto.PrivKey,
-	accNums []int64, seqs []int64, fee auth.StdFee,
+	accNums []uint64, seqs []uint64, fee auth.StdFee,
 ) sdk.Tx {
 
 	sigs := make([]auth.StdSignature, len(privs))

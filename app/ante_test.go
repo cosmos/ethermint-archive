@@ -66,8 +66,8 @@ func TestValidTx(t *testing.T) {
 	msgs := []sdk.Msg{msg1}
 
 	privKeys := []crypto.PrivKey{priv1, priv2}
-	accNums := []int64{acc1.GetAccountNumber(), acc2.GetAccountNumber()}
-	accSeqs := []int64{acc1.GetSequence(), acc2.GetSequence()}
+	accNums := []uint64{acc1.GetAccountNumber(), acc2.GetAccountNumber()}
+	accSeqs := []uint64{acc1.GetSequence(), acc2.GetSequence()}
 
 	tx := newTestSDKTx(setup.ctx, msgs, privKeys, accNums, accSeqs, fee)
 	requireValidTx(t, setup.anteHandler, setup.ctx, tx, false)
@@ -111,8 +111,8 @@ func TestSDKInvalidSigs(t *testing.T) {
 	msgs := []sdk.Msg{msg1}
 
 	privKeys := []crypto.PrivKey{}
-	accNums := []int64{acc1.GetAccountNumber(), acc2.GetAccountNumber()}
-	accSeqs := []int64{acc1.GetSequence(), acc2.GetSequence()}
+	accNums := []uint64{acc1.GetAccountNumber(), acc2.GetAccountNumber()}
+	accSeqs := []uint64{acc1.GetSequence(), acc2.GetSequence()}
 
 	tx := newTestSDKTx(setup.ctx, msgs, privKeys, accNums, accSeqs, fee)
 	requireInvalidTx(t, setup.anteHandler, setup.ctx, tx, false, sdk.CodeUnauthorized)
@@ -121,8 +121,8 @@ func TestSDKInvalidSigs(t *testing.T) {
 	msgs = []sdk.Msg{msg1}
 
 	privKeys = []crypto.PrivKey{priv1}
-	accNums = []int64{acc1.GetAccountNumber(), acc2.GetAccountNumber()}
-	accSeqs = []int64{acc1.GetSequence(), acc2.GetSequence()}
+	accNums = []uint64{acc1.GetAccountNumber(), acc2.GetAccountNumber()}
+	accSeqs = []uint64{acc1.GetSequence(), acc2.GetSequence()}
 
 	tx = newTestSDKTx(setup.ctx, msgs, privKeys, accNums, accSeqs, fee)
 	requireInvalidTx(t, setup.anteHandler, setup.ctx, tx, false, sdk.CodeUnauthorized)
@@ -132,8 +132,8 @@ func TestSDKInvalidSigs(t *testing.T) {
 	msgs = []sdk.Msg{msg1, msg2}
 
 	privKeys = []crypto.PrivKey{priv1, priv2, priv3}
-	accNums = []int64{acc1.GetAccountNumber(), acc2.GetAccountNumber(), 0}
-	accSeqs = []int64{acc1.GetSequence(), acc2.GetSequence(), 0}
+	accNums = []uint64{acc1.GetAccountNumber(), acc2.GetAccountNumber(), 0}
+	accSeqs = []uint64{acc1.GetSequence(), acc2.GetSequence(), 0}
 
 	tx = newTestSDKTx(setup.ctx, msgs, privKeys, accNums, accSeqs, fee)
 	requireInvalidTx(t, setup.anteHandler, setup.ctx, tx, false, sdk.CodeUnknownAddress)
@@ -155,15 +155,15 @@ func TestSDKInvalidAcc(t *testing.T) {
 	privKeys := []crypto.PrivKey{priv1}
 
 	// require validation failure with invalid account number
-	accNums := []int64{1}
-	accSeqs := []int64{acc1.GetSequence()}
+	accNums := []uint64{1}
+	accSeqs := []uint64{acc1.GetSequence()}
 
 	tx := newTestSDKTx(setup.ctx, msgs, privKeys, accNums, accSeqs, fee)
 	requireInvalidTx(t, setup.anteHandler, setup.ctx, tx, false, sdk.CodeInvalidSequence)
 
 	// require validation failure with invalid sequence (nonce)
-	accNums = []int64{acc1.GetAccountNumber()}
-	accSeqs = []int64{1}
+	accNums = []uint64{acc1.GetAccountNumber()}
+	accSeqs = []uint64{1}
 
 	tx = newTestSDKTx(setup.ctx, msgs, privKeys, accNums, accSeqs, fee)
 	requireInvalidTx(t, setup.anteHandler, setup.ctx, tx, false, sdk.CodeInvalidSequence)
