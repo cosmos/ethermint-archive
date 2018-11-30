@@ -74,7 +74,7 @@ type (
 func NewEthermintApp(logger tmlog.Logger, db dbm.DB, baseAppOpts ...func(*bam.BaseApp)) *EthermintApp {
 	cdc := CreateCodec()
 
-	baseApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc), baseAppOpts...)
+	baseApp := bam.NewBaseApp(appName, logger, db, evmtypes.TxDecoder(cdc), baseAppOpts...)
 	app := &EthermintApp{
 		BaseApp:     baseApp,
 		cdc:         cdc,
