@@ -82,7 +82,7 @@ func TestValidTx(t *testing.T) {
 	to := ethcmn.BytesToAddress(addr2.Bytes())
 	amt := big.NewInt(32)
 	gas := big.NewInt(20)
-	ethMsg := evmtypes.NewMsgEthereumTx(0, to, amt, 20000, gas, []byte("test"))
+	ethMsg := evmtypes.NewEthereumTxMsg(0, to, amt, 20000, gas, []byte("test"))
 
 	tx = newTestEthTx(setup.ctx, ethMsg, priv1)
 	requireValidTx(t, setup.anteHandler, setup.ctx, tx, false)

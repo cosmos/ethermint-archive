@@ -22,16 +22,17 @@ var testDenom = "testcoin"
 
 type testSetup struct {
 	ctx         sdk.Context
+	cdc         *codec.Codec
 	accKeeper   auth.AccountKeeper
 	feeKeeper   auth.FeeCollectionKeeper
 	anteHandler sdk.AnteHandler
 }
 
 func newTestSetup() testSetup {
-	cdc := codec.New()
+	cdc := CreateCodec()
 	ms, capKey, capKey2 := setupMultiStore()
 
-	auth.RegisterBaseAccount(cdc)
+	cdc.RegisterConcrete(&sdk.TestMsg{}, "test/TestMsg", nil)
 
 	accKeeper := auth.NewAccountKeeper(cdc, capKey, auth.ProtoBaseAccount)
 	feeKeeper := auth.NewFeeCollectionKeeper(cdc, capKey2)
@@ -46,6 +47,7 @@ func newTestSetup() testSetup {
 
 	return testSetup{
 		ctx:         ctx,
+		cdc:         cdc,
 		accKeeper:   accKeeper,
 		feeKeeper:   feeKeeper,
 		anteHandler: anteHandler,
@@ -95,7 +97,7 @@ func newTestSDKTx(
 	return auth.NewStdTx(msgs, fee, sigs, "")
 }
 
-func newTestEthTx(ctx sdk.Context, msg *evmtypes.MsgEthereumTx, priv tmcrypto.PrivKey) sdk.Tx {
+func newTestEthTx(ctx sdk.Context, msg *evmtypes.EthereumTxMsg, priv tmcrypto.PrivKey) sdk.Tx {
 	chainID, ok := new(big.Int).SetString(ctx.ChainID(), 10)
 	if !ok {
 		panic(fmt.Sprintf("invalid chainID: %s", ctx.ChainID()))
@@ -107,5 +109,5 @@ func newTestEthTx(ctx sdk.Context, msg *evmtypes.MsgEthereumTx, priv tmcrypto.Pr
 	}
 
 	msg.Sign(chainID, privKey)
-	return auth.NewStdTx([]sdk.Msg{msg}, auth.StdFee{}, nil, "")
+	return msg
 }
