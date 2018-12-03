@@ -23,6 +23,8 @@ var (
 	_ sdk.Tx  = EthereumTxMsg{}
 )
 
+var big8 = big.NewInt(8)
+
 // message type and route constants
 const (
 	TypeEthereumTxMsg  = "ethereum_tx"
@@ -250,7 +252,7 @@ func (msg *EthereumTxMsg) Sign(chainID *big.Int, priv *ecdsa.PrivateKey) {
 
 // VerifySig attempts to verify a Transaction's signature for a given chainID.
 // A derived address is returned upon success or an error if recovery fails.
-func (msg EthereumTxMsg) VerifySig(chainID *big.Int) (ethcmn.Address, error) {
+func (msg *EthereumTxMsg) VerifySig(chainID *big.Int) (ethcmn.Address, error) {
 	signer := ethtypes.NewEIP155Signer(chainID)
 
 	if sc := msg.from.Load(); sc != nil {
@@ -267,19 +269,18 @@ func (msg EthereumTxMsg) VerifySig(chainID *big.Int) (ethcmn.Address, error) {
 		return ethcmn.Address{}, errors.New("chainID cannot be zero")
 	}
 
-	txHash := msg.RLPSignBytes(chainID)
-	sig := recoverEthSig(msg.Data.R, msg.Data.S, msg.Data.V, chainID)
+	chainIDMul := new(big.Int).Mul(chainID, big.NewInt(2))
+	V := new(big.Int).Sub(msg.Data.V, chainIDMul)
+	V.Sub(V, big8)
 
-	pub, err := ethcrypto.Ecrecover(txHash[:], sig)
+	sigHash := msg.RLPSignBytes(chainID)
+	sender, err := recoverEthSig(msg.Data.R, msg.Data.S, V, sigHash)
 	if err != nil {
 		return ethcmn.Address{}, err
 	}
 
-	var addr ethcmn.Address
-	copy(addr[:], ethcrypto.Keccak256(pub[1:])[12:])
-
-	msg.from.Store(sigCache{signer: signer, from: addr})
-	return addr, nil
+	msg.from.Store(sigCache{signer: signer, from: sender})
+	return sender, nil
 }
 
 // Cost returns amount + gasprice * gaslimit.
@@ -312,25 +313,38 @@ func TxDecoder(cdc *codec.Codec) sdk.TxDecoder {
 	}
 }
 
-// recoverEthSig recovers a signature according to the Ethereum specification.
-func recoverEthSig(R, S, Vb, chainID *big.Int) []byte {
-	var v byte
+// recoverEthSig recovers a signature according to the Ethereum specification and
+// returns the sender or an error.
+func recoverEthSig(R, S, Vb *big.Int, sigHash ethcmn.Hash) (ethcmn.Address, error) {
+	if Vb.BitLen() > 8 {
+		return ethcmn.Address{}, errors.New("invalid signature")
+	}
 
+	V := byte(Vb.Uint64() - 27)
+	if !ethcrypto.ValidateSignatureValues(V, R, S, true) {
+		return ethcmn.Address{}, errors.New("invalid signature")
+	}
+
+	// encode the signature in uncompressed format
 	r, s := R.Bytes(), S.Bytes()
 	sig := make([]byte, 65)
 
 	copy(sig[32-len(r):32], r)
 	copy(sig[64-len(s):64], s)
+	sig[64] = V
 
-	if chainID.Sign() == 0 {
-		v = byte(Vb.Uint64() - 27)
-	} else {
-		chainIDMul := new(big.Int).Mul(chainID, big.NewInt(2))
-		V := new(big.Int).Sub(Vb, chainIDMul)
-
-		v = byte(V.Uint64() - 35)
+	// recover the public key from the signature
+	pub, err := ethcrypto.Ecrecover(sigHash[:], sig)
+	if err != nil {
+		return ethcmn.Address{}, err
 	}
 
-	sig[64] = v
-	return sig
+	if len(pub) == 0 || pub[0] != 4 {
+		return ethcmn.Address{}, errors.New("invalid public key")
+	}
+
+	var addr ethcmn.Address
+	copy(addr[:], ethcrypto.Keccak256(pub[1:])[12:])
+
+	return addr, nil
 }
