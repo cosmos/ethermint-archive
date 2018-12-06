@@ -6,19 +6,22 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
+	"github.com/cosmos/cosmos-sdk/x/params"
 
 	"github.com/cosmos/ethermint/crypto"
+	"github.com/cosmos/ethermint/types"
 	evmtypes "github.com/cosmos/ethermint/x/evm/types"
+
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcrypto "github.com/tendermint/tendermint/crypto"
-	tmsecp256k1 "github.com/tendermint/tendermint/crypto/secp256k1"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 )
-
-var testDenom = "testcoin"
 
 type testSetup struct {
 	ctx         sdk.Context
@@ -29,21 +32,37 @@ type testSetup struct {
 }
 
 func newTestSetup() testSetup {
-	cdc := CreateCodec()
-	ms, capKey, capKey2 := setupMultiStore()
+	db := dbm.NewMemDB()
+	authCapKey := sdk.NewKVStoreKey("authCapKey")
+	feeCapKey := sdk.NewKVStoreKey("feeCapKey")
+	keyParams := sdk.NewKVStoreKey("params")
+	tkeyParams := sdk.NewTransientStoreKey("transient_params")
 
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(authCapKey, sdk.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(feeCapKey, sdk.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyParams, sdk.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(tkeyParams, sdk.StoreTypeIAVL, db)
+	ms.LoadLatestVersion()
+
+	cdc := CreateCodec()
 	cdc.RegisterConcrete(&sdk.TestMsg{}, "test/TestMsg", nil)
 
-	accKeeper := auth.NewAccountKeeper(cdc, capKey, auth.ProtoBaseAccount)
-	feeKeeper := auth.NewFeeCollectionKeeper(cdc, capKey2)
+	paramsKeeper := params.NewKeeper(cdc, keyParams, tkeyParams)
+	accKeeper := auth.NewAccountKeeper(
+		cdc, authCapKey, paramsKeeper.Subspace(auth.DefaultParamspace), auth.ProtoBaseAccount,
+	)
+	feeKeeper := auth.NewFeeCollectionKeeper(cdc, feeCapKey)
 	anteHandler := NewAnteHandler(accKeeper, feeKeeper)
 
 	ctx := sdk.NewContext(
 		ms,
 		abci.Header{ChainID: "3", Time: time.Now().UTC()},
-		false,
+		true,
 		log.NewNopLogger(),
 	)
+
+	accKeeper.SetParams(ctx, auth.DefaultParams())
 
 	return testSetup{
 		ctx:         ctx,
@@ -59,18 +78,19 @@ func newTestMsg(addrs ...sdk.AccAddress) *sdk.TestMsg {
 }
 
 func newTestCoins() sdk.Coins {
-	return sdk.Coins{sdk.NewInt64Coin(testDenom, 10000000)}
+	return sdk.Coins{sdk.NewInt64Coin(types.DenomDefault, 500000000)}
 }
 
 func newTestStdFee() auth.StdFee {
-	return auth.NewStdFee(5000, sdk.NewInt64Coin(testDenom, 150))
+	return auth.NewStdFee(5000, sdk.NewInt64Coin(types.DenomDefault, 150))
 }
 
 // GenerateAddress generates an Ethereum address.
 func newTestAddrKey() (sdk.AccAddress, tmcrypto.PrivKey) {
-	priv := tmsecp256k1.GenPrivKey()
-	addr := sdk.AccAddress(priv.PubKey().Address())
-	return addr, priv
+	privkey, _ := crypto.GenerateKey()
+	addr := ethcrypto.PubkeyToAddress(privkey.PublicKey)
+
+	return sdk.AccAddress(addr.Bytes()), privkey
 }
 
 func newTestSDKTx(
@@ -80,17 +100,17 @@ func newTestSDKTx(
 
 	sigs := make([]auth.StdSignature, len(privs))
 	for i, priv := range privs {
-		signBytes := auth.StdSignBytes(ctx.ChainID(), accNums[i], seqs[i], fee, msgs, "")
-		sig, err := priv.Sign(signBytes)
+		sigBytes := auth.StdSignBytes(ctx.ChainID(), accNums[i], seqs[i], fee, msgs, "")
+		sigHash := ethcrypto.Keccak256Hash(sigBytes)
+
+		sig, err := priv.Sign(sigHash.Bytes())
 		if err != nil {
 			panic(err)
 		}
 
 		sigs[i] = auth.StdSignature{
-			PubKey:        priv.PubKey(),
-			Signature:     sig,
-			AccountNumber: accNums[i],
-			Sequence:      seqs[i],
+			PubKey:    priv.PubKey(),
+			Signature: sig,
 		}
 	}
 
@@ -103,11 +123,11 @@ func newTestEthTx(ctx sdk.Context, msg *evmtypes.EthereumTxMsg, priv tmcrypto.Pr
 		panic(fmt.Sprintf("invalid chainID: %s", ctx.ChainID()))
 	}
 
-	privKey, err := crypto.PrivKeyToSecp256k1(priv)
-	if err != nil {
-		panic(fmt.Sprintf("failed to convert private key: %s", err))
+	privkey, ok := priv.(crypto.PrivKeySecp256k1)
+	if !ok {
+		panic(fmt.Sprintf("invalid private key type: %T", priv))
 	}
 
-	msg.Sign(chainID, privKey)
+	msg.Sign(chainID, privkey.ToECDSA())
 	return msg
 }
