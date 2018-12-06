@@ -33,7 +33,7 @@
   revision = "d4cc87b860166d00d6b5b9e0d3b3d71d6088d4d4"
 
 [[projects]]
-  digest = "1:3b021d89ad0c8a44c3880b5210eda16ae4c0813e1e581096d7b1743386eb7cb7"
+  digest = "1:0642e96dcce003d4cf76aa9ed72579712096022a5f072df0ce06092eeec0471b"
   name = "github.com/cosmos/cosmos-sdk"
   packages = [
     "baseapp",
@@ -56,8 +56,7 @@
     "x/stake/types",
   ]
   pruneopts = "T"
-  revision = "2c133a45cf81767d1fd2e76eefbf366c37f89d64"
-  version = "v0.27.0"
+  revision = "75fbce8e854c888063cab7e22930e2a6e382880f"
 
 [[projects]]
   digest = "1:9f42202ac457c462ad8bb9642806d275af9ab4850cf0b1960b9c6f083d4a309a"
@@ -784,6 +783,7 @@
     "github.com/ethereum/go-ethereum/core/types",
     "github.com/ethereum/go-ethereum/core/vm",
     "github.com/ethereum/go-ethereum/crypto",
+    "github.com/ethereum/go-ethereum/crypto/secp256k1",
     "github.com/ethereum/go-ethereum/crypto/sha3",
     "github.com/ethereum/go-ethereum/params",
     "github.com/ethereum/go-ethereum/rlp",
