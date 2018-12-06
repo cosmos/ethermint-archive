@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/cosmos/ethermint/crypto"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/require"
 )
@@ -97,23 +97,24 @@ func TestMsgEthereumTxHash(t *testing.T) {
 func TestMsgEthereumTxSig(t *testing.T) {
 	chainID := big.NewInt(3)
 
-	priv1, _ := ethcrypto.GenerateKey()
-	priv2, _ := ethcrypto.GenerateKey()
-	addr1 := PrivKeyToEthAddress(priv1)
-	addr2 := PrivKeyToEthAddress(priv2)
+	priv1, _ := crypto.GenerateKey()
+	priv2, _ := crypto.GenerateKey()
+	addr1 := ethcmn.BytesToAddress(priv1.PubKey().Address().Bytes())
+	addr2 := ethcmn.BytesToAddress(priv2.PubKey().Address().Bytes())
 
 	// require valid signature passes validation
 	msg := NewEthereumTxMsg(0, addr1, nil, 100000, nil, []byte("test"))
-	msg.Sign(chainID, priv1)
+	msg.Sign(chainID, priv1.ToECDSA())
 
 	signer, err := msg.VerifySig(chainID)
 	require.NoError(t, err)
 	require.Equal(t, addr1, signer)
 	require.NotEqual(t, addr2, signer)
+	require.False(t, true)
 
 	// require invalid chain ID fail validation
 	msg = NewEthereumTxMsg(0, addr1, nil, 100000, nil, []byte("test"))
-	msg.Sign(chainID, priv1)
+	msg.Sign(chainID, priv1.ToECDSA())
 
 	signer, err = msg.VerifySig(big.NewInt(4))
 	require.Error(t, err)
