@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/slashing"
 	"github.com/cosmos/cosmos-sdk/x/stake"
 
+	"github.com/cosmos/ethermint/crypto"
 	evmtypes "github.com/cosmos/ethermint/x/evm/types"
 
 	"github.com/pkg/errors"
@@ -170,6 +171,7 @@ func CreateCodec() *codec.Codec {
 	// TODO: Add remaining codec registrations:
 	// bank, staking, distribution, slashing, and gov
 
+	crypto.RegisterCodec(cdc)
 	evmtypes.RegisterCodec(cdc)
 	auth.RegisterCodec(cdc)
 	sdk.RegisterCodec(cdc)
