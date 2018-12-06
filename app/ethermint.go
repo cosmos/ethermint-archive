@@ -89,8 +89,13 @@ func NewEthermintApp(logger tmlog.Logger, db dbm.DB, baseAppOpts ...func(*bam.Ba
 		tParamsKey:  storeKeyTransParams,
 	}
 
-	app.accountKeeper = auth.NewAccountKeeper(app.cdc, app.accountKey, auth.ProtoBaseAccount)
 	app.paramsKeeper = params.NewKeeper(app.cdc, app.paramsKey, app.tParamsKey)
+	app.accountKeeper = auth.NewAccountKeeper(
+		app.cdc,
+		app.accountKey,
+		app.paramsKeeper.Subspace(auth.DefaultParamspace),
+		auth.ProtoBaseAccount,
+	)
 	app.feeCollKeeper = auth.NewFeeCollectionKeeper(app.cdc, app.feeCollKey)
 
 	// register message handlers
