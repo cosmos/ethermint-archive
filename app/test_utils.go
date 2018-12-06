@@ -100,10 +100,9 @@ func newTestSDKTx(
 
 	sigs := make([]auth.StdSignature, len(privs))
 	for i, priv := range privs {
-		sigBytes := auth.StdSignBytes(ctx.ChainID(), accNums[i], seqs[i], fee, msgs, "")
-		sigHash := ethcrypto.Keccak256Hash(sigBytes)
+		signBytes := auth.StdSignBytes(ctx.ChainID(), accNums[i], seqs[i], fee, msgs, "")
 
-		sig, err := priv.Sign(sigHash.Bytes())
+		sig, err := priv.Sign(signBytes)
 		if err != nil {
 			panic(err)
 		}
