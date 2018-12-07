@@ -110,7 +110,9 @@ func validateIntrinsicGas(ethTxMsg *evmtypes.EthereumTxMsg) sdk.Result {
 	}
 
 	if ethTxMsg.Data.GasLimit < gas {
-		return sdk.ErrInternal(ethcore.ErrIntrinsicGas.Error()).Result()
+		return sdk.ErrInternal(
+			fmt.Sprintf("intrinsic gas too low; %d < %d", ethTxMsg.Data.GasLimit, gas),
+		).Result()
 	}
 
 	return sdk.Result{}
@@ -122,11 +124,10 @@ func validateAccount(
 	ctx sdk.Context, ak auth.AccountKeeper, ethTxMsg *evmtypes.EthereumTxMsg, signer ethcmn.Address,
 ) sdk.Result {
 
-	acc := ak.GetAccount(ctx, signer.Bytes())
+	acc := ak.GetAccount(ctx, sdk.AccAddress(signer.Bytes()))
 
 	// on InitChain make sure account number == 0
 	if ctx.BlockHeight() == 0 && acc.GetAccountNumber() != 0 {
-		// TODO: Update to ErrInvalidAccountNumber supported in the SDK
 		return sdk.ErrInternal(
 			fmt.Sprintf(
 				"invalid account number for height zero; got %d, expected 0", acc.GetAccountNumber(),
@@ -143,7 +144,7 @@ func validateAccount(
 	balance := acc.GetCoins().AmountOf(types.DenomDefault)
 	if balance.BigInt().Cmp(ethTxMsg.Cost()) < 0 {
 		return sdk.ErrInsufficientFunds(
-			fmt.Sprintf("insufficient funds: %d < %d", balance, ethTxMsg.Cost()),
+			fmt.Sprintf("insufficient funds: %s < %s", balance, ethTxMsg.Cost()),
 		).Result()
 	}
 
@@ -155,16 +156,15 @@ func validateAccount(
 // proposer.
 //
 // NOTE: This should only be ran during a CheckTx mode.
-//
-// TODO: This should ideally be exported and configurable from the Cosmos SDK.
 func ensureSufficientMempoolFees(ctx sdk.Context, ethTxMsg *evmtypes.EthereumTxMsg) sdk.Result {
-	// V + GP * GL
-	cost := sdk.Coins{sdk.NewInt64Coin(types.DenomDefault, ethTxMsg.Cost().Int64())}
+	// fee = GP * GL
+	feeAmt := new(big.Int).Mul(ethTxMsg.Data.Price, new(big.Int).SetUint64(ethTxMsg.Data.GasLimit))
+	fee := sdk.Coins{sdk.NewInt64Coin(types.DenomDefault, feeAmt.Int64())}
 
-	if !ctx.MinimumFees().IsZero() && !cost.IsAllGTE(ctx.MinimumFees()) {
+	if !ctx.MinimumFees().IsZero() && !fee.IsAllGTE(ctx.MinimumFees()) {
 		// reject the transaction that does not meet the minimum fee
 		return sdk.ErrInsufficientFee(
-			fmt.Sprintf("insufficient fee, got: %q required: %q", cost, ctx.MinimumFees()),
+			fmt.Sprintf("insufficient fee, got: %q required: %q", fee, ctx.MinimumFees()),
 		).Result()
 	}
 
