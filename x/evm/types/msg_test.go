@@ -110,7 +110,6 @@ func TestMsgEthereumTxSig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, addr1, signer)
 	require.NotEqual(t, addr2, signer)
-	require.False(t, true)
 
 	// require invalid chain ID fail validation
 	msg = NewEthereumTxMsg(0, addr1, nil, 100000, nil, []byte("test"))
