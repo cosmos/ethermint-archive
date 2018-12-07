@@ -249,7 +249,7 @@ func (so *stateObject) CodeHash() []byte {
 
 // Nonce returns the state object's current nonce (sequence number).
 func (so *stateObject) Nonce() uint64 {
-	return uint64(so.account.Sequence)
+	return so.account.Sequence
 }
 
 // Code returns the contract code associated with this object, if any.
