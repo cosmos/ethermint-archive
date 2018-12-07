@@ -140,13 +140,12 @@ func (msg EthereumTxMsg) ValidateBasic() sdk.Error {
 
 // To returns the recipient address of the transaction. It returns nil if the
 // transaction is a contract creation.
-func (msg *EthereumTxMsg) To() *ethcmn.Address {
+func (msg EthereumTxMsg) To() *ethcmn.Address {
 	if msg.Data.Recipient == nil {
 		return nil
 	}
 
-	to := *msg.Data.Recipient
-	return &to
+	return msg.Data.Recipient
 }
 
 // GetMsgs returns a single EthereumTxMsg as an sdk.Msg.
