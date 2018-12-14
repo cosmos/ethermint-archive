@@ -103,7 +103,10 @@ func validateEthTxCheckTx(
 }
 
 // validateIntrinsicGas validates that the Ethereum tx message has enough to
-// cover intrinsic gas.
+// cover intrinsic gas. Intrinsic gas for a transaction is the amount of gas
+// that the transaction uses before the transaction is executed. The gas is a
+// constant value of 21000 plus any cost inccured by additional bytes of data
+// supplied with the transaction.
 func validateIntrinsicGas(ethTxMsg *evmtypes.EthereumTxMsg) sdk.Result {
 	gas, err := ethcore.IntrinsicGas(ethTxMsg.Data.Payload, ethTxMsg.To() == nil, false)
 	if err != nil {
