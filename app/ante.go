@@ -71,6 +71,7 @@ func validateEthTxCheckTx(
 	ctx sdk.Context, ak auth.AccountKeeper, ethTxMsg *evmtypes.EthereumTxMsg,
 ) sdk.Result {
 
+	// parse the chainID from a string to a base-10 integer
 	chainID, ok := new(big.Int).SetString(ctx.ChainID(), 10)
 	if !ok {
 		return types.ErrInvalidChainID(fmt.Sprintf("invalid chainID: %s", ctx.ChainID())).Result()
