@@ -82,6 +82,11 @@ func validateEthTxCheckTx(
 		return res
 	}
 
+	// validate enough intrinsic gas
+	if res := validateIntrinsicGas(ethTxMsg); !res.IsOK() {
+		return res
+	}
+
 	// validate sender/signature
 	signer, err := ethTxMsg.VerifySig(chainID)
 	if err != nil {
@@ -90,11 +95,6 @@ func validateEthTxCheckTx(
 
 	// validate account (nonce and balance checks)
 	if res := validateAccount(ctx, ak, ethTxMsg, signer); !res.IsOK() {
-		return res
-	}
-
-	// validate enough intrinsic gas
-	if res := validateIntrinsicGas(ethTxMsg); !res.IsOK() {
 		return res
 	}
 
