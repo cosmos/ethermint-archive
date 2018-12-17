@@ -546,7 +546,7 @@
   version = "v0.12.0"
 
 [[projects]]
-  digest = "1:e422b72e363130424996ac35b4b2838569b17256d51b7aa9cf72f4d56a53233f"
+  digest = "1:844c7ba6332e1e6f073d7ac69768fd19f761bdf5964b559bd4b47103a0629144"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/client",
@@ -609,7 +609,7 @@
     "version",
   ]
   pruneopts = "T"
-  revision = "v0.27.0-dev1"
+  revision = "v0.27.0"
 
 [[projects]]
   digest = "1:d738326441b0b732070d727891855573dcb579e74d82fcf9a9459d3257f2eb0c"
@@ -792,11 +792,8 @@
     "github.com/pkg/errors",
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
-    "github.com/tendermint/btcd/btcec",
     "github.com/tendermint/tendermint/abci/types",
     "github.com/tendermint/tendermint/crypto",
-    "github.com/tendermint/tendermint/crypto/ed25519",
-    "github.com/tendermint/tendermint/crypto/secp256k1",
     "github.com/tendermint/tendermint/libs/common",
     "github.com/tendermint/tendermint/libs/db",
     "github.com/tendermint/tendermint/libs/log",

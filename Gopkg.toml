@@ -53,7 +53,7 @@
 
 [[override]]
   name = "github.com/tendermint/tendermint"
-  revision = "v0.27.0-dev1"
+  revision = "v0.27.0"
 
 [[override]]
   name = "golang.org/x/sys"
