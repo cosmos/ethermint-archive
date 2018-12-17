@@ -17,7 +17,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
-	"github.com/cosmos/cosmos-sdk/x/params"
 
 	"github.com/cosmos/ethermint/core"
 	"github.com/cosmos/ethermint/types"
@@ -171,15 +170,7 @@ func TestImportBlocks(t *testing.T) {
 	// create logger, codec and root multi-store
 	cdc := newTestCodec()
 	cms := store.NewCommitMultiStore(db)
-
-	pk := params.NewKeeper(cdc, paramsKey, tParamsKey)
-	ak := auth.NewAccountKeeper(
-		cdc,
-		accKey,
-		pk.Subspace(auth.DefaultParamspace),
-		types.ProtoBaseAccount,
-	)
-	// ak.SetParams(ctx, auth.DefaultParams())
+	ak := auth.NewAccountKeeper(cdc, accKey, types.ProtoBaseAccount)
 
 	// mount stores
 	keys := []*sdk.KVStoreKey{accKey, storageKey, codeKey}
