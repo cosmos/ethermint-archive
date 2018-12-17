@@ -319,6 +319,8 @@ func TxDecoder(cdc *codec.Codec) sdk.TxDecoder {
 
 // recoverEthSig recovers a signature according to the Ethereum specification and
 // returns the sender or an error.
+//
+// Ref: Ethereum Yellow Paper (BYZANTIUM VERSION 69351d5) Appendix F
 func recoverEthSig(R, S, Vb *big.Int, sigHash ethcmn.Hash) (ethcmn.Address, error) {
 	if Vb.BitLen() > 8 {
 		return ethcmn.Address{}, errors.New("invalid signature")
