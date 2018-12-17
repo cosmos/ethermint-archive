@@ -284,9 +284,14 @@ func (msg *EthereumTxMsg) VerifySig(chainID *big.Int) (ethcmn.Address, error) {
 
 // Cost returns amount + gasprice * gaslimit.
 func (msg EthereumTxMsg) Cost() *big.Int {
-	total := new(big.Int).Mul(msg.Data.Price, new(big.Int).SetUint64(msg.Data.GasLimit))
+	total := msg.Fee()
 	total.Add(total, msg.Data.Amount)
 	return total
+}
+
+// Fee returns gasprice * gaslimit.
+func (msg EthereumTxMsg) Fee() *big.Int {
+	return new(big.Int).Mul(msg.Data.Price, new(big.Int).SetUint64(msg.Data.GasLimit))
 }
 
 // ----------------------------------------------------------------------------

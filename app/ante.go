@@ -162,8 +162,7 @@ func validateAccount(
 // NOTE: This should only be ran during a CheckTx mode.
 func ensureSufficientMempoolFees(ctx sdk.Context, ethTxMsg *evmtypes.EthereumTxMsg) sdk.Result {
 	// fee = GP * GL
-	feeAmt := new(big.Int).Mul(ethTxMsg.Data.Price, new(big.Int).SetUint64(ethTxMsg.Data.GasLimit))
-	fee := sdk.Coins{sdk.NewInt64Coin(types.DenomDefault, feeAmt.Int64())}
+	fee := sdk.Coins{sdk.NewInt64Coin(types.DenomDefault, ethTxMsg.Fee().Int64())}
 
 	if !ctx.MinimumFees().IsZero() && !fee.IsAllGTE(ctx.MinimumFees()) {
 		// reject the transaction that does not meet the minimum fee
