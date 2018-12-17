@@ -7,8 +7,8 @@
 
 [[constraint]]
   name = "github.com/cosmos/cosmos-sdk"
-  revision = "75fbce8e854c888063cab7e22930e2a6e382880f"
-  # version = "v0.27.0"
+  revision = "756dce291c0ee7f3ead88c78d5ea88fdb44216a0"
+  # version = "v0.28.0"
 
 [[constraint]]
   name = "github.com/hashicorp/golang-lru"

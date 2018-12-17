@@ -5,13 +5,14 @@ import (
 	"math/big"
 	"testing"
 
+	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
+	tmcrypto "github.com/tendermint/tendermint/crypto"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/ethermint/types"
 	evmtypes "github.com/cosmos/ethermint/x/evm/types"
-	ethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/require"
-	tmcrypto "github.com/tendermint/tendermint/crypto"
 )
 
 func requireValidTx(
@@ -195,7 +196,7 @@ func TestEthInvalidSig(t *testing.T) {
 	to := ethcmn.BytesToAddress(addr2.Bytes())
 	amt := big.NewInt(32)
 	gas := big.NewInt(20)
-	ethMsg := evmtypes.NewEthereumTxMsg(0, to, amt, 20000, gas, []byte("test"))
+	ethMsg := evmtypes.NewEthereumTxMsg(0, to, amt, 22000, gas, []byte("test"))
 
 	tx := newTestEthTx(input.ctx, ethMsg, priv1)
 	ctx := input.ctx.WithChainID("4")
