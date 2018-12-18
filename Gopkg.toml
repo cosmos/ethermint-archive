@@ -7,7 +7,7 @@
 
 [[constraint]]
   name = "github.com/cosmos/cosmos-sdk"
-  revision = "756dce291c0ee7f3ead88c78d5ea88fdb44216a0"
+  revision = "ec9c4ea543b5d0f558cf6ad9f1386d26cfe87f28"
   # version = "v0.28.0"
 
 [[constraint]]
