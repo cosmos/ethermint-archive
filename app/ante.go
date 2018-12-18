@@ -284,6 +284,7 @@ func ensureSufficientMempoolFees(ctx sdk.Context, ethTxMsg *evmtypes.EthereumTxM
 	// fee = GP * GL
 	fee := sdk.Coins{sdk.NewInt64Coin(types.DenomDefault, ethTxMsg.Fee().Int64())}
 
+	// it is assumed that the minimum fees will only include the single valid denom
 	if !ctx.MinimumFees().IsZero() && !fee.IsAllGTE(ctx.MinimumFees()) {
 		// reject the transaction that does not meet the minimum fee
 		return sdk.ErrInsufficientFee(
