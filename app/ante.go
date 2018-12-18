@@ -37,7 +37,6 @@ func NewAnteHandler(ak auth.AccountKeeper, fck auth.FeeCollectionKeeper) sdk.Ant
 		switch castTx := tx.(type) {
 		case auth.StdTx:
 			return sdkAnteHandler(ctx, ak, fck, castTx, sim)
-			// return auth.NewAnteHandler(ak, fck)(ctx, castTx, sim)
 
 		case *evmtypes.EthereumTxMsg:
 			return ethAnteHandler(ctx, castTx, ak)
@@ -258,10 +257,12 @@ func validateAccount(
 			)).Result()
 	}
 
+	// Validate the transaction nonce is valid (equivalent to the sender account’s
+	// current nonce).
 	seq := acc.GetSequence()
-	if ethTxMsg.Data.AccountNonce < seq {
+	if ethTxMsg.Data.AccountNonce != seq {
 		return sdk.ErrInvalidSequence(
-			fmt.Sprintf("nonce too low; got %d, expected >= %d", ethTxMsg.Data.AccountNonce, seq)).Result()
+			fmt.Sprintf("nonce too low; got %d, expected %d", ethTxMsg.Data.AccountNonce, seq)).Result()
 	}
 
 	// validate sender has enough funds
