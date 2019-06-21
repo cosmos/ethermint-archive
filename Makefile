@@ -20,7 +20,7 @@ DOCKER_IMAGE = cosmos/ethermint
 ETHERMINT_DAEMON_BINARY = emintd
 ETHERMINT_CLI_BINARY = emintcli
 
-all: tools deps install
+all: tools install
 
 #######################
 ### Build / Install ###
@@ -115,10 +115,6 @@ else
 	go get -v $(UNPARAM)
 endif
 
-deps:
-	@rm -rf vendor/
-	@echo "--> Running dep ensure"
-	@dep ensure -v
 
 #######################
 ### Testing / Misc. ###
@@ -158,5 +154,5 @@ format:
 	@find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*" | xargs gofmt -w -s
 	@find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*" | xargs misspell -w
 
-.PHONY: build install update-tools tools deps godocs clean format test-lint \
+.PHONY: build install update-tools tools godocs clean format test-lint \
 test-cli test-race test-unit test test-import
