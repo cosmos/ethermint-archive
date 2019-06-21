@@ -44,7 +44,7 @@ clean:
 
 update-tools:
 	@echo "--> Updating vendor dependencies"
-	go get -u -v $(DEP) $(GOLINT) $(GOMETALINTER) $(UNCONVERT) $(INEFFASSIGN) $(MISSPELL) $(ERRCHECK) $(UNPARAM)
+	go get -u -v $(GOLINT) $(GOMETALINTER) $(UNCONVERT) $(INEFFASSIGN) $(MISSPELL) $(ERRCHECK) $(UNPARAM)
 
 
 ############################
@@ -55,7 +55,6 @@ update-tools:
 ### TODO: Move tool depedencies to a separate makefile ###
 ##########################################################
 
-DEP = github.com/golang/dep/cmd/dep
 GOLINT = github.com/tendermint/lint/golint
 GOMETALINTER = gopkg.in/alecthomas/gometalinter.v2
 UNCONVERT = github.com/mdempsky/unconvert
@@ -64,7 +63,6 @@ MISSPELL = github.com/client9/misspell/cmd/misspell
 ERRCHECK = github.com/kisielk/errcheck
 UNPARAM = mvdan.cc/unparam
 
-DEP_CHECK := $(shell command -v dep 2> /dev/null)
 GOLINT_CHECK := $(shell command -v golint 2> /dev/null)
 GOMETALINTER_CHECK := $(shell command -v gometalinter.v2 2> /dev/null)
 UNCONVERT_CHECK := $(shell command -v unconvert 2> /dev/null)
@@ -74,12 +72,6 @@ ERRCHECK_CHECK := $(shell command -v errcheck 2> /dev/null)
 UNPARAM_CHECK := $(shell command -v unparam 2> /dev/null)
 
 tools:
-ifdef DEP_CHECK
-	@echo "Dep is already installed. Run 'make update-tools' to update."
-else
-	@echo "--> Installing dep"
-	go get -v $(DEP)
-endif
 ifdef GOLINT_CHECK
 	@echo "Golint is already installed. Run 'make update-tools' to update."
 else
@@ -150,6 +142,7 @@ test-lint:
 test-import:
 	@go test ./importer -v --vet=off --run=TestImportBlocks --datadir tmp \
 	--blockchain blockchain --timeout=5m
+	# TODO: remove tmp directory after test run to avoid subsequent errors
 
 godocs:
 	@echo "--> Wait a few seconds and visit http://localhost:6060/pkg/github.com/cosmos/ethermint"
