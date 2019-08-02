@@ -3,7 +3,9 @@
 
 # Ethermint
 
-__**WARNING:**__ Ethermint is under VERY ACTIVE DEVELOPMENT and should be treated as pre-alpha software. This means it is not meant to be run in production, its APIs are subject to change without warning and should not be relied upon, and it should not be used to hold any value. We will remove this warning when we have a release that is stable, secure, and properly tested.
+### Ethermint is currently being worked on by [Chainsafe](https://chainsafe.io/), you can follow the progress [here](https://github.com/ChainSafe/ethermint)
+
+\***\*WARNING:\*\*** Ethermint is under VERY ACTIVE DEVELOPMENT and should be treated as pre-alpha software. This means it is not meant to be run in production, its APIs are subject to change without warning and should not be relied upon, and it should not be used to hold any value. We will remove this warning when we have a release that is stable, secure, and properly tested.
 
 ## What is it?
 
