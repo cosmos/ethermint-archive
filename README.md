@@ -20,18 +20,18 @@
 
 - Have a working implementation that can parse and validate the existing ETH Chain and persist it in a Tendermint store
 - Implement Ethereum transactions in the CosmosSDK
-
-#### Current Work
-
 - Implement web3 compatible API layer
 - Implement the EVM as a CosmosSDK module
 - Allow the Ethermint EVM to interact with other [Cosmos SDK modules](https://github.com/cosmos/cosmos-sdk/blob/master/docs/core/app3.md)
 
+#### Current Work
+
+- Ethermint is a functioning Cosmos SDK application and can be deployed as its own zone
+- Full web3 compatibility will enable existing Ethereum applications to use Ethermint
+
 #### Next Steps
 
 - Hard spoon enablement: The ability to export state from `geth` and import token balances into Ethermint
-- Ethermint is a functioning Cosmos SDK application and can be deployed as its own zone
-- Full web3 compatibility will enable existing Ethereum applications to use Ethermint
 
 ### Building Ethermint
 
