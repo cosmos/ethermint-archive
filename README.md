@@ -78,3 +78,8 @@ The following chat channels and forums are a great spot to ask questions about E
 
 - [Cosmos Riot Chat Channel](https://riot.im/app/#/group/+cosmos:matrix.org)
 - Cosmos Forum [![Discourse status](https://img.shields.io/discourse/https/forum.cosmos.network/status.svg)](https://forum.cosmos.network)
+
+
+
+# SECRET LINK TO ETH DENVER TALK
+[link](https://bit.ly/2UKVWHR)
