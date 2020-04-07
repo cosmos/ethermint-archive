@@ -92,7 +92,7 @@ emintd start --pruning=nothing
 After the daemon is started, run (in another process):
 
 ```bash
-emintcli rest-server --laddr "tcp://localhost:8545" --unlock-key mykey
+emintcli rest-server --laddr "tcp://localhost:8545" --unlock-key ethermintkey
 ```
 
 and to make sure the server has started correctly, try querying the current block number:
