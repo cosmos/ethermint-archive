@@ -94,16 +94,17 @@ func (emfd EthMempoolFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 
 	minGasPrices := ctx.MinGasPrices()
 
-	allGTE := true
-	for _, v := range minGasPrices {
-		if !fee.IsGTE(v) {
-			allGTE = false
-		}
+	// check that fee provided is greater than the minimum
+	// NOTE: we only check if photons are present in min gas prices. It is up to the
+	// sender if they want to send additional fees in other denominations.
+	var hasEnoughFees bool
+	if fee.Amount.GTE(minGasPrices.AmountOf(emint.DenomDefault)) {
+		hasEnoughFees = true
 	}
 
-	// it is assumed that the minimum fees will only include the single valid denom
-	if !ctx.MinGasPrices().IsZero() && !allGTE {
-		// reject the transaction that does not meet the minimum fee
+	// reject transaction if minimum gas price is positive and the transaction does not
+	// meet the minimum fee
+	if !ctx.MinGasPrices().IsZero() && !hasEnoughFees {
 		return ctx, sdkerrors.Wrap(
 			sdkerrors.ErrInsufficientFee,
 			fmt.Sprintf("insufficient fee, got: %q required: %q", fee, ctx.MinGasPrices()),
@@ -135,11 +136,13 @@ func (esvd EthSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 	}
 
 	// validate sender/signature
-	// NOTE: signer is retrieved from the transaction on the next AnteDecorator
 	_, err = msgEthTx.VerifySig(chainID)
 	if err != nil {
-		return ctx, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "signature verification failed")
+		return ctx, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, fmt.Sprintf("signature verification failed: %s", err.Error()))
 	}
+
+	// NOTE: when signature verification suceeds, a non-empty signer address can be
+	// retrieved from the transaction on the next AnteDecorators.
 
 	return next(ctx, msgEthTx, simulate)
 }
@@ -169,10 +172,10 @@ func (avd AccountVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 		return ctx, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid transaction type: %T", tx)
 	}
 
-	// sender address should be in the tx cache
+	// sender address should be in the tx cache from the previous AnteHandle call
 	address := msgEthTx.From()
-	if address == nil {
-		panic("sender address is nil")
+	if address.Empty() {
+		panic("sender address cannot be empty")
 	}
 
 	acc := avd.ak.GetAccount(ctx, address)
@@ -188,19 +191,20 @@ func (avd AccountVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 		)
 	}
 
-	// validate sender has enough funds
+	// validate sender has enough funds to pay for gas cost
 	balance := avd.bk.GetBalance(ctx, acc.GetAddress(), emint.DenomDefault)
 	if balance.Amount.BigInt().Cmp(msgEthTx.Cost()) < 0 {
 		return ctx, sdkerrors.Wrapf(
 			sdkerrors.ErrInsufficientFunds,
-			"%s < %s%s", balance.String(), msgEthTx.Cost().String(), emint.DenomDefault,
+			"sender balance < tx gas cost (%s < %s%s)", balance.String(), msgEthTx.Cost().String(), emint.DenomDefault,
 		)
 	}
 
 	return next(ctx, tx, simulate)
 }
 
-// NonceVerificationDecorator that the nonce matches
+// NonceVerificationDecorator that the account nonce from the transaction matches
+// the sender account sequence.
 type NonceVerificationDecorator struct {
 	ak auth.AccountKeeper
 }
@@ -220,10 +224,10 @@ func (nvd NonceVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 		return ctx, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid transaction type: %T", tx)
 	}
 
-	// sender address should be in the tx cache
+	// sender address should be in the tx cache from the previous AnteHandle call
 	address := msgEthTx.From()
-	if address == nil {
-		panic("sender address is nil")
+	if address.Empty() {
+		panic("sender address cannot be empty")
 	}
 
 	acc := nvd.ak.GetAccount(ctx, address)
@@ -272,8 +276,8 @@ func (egcd EthGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 
 	// sender address should be in the tx cache
 	address := msgEthTx.From()
-	if address == nil {
-		panic("sender address is nil")
+	if address.Empty() {
+		panic("sender address cannot be empty")
 	}
 
 	// Fetch sender account from signature
@@ -313,8 +317,32 @@ func (egcd EthGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 	}
 
 	// Set gas meter after ante handler to ignore gaskv costs
+
+	fmt.Println("gaslimit", gasLimit, "gas consumed", gas)
 	newCtx = auth.SetGasMeter(simulate, ctx, gasLimit)
+	fmt.Println("gas consumed ctx", ctx.GasMeter().GasConsumed())
 	newCtx.GasMeter().ConsumeGas(gas, "eth intrinsic gas")
+	fmt.Println("gas after consumed newCtx", newCtx.GasMeter().GasConsumed())
+
+	// Decorator will catch an OutOfGasPanic caused in the next antehandler
+	// AnteHandlers must have their own defer/recover in order for the BaseApp
+	// to know how much gas was used! This is because the GasMeter is created in
+	// the AnteHandler, but if it panics the context won't be set properly in
+	// runTx's recover call.
+	defer func() {
+		if r := recover(); r != nil {
+			switch rType := r.(type) {
+			case sdk.ErrorOutOfGas:
+				log := fmt.Sprintf(
+					"out of gas in location: %v; gasLimit: %d, gasUsed: %d",
+					rType.Descriptor, gasLimit, newCtx.GasMeter().GasConsumed(),
+				)
+				err = sdkerrors.Wrap(sdkerrors.ErrOutOfGas, log)
+			default:
+				panic(r)
+			}
+		}
+	}()
 
 	return next(newCtx, tx, simulate)
 }
@@ -337,28 +365,35 @@ func NewIncrementSenderSequenceDecorator(ak auth.AccountKeeper) IncrementSenderS
 
 // AnteHandle handles incrementing the sequence of the sender.
 func (issd IncrementSenderSequenceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	// no need to increment sequence on RecheckTx
+	// get and set account must be called with an infinite gas meter in order to prevent
+	// additional gas from being deducted.
+	gasMeter := ctx.GasMeter()
+	fmt.Println(gasMeter)
+	ctx = ctx.WithBlockGasMeter(sdk.NewInfiniteGasMeter())
+
+	// no need to increment sequence on RecheckTx mode
 	if ctx.IsReCheckTx() && !simulate {
+		ctx = ctx.WithBlockGasMeter(gasMeter)
 		return next(ctx, tx, simulate)
 	}
 
-	// get and set account must be called with an infinite gas meter in order to prevent
-	// additional gas from being deducted.
-	oldCtx := ctx.WithBlockGasMeter(sdk.NewInfiniteGasMeter())
-
 	msgEthTx, ok := tx.(evmtypes.MsgEthereumTx)
 	if !ok {
+		ctx = ctx.WithBlockGasMeter(gasMeter)
 		return ctx, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid transaction type: %T", tx)
 	}
 
 	// increment sequence of all signers
 	for _, addr := range msgEthTx.GetSigners() {
-		acc := issd.ak.GetAccount(oldCtx, addr)
+		acc := issd.ak.GetAccount(ctx, addr)
 		if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
 			panic(err)
 		}
-		issd.ak.SetAccount(oldCtx, acc)
+		issd.ak.SetAccount(ctx, acc)
 	}
+
+	ctx = ctx.WithBlockGasMeter(gasMeter)
+	fmt.Println("gas consumed final", ctx.GasMeter().GasConsumed())
 
 	return next(ctx, tx, simulate)
 }
