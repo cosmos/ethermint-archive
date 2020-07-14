@@ -24,19 +24,13 @@ func (suite *StateDBTestSuite) TestTransitionDb() {
 
 	testCase := []struct {
 		name     string
-		malleate func(state types.StateTransition)
+		malleate func()
 		state    types.StateTransition
+		expPass  bool
 	}{
 		{
-			"passing test",
-			func(state types.StateTransition) {
-				_, err = state.TransitionDb(suite.ctx)
-				suite.Require().NoError(err)
-				fromBalance := suite.stateDB.GetBalance(addr)
-				toBalance := suite.stateDB.GetBalance(recipient)
-				suite.Require().Equal(fromBalance, new(big.Int).SetUint64(4950))
-				suite.Require().Equal(toBalance, new(big.Int).SetUint64(50))
-			},
+			"passing state transition",
+			func() {},
 			types.StateTransition{
 				AccountNonce: nonce,
 				Price:        new(big.Int).SetUint64(10),
@@ -50,14 +44,11 @@ func (suite *StateDBTestSuite) TestTransitionDb() {
 				Sender:       addr,
 				Simulate:     suite.ctx.IsCheckTx(),
 			},
+			true,
 		},
 		{
-			"send more than balance",
-			func(state types.StateTransition) {
-				_, err = state.TransitionDb(suite.ctx)
-				suite.Require().Error(err)
-
-			},
+			"fail by sending more than balance",
+			func() {},
 			types.StateTransition{
 				AccountNonce: nonce,
 				Price:        new(big.Int).SetUint64(10),
@@ -71,10 +62,23 @@ func (suite *StateDBTestSuite) TestTransitionDb() {
 				Sender:       addr,
 				Simulate:     suite.ctx.IsCheckTx(),
 			},
+			false,
 		},
 	}
 
 	for _, tc := range testCase {
-		tc.malleate(tc.state)
+		tc.malleate()
+		if tc.expPass {
+			_, err = tc.state.TransitionDb(suite.ctx)
+			suite.Require().NoError(err)
+			fromBalance := suite.stateDB.GetBalance(addr)
+			toBalance := suite.stateDB.GetBalance(recipient)
+			suite.Require().Equal(fromBalance, new(big.Int).SetUint64(4950))
+			suite.Require().Equal(toBalance, new(big.Int).SetUint64(50))
+		} else {
+			_, err = tc.state.TransitionDb(suite.ctx)
+			suite.Require().Error(err)
+
+		}
 	}
 }
