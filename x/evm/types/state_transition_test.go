@@ -3,22 +3,24 @@ package types_test
 import (
 	"math/big"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/cosmos/ethermint/crypto"
+	ethermint "github.com/cosmos/ethermint/types"
 	"github.com/cosmos/ethermint/x/evm/types"
+
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 func (suite *StateDBTestSuite) TestTransitionDb() {
-	priv, err := crypto.GenerateKey()
-	suite.Require().NoError(err)
-	addr := ethcrypto.PubkeyToAddress(priv.ToECDSA().PublicKey)
-	nonce := uint64(123)
-	balance := new(big.Int).SetUint64(5000)
-	suite.stateDB.SetNonce(addr, nonce)
-	suite.stateDB.AddBalance(addr, balance)
+	suite.stateDB.SetNonce(suite.address, 123)
 
-	priv, err = crypto.GenerateKey()
+	addr := sdk.AccAddress(suite.address.Bytes())
+	balance := sdk.NewCoin(ethermint.DenomDefault, sdk.NewInt(5000))
+	suite.app.BankKeeper.SetBalance(suite.ctx, addr, balance)
+
+	priv, err := crypto.GenerateKey()
 	suite.Require().NoError(err)
 	recipient := ethcrypto.PubkeyToAddress(priv.ToECDSA().PublicKey)
 
@@ -32,17 +34,53 @@ func (suite *StateDBTestSuite) TestTransitionDb() {
 			"passing state transition",
 			func() {},
 			types.StateTransition{
-				AccountNonce: nonce,
-				Price:        new(big.Int).SetUint64(10),
+				AccountNonce: 123,
+				Price:        big.NewInt(10),
 				GasLimit:     11,
 				Recipient:    &recipient,
-				Amount:       new(big.Int).SetUint64(50),
+				Amount:       big.NewInt(50),
 				Payload:      []byte("data"),
-				ChainID:      new(big.Int).SetUint64(1),
+				ChainID:      big.NewInt(1),
 				Csdb:         suite.stateDB,
 				TxHash:       &ethcmn.Hash{},
-				Sender:       addr,
+				Sender:       suite.address,
 				Simulate:     suite.ctx.IsCheckTx(),
+			},
+			true,
+		},
+		{
+			"contract creation",
+			func() {},
+			types.StateTransition{
+				AccountNonce: 123,
+				Price:        big.NewInt(10),
+				GasLimit:     11,
+				Recipient:    nil,
+				Amount:       big.NewInt(10),
+				Payload:      []byte("data"),
+				ChainID:      big.NewInt(1),
+				Csdb:         suite.stateDB,
+				TxHash:       &ethcmn.Hash{},
+				Sender:       suite.address,
+				Simulate:     true,
+			},
+			true,
+		},
+		{
+			"state transition simulation",
+			func() {},
+			types.StateTransition{
+				AccountNonce: 123,
+				Price:        big.NewInt(10),
+				GasLimit:     11,
+				Recipient:    &recipient,
+				Amount:       big.NewInt(10),
+				Payload:      []byte("data"),
+				ChainID:      big.NewInt(1),
+				Csdb:         suite.stateDB,
+				TxHash:       &ethcmn.Hash{},
+				Sender:       suite.address,
+				Simulate:     true,
 			},
 			true,
 		},
@@ -50,16 +88,57 @@ func (suite *StateDBTestSuite) TestTransitionDb() {
 			"fail by sending more than balance",
 			func() {},
 			types.StateTransition{
-				AccountNonce: nonce,
-				Price:        new(big.Int).SetUint64(10),
+				AccountNonce: 123,
+				Price:        big.NewInt(10),
 				GasLimit:     11,
 				Recipient:    &recipient,
-				Amount:       new(big.Int).SetUint64(4951),
+				Amount:       big.NewInt(4951),
 				Payload:      []byte("data"),
-				ChainID:      new(big.Int).SetUint64(1),
+				ChainID:      big.NewInt(1),
 				Csdb:         suite.stateDB,
 				TxHash:       &ethcmn.Hash{},
-				Sender:       addr,
+				Sender:       suite.address,
+				Simulate:     suite.ctx.IsCheckTx(),
+			},
+			false,
+		},
+		{
+			"failed to Finalize",
+			func() {},
+			types.StateTransition{
+				AccountNonce: 123,
+				Price:        big.NewInt(10),
+				GasLimit:     11,
+				Recipient:    &recipient,
+				Amount:       big.NewInt(-5000),
+				Payload:      []byte("data"),
+				ChainID:      big.NewInt(1),
+				Csdb:         suite.stateDB,
+				TxHash:       &ethcmn.Hash{},
+				Sender:       suite.address,
+				Simulate:     false,
+			},
+			false,
+		},
+		{
+			"nil gas price",
+			func() {
+				invalidGas := sdk.DecCoins{
+					{Denom: ethermint.DenomDefault},
+				}
+				suite.ctx = suite.ctx.WithMinGasPrices(invalidGas)
+			},
+			types.StateTransition{
+				AccountNonce: 123,
+				Price:        big.NewInt(10),
+				GasLimit:     11,
+				Recipient:    &recipient,
+				Amount:       big.NewInt(10),
+				Payload:      []byte("data"),
+				ChainID:      big.NewInt(1),
+				Csdb:         suite.stateDB,
+				TxHash:       &ethcmn.Hash{},
+				Sender:       suite.address,
 				Simulate:     suite.ctx.IsCheckTx(),
 			},
 			false,
@@ -68,17 +147,17 @@ func (suite *StateDBTestSuite) TestTransitionDb() {
 
 	for _, tc := range testCase {
 		tc.malleate()
-		if tc.expPass {
-			_, err = tc.state.TransitionDb(suite.ctx)
-			suite.Require().NoError(err)
-			fromBalance := suite.stateDB.GetBalance(addr)
-			toBalance := suite.stateDB.GetBalance(recipient)
-			suite.Require().Equal(fromBalance, new(big.Int).SetUint64(4950))
-			suite.Require().Equal(toBalance, new(big.Int).SetUint64(50))
-		} else {
-			_, err = tc.state.TransitionDb(suite.ctx)
-			suite.Require().Error(err)
 
+		_, err = tc.state.TransitionDb(suite.ctx)
+
+		if tc.expPass {
+			suite.Require().NoError(err, tc.name)
+			fromBalance := suite.app.EvmKeeper.GetBalance(suite.ctx, suite.address)
+			toBalance := suite.app.EvmKeeper.GetBalance(suite.ctx, recipient)
+			suite.Require().Equal(fromBalance, big.NewInt(4950), tc.name)
+			suite.Require().Equal(toBalance, big.NewInt(50), tc.name)
+		} else {
+			suite.Require().Error(err, tc.name)
 		}
 	}
 }
