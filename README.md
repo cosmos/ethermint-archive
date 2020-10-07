@@ -1,9 +1,13 @@
+> This repo is archived as of October 7, 2020 but made available for historical record.
+
+### Active development of Ethermint is located at [github.com/cosmos/ethermint](https://github.com/cosmos/ethermint)
+
+
 [![CircleCI](https://circleci.com/gh/cosmos/ethermint.svg?style=svg)](https://circleci.com/gh/cosmos/ethermint)
 [![](https://godoc.org/github.com/cosmos/ethermint?status.svg)](http://godoc.org/github.com/cosmos/ethermint) [![Go Report Card](https://goreportcard.com/badge/github.com/cosmos/ethermint)](https://goreportcard.com/report/github.com/cosmos/ethermint)
 
 # Ethermint
 
-### Ethermint is currently being worked on by [Chainsafe](https://chainsafe.io/), you can follow the progress [here](https://github.com/ChainSafe/ethermint)
 
 \***\*WARNING:\*\*** Ethermint is under VERY ACTIVE DEVELOPMENT and should be treated as pre-alpha software. This means it is not meant to be run in production, its APIs are subject to change without warning and should not be relied upon, and it should not be used to hold any value. We will remove this warning when we have a release that is stable, secure, and properly tested.
 
